@@ -31,10 +31,13 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 把所有打开的浮窗叠到右上角,**保留每张原尺寸**。第一张(key 浮窗)正常贴在
-    /// 右上角;后续每张的 **底部** 比前一张再低 `stepY` —— 这样后面那张总有一截
-    /// 露在最前那张的下面,用户可以直接点中间任何一张把它带到最前。
-    /// 各张右边都对齐到 `visible.maxX - margin`,视觉上是一摞贴右边的便条。
+    /// 把所有打开的浮窗排成 macOS 经典 cascade。**保留每张原尺寸**,各张右边
+    /// 对齐;每张笔记的**顶部**比前一张顶部低 `stepY`,所有笔记都按 cascade 顺序
+    /// 重排 z-order —— key 浮窗(用户最近用的)放在最前最下方,完整可见;它后面
+    /// 每张笔记按 cascade 顺序往上往后排,露出顶部 36pt 条让用户能点中。
+    ///
+    /// 之前用 bottom-anchored,矮笔记的顶部会戳到高笔记之上变成乱序;classic
+    /// cascade 的顶边对齐才是规整的「依次向下」效果,跟 macOS Window > Cascade 一致。
     func stackAll() {
         guard let screen = activeScreen() else { return }
         let visible = screen.visibleFrame
@@ -42,17 +45,24 @@ final class FloatingNotesRegistry {
         let stepY: CGFloat = 36
         let rightX = visible.maxX - margin
 
-        let ordered = orderedWindowControllers()
-        guard let first = ordered.first?.currentFrame else { return }
-        let firstBottomY = visible.maxY - margin - first.height
+        // cascadeOrder[0] = 最老的笔记,放在 cascade 最上方;最后一个是 key 浮窗,
+        // 排在 cascade 最下方。orderedWindowControllers 把 key 放在 [0],倒过来就行。
+        let cascadeOrder = Array(orderedWindowControllers().reversed())
+        guard !cascadeOrder.isEmpty else { return }
 
-        for (i, wc) in ordered.enumerated() {
+        let firstTopY = visible.maxY - margin
+        for (i, wc) in cascadeOrder.enumerated() {
             guard let frame = wc.currentFrame else { continue }
-            // 后面每张的底部各往下 stepY —— **bottom-anchored** 才能保证矮的笔记
-            // 不会被前面的高笔记完全盖住(top-anchored 在尺寸不齐时会丢可见区)。
-            let bottomY = firstBottomY - CGFloat(i) * stepY
-            let origin = NSPoint(x: rightX - frame.width, y: bottomY)
+            let topY = firstTopY - CGFloat(i) * stepY
+            let origin = NSPoint(x: rightX - frame.width, y: topY - frame.height)
             wc.animateFrame(NSRect(origin: origin, size: frame.size))
+        }
+
+        // 重排 z-order:按 cascade 顺序依次 orderFront,最后一个调到最前。最终
+        // top-to-bottom 是 [key, ..., 最老],跟视觉位置(下→上)对应,每张笔记的
+        // 顶部 36pt 都不会被同 cascade 的下一张挡住。
+        for wc in cascadeOrder {
+            wc.bringToFrontWithoutActivating()
         }
     }
 
@@ -240,6 +250,12 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
 
     /// tile 时读当前 frame 决定每张笔记占多大。
     var currentFrame: NSRect? { window?.frame }
+
+    /// stack 时按 cascade 顺序重排 z-order 用。`orderFront(nil)` 不改 key,只调
+    /// z 层 —— 多个浮窗依次调一遍后,最后一个就在最前。
+    func bringToFrontWithoutActivating() {
+        window?.orderFront(nil)
+    }
 
     /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡,
     /// 比直接 setFrame 体验好很多。windowDidMove/Resize 会在动画期间高频回调,
