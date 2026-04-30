@@ -37,8 +37,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         hotKey = HotKeyManager()
         hotKey.register(combo: .captureDefault) { [weak self] in
-            self?.capture.toggle()
+            // 先读再 toggle —— Noticky 一抢焦点,frontmostApplication 就变成自己,
+            // 读到的就只能是 capture 输入框的空内容。Carbon 热键回调跑在主线程,
+            // SelectionFetcher 同步调 AX 即可,不会阻塞用户感知。
+            let prefill = SelectionFetcher.currentSelection()
+            self?.capture.toggle(prefill: prefill)
         }
+        // 首次进入提一下权限对话框;已授权时是 no-op,用户拒绝后就只是没有 prefill,
+        // 热键和手动输入都还能用。
+        SelectionFetcher.requestTrust()
 
         restorePinnedNotes(in: context)
         // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)

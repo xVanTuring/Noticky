@@ -12,18 +12,19 @@ final class CaptureWindowController {
         self.floating = floating
     }
 
-    func toggle() {
+    func toggle(prefill: String? = nil) {
         if let w = window, w.isVisible {
             w.orderOut(nil)
             return
         }
-        present()
+        present(prefill: prefill ?? "")
     }
 
     private static let contentSize = NSSize(width: 560, height: 132)
 
-    private func present() {
+    private func present(prefill: String) {
         let view = CaptureView(
+            initialText: prefill,
             onSubmit: { [weak self] text in
                 self?.save(text)
                 self?.window?.orderOut(nil)
@@ -78,10 +79,20 @@ final class CaptureWindowController {
 }
 
 private struct CaptureView: View {
-    @State private var text = ""
+    @State private var text: String
     @FocusState private var focused: Bool
     let onSubmit: (String) -> Void
     let onCancel: () -> Void
+
+    init(
+        initialText: String = "",
+        onSubmit: @escaping (String) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self._text = State(initialValue: initialText)
+        self.onSubmit = onSubmit
+        self.onCancel = onCancel
+    }
 
     var body: some View {
         VStack(spacing: 0) {
