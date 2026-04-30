@@ -6,15 +6,18 @@ final class MenuBarController: NSObject {
     private let context: NSManagedObjectContext
     private let floating: FloatingNotesRegistry
     private let manager: ManagerWindowController
+    private let settings: SettingsWindowController
 
     init(
         context: NSManagedObjectContext,
         floating: FloatingNotesRegistry,
-        manager: ManagerWindowController
+        manager: ManagerWindowController,
+        settings: SettingsWindowController
     ) {
         self.context = context
         self.floating = floating
         self.manager = manager
+        self.settings = settings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -117,11 +120,9 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func showSettings() {
-        // SwiftUI Settings scene 在 responder chain 上注册了 `showSettingsWindow:`
-        // (macOS 13+);activate 之后发这个 selector 就能弹出 SwiftUI 设置窗,
-        // 跟 ⌘, 触发的是同一个入口。
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        // 我们自己的 AppKit SettingsWindowController(NSTabViewController + 动画 resize)。
+        // 跟 AppDelegate 装的主菜单 ⌘, 殊途同归。
+        settings.showWindow()
     }
 
     private func noteMenuItem(_ note: Note) -> NSMenuItem {

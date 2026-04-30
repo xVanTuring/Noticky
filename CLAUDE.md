@@ -107,16 +107,25 @@ sqlite3 "$HOME/Library/Containers/app.noticky.Noticky/Data/Library/Application S
   call `window.setContentSize(...)` once. Don't also set SwiftUI `.frame()`
   or `host.preferredContentSize` — three constraints triggers Auto Layout
   infinite loop crash.
-- **Settings window: SwiftUI `Settings { SettingsView() }` + `TabView`**.
-  Free on macOS 14+: toolbar tabs with icons, top-anchored window resize
-  between tabs, ⌘, binding. **No height animation** though — tab switches
-  snap. Getting the System Settings.app animation back requires
-  `NSTabViewController` subclass + `NSAnimationContext.runAnimationGroup`
-  + manual top-anchor `window.animator().setFrame(...)`, plus an
-  `NSEvent.addLocalMonitorForEvents` for ⌘, since AppDelegate can't
-  intercept SwiftUI's binding. We chose the clean SwiftUI path over the
-  animation. From the menu bar trigger Settings via
-  `NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)`.
+- **Entry point is AppKit, not SwiftUI App**. `AppDelegate` carries `@main`
+  and a custom `static func main()` that runs `NSApplication.shared`. We
+  do **not** use `@main struct ...: App { var body: some Scene { ... } }`
+  because that requires at least one Scene, and `Settings { ... }` scene
+  hijacks ⌘, via a private mechanism that beats `NSApp.mainMenu` key
+  equivalent dispatch (verified: replacing mainMenu still showed SwiftUI's
+  empty Settings window on ⌘,). `WindowGroup`/`Window` auto-create
+  visible windows, also unwanted. So no SwiftUI App lifecycle at all.
+- **Settings window is fully AppKit** (`SettingsWindowController` +
+  `AnimatedSettingsTabController: NSTabViewController`). ⌘, comes from a
+  hand-rolled `NSApp.mainMenu` Settings item — LSUIElement hides the
+  menu bar but key equivalents still dispatch. Animation: `NSAnimationContext.
+  runAnimationGroup { ctx.allowsImplicitAnimation = true; window.animator().
+  setFrame(...) }` with top-anchor (`origin.y -= delta`). This matches
+  sindresorhus/Settings + every other open-source mac app that wants the
+  System Settings.app feel — see CLAUDE.md commits for the search trail.
+  Each pane's `NSHostingController.sizingOptions = .preferredContentSize`
+  bridges SwiftUI `.frame(...)` to `NSViewController.preferredContentSize`,
+  so the tab controller can read the target size.
 
 ## Commits
 
