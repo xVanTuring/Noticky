@@ -13,7 +13,10 @@ struct ManagerView: View {
     @FetchRequest(fetchRequest: Note.sortedFetchRequest(), animation: .default)
     private var allNotes: FetchedResults<Note>
 
-    @State private var selection: Note.ID?
+    /// **多选**:`List(selection:)` 给 `Binding<Set<Hashable>>` 时,系统自动支持
+    /// Cmd-click(切换单条入/出选区)和 Shift-click(范围选)—— 跟 Finder/Notes
+    /// 一致,不需要自己拦事件。空集合表示没选;单选时取唯一元素显示详情。
+    @State private var selection: Set<Note.ID> = []
     @State private var search: String = ""
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     /// 重命名分组用的状态:点 "Rename" 后存住目标 group + 当前名,alert 用 TextField
@@ -93,7 +96,7 @@ struct ManagerView: View {
             if groups.isEmpty {
                 ForEach(filteredAll, id: \.id) { note in
                     NoteSidebarRow(note: note)
-                        .tag(note.id as Note.ID?)
+                        .tag(note.id)
                         .contextMenu { noteContextMenu(note) }
                 }
             } else {
@@ -101,7 +104,7 @@ struct ManagerView: View {
                     Section {
                         ForEach(filteredNotes(in: group), id: \.id) { note in
                             NoteSidebarRow(note: note)
-                                .tag(note.id as Note.ID?)
+                                .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
                         }
                     } header: {
@@ -113,7 +116,7 @@ struct ManagerView: View {
                     Section("Ungrouped") {
                         ForEach(ungroupedNotes, id: \.id) { note in
                             NoteSidebarRow(note: note)
-                                .tag(note.id as Note.ID?)
+                                .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
                         }
                     }
@@ -128,9 +131,16 @@ struct ManagerView: View {
 
     private var detail: some View {
         Group {
-            if let id = selection,
+            if selection.count == 1,
+               let id = selection.first,
                let note = allNotes.first(where: { $0.id == id && !$0.isDeleted }) {
                 NoteDetailView(note: note, floating: floating)
+            } else if selection.count > 1 {
+                ContentUnavailableView(
+                    "\(selection.count) notes selected",
+                    systemImage: "square.stack",
+                    description: Text("Right-click in the sidebar to delete or move them.")
+                )
             } else {
                 ContentUnavailableView(
                     "Select a note",
@@ -181,7 +191,7 @@ struct ManagerView: View {
     private func createNote() {
         let note = Note.create(in: context)
         try? context.save()
-        selection = note.id
+        selection = [note.id]
     }
 
     private func createGroup() {
@@ -190,25 +200,43 @@ struct ManagerView: View {
         creatingGroup = true
     }
 
+    /// 右键命中**选中**项里的某个 → 作用于整组当前选中(Finder/Notes 标准行为);
+    /// 命中**未选**的项 → 只作用于这一条。返回数组保证至少一项。
+    private func contextTargets(for note: Note) -> [Note] {
+        if selection.contains(note.id), selection.count > 1 {
+            return allNotes.filter { selection.contains($0.id) }
+        }
+        return [note]
+    }
+
     @ViewBuilder
     private func noteContextMenu(_ note: Note) -> some View {
-        Button("Open as Sticky") { floating.show(note: note) }
-        Menu("Move to Group") {
+        let targets = contextTargets(for: note)
+        let multi = targets.count > 1
+
+        // Open as Sticky 只对单条有意义;批量同时弹一堆浮窗会糊屏。
+        if !multi {
+            Button("Open as Sticky") { floating.show(note: note) }
+        }
+
+        Menu(multi ? "Move \(targets.count) Notes to Group" : "Move to Group") {
             Button("Ungrouped") {
-                note.group = nil
+                for n in targets { n.group = nil }
                 try? context.save()
             }
             ForEach(groups, id: \.id) { g in
                 Button(g.name.isEmpty ? "Untitled" : g.name) {
-                    note.group = g
+                    for n in targets { n.group = g }
                     try? context.save()
                 }
             }
         }
         Divider()
-        Button("Delete", role: .destructive) {
-            if selection == note.id { selection = nil }
-            floating.delete(note: note)
+        Button(multi ? "Delete \(targets.count) Notes" : "Delete", role: .destructive) {
+            for n in targets {
+                selection.remove(n.id)
+                floating.delete(note: n)
+            }
         }
     }
 
