@@ -54,6 +54,9 @@ struct PlainTextEditor: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: PlainTextEditor
+        /// 延迟 exit 用 —— 见 `textDidEndEditing` 注释。
+        private var pendingExit: DispatchWorkItem?
+
         init(_ parent: PlainTextEditor) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
@@ -65,16 +68,38 @@ struct PlainTextEditor: NSViewRepresentable {
         /// 拦掉返回 true,触发外层切回渲染态。
         func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                pendingExit?.cancel()
                 parent.onExitEdit?()
                 return true
             }
             return false
         }
 
-        /// 失焦也切回渲染态(点别处、切到别的 sticky、切到别的 App 等)。
-        /// App 切走也会触发,接受这个小代价 —— 用户回来再点一次就进编辑。
+        /// 失焦切回渲染态。**两层防御中文 IME 候选窗口的短暂失焦**:
+        ///
+        /// 1. 拼音预编辑期间(`hasMarkedText` 为 true)直接跳过 —— textView 还在
+        ///    跟 IME 协商,提前 exit 会把 NSTextView 整个销毁,marked text 和 IME
+        ///    候选窗口同归于尽。
+        /// 2. 其它情况延迟 150ms 再 exit —— 部分中文 IME(尤其第三方)弹候选窗时
+        ///    会瞬间偷一下 key 状态,触发 textDidEndEditing 但很快 textView 又重新
+        ///    获焦。`textDidBeginEditing` 里 cancel 这个 pending,真正失焦的场景
+        ///    (点别的窗口/sticky/app)不会回来,150ms 后照常 exit。
         func textDidEndEditing(_ notification: Notification) {
-            parent.onExitEdit?()
+            guard let tv = notification.object as? NSTextView else { return }
+            if tv.hasMarkedText() { return }
+
+            pendingExit?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                self?.parent.onExitEdit?()
+            }
+            pendingExit = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        }
+
+        func textDidBeginEditing(_ notification: Notification) {
+            // textView 重新获焦,取消之前安排的延迟 exit。
+            pendingExit?.cancel()
+            pendingExit = nil
         }
     }
 }
