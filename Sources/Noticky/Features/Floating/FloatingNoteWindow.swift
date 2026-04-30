@@ -263,8 +263,6 @@ private struct FloatingNoteView: View {
     @Environment(\.controlActiveState) private var controlActiveState
     /// 用户在设置面板里可关掉这个效果;@AppStorage 跨视图自动同步。
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
-    @State private var hovering = false
-    @State private var showColorPicker = false
     let onClose: () -> Void
     let onDelete: () -> Void
 
@@ -319,8 +317,44 @@ private struct FloatingNoteView: View {
                 .padding(.bottom, 10)
             }
 
-            // 顶部 hover 工具条:左 ×,右 ⋯。背景透明,贴在卡片顶部。
-            // 用 .circle.fill 风格,跟参考图(经典 Stickies 红绿黄按钮)的视觉一致。
+            // 顶部 hover 工具条独立成一个 struct,**自己拥有 hovering @State** ——
+            // hover 状态切换只让这个子 struct 重渲染,不会沿父链冒泡触发整个
+            // FloatingNoteView 重渲染。否则任何鼠标进出窗都会让 MarkdownNoteEditor
+            // 的 NSTextView updateNSView 被调,扰动中文 IME 的 marked text(拼音)。
+            HoverToolbar(
+                palette: palette,
+                onClose: onClose,
+                onPickColor: { picked in
+                    note.colorIndex = picked.rawValue
+                    note.updatedAt = Date()
+                    try? context.save()
+                },
+                onDelete: onDelete
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+/// 浮窗顶部 hover 工具条 + 全窗 hover 检测。`@State hovering` 在这里独立持有,
+/// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownNoteEditor 重渲染。
+private struct HoverToolbar: View {
+    let palette: StickyPalette
+    let onClose: () -> Void
+    let onPickColor: (StickyPalette) -> Void
+    let onDelete: () -> Void
+    @State private var hovering = false
+    @State private var showColorPicker = false
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            // 全窗 hover 检测层:用 NSTrackingArea 自己的 NSView,不挡点击
+            // (`hitTest` 返回 nil),整窗都能感知 mouseEntered/Exited。
+            // SwiftUI `.onHover` 只能配合 hit-test 区域,要么挡点击要么覆盖不全 ——
+            // 这层 NSView 走 AppKit 原生路线两全。
+            HoverTracker(hovering: $hovering)
+                .allowsHitTesting(false)
+
             HStack {
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
@@ -347,9 +381,7 @@ private struct FloatingNoteView: View {
                     NoteActionsBubble(
                         selected: palette,
                         onPickColor: { picked in
-                            note.colorIndex = picked.rawValue
-                            note.updatedAt = Date()
-                            try? context.save()
+                            onPickColor(picked)
                             showColorPicker = false
                         },
                         onDelete: {
@@ -365,8 +397,53 @@ private struct FloatingNoteView: View {
             .opacity(hovering ? 1 : 0)
             .animation(.easeOut(duration: 0.12), value: hovering)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .onHover { hovering = $0 }
+    }
+}
+
+/// 全窗 hover 检测的隐形 NSView。NSTrackingArea 走 AppKit 原生 mouse enter/exit,
+/// `hitTest` 返回 nil 让点击穿透到下面的 SwiftUI 编辑器。`@Binding hovering` 把
+/// AppKit 端的 enter/exit 事件转成 SwiftUI state(只反映在 HoverToolbar 内部)。
+private struct HoverTracker: NSViewRepresentable {
+    @Binding var hovering: Bool
+
+    final class TrackerView: NSView {
+        var onHoverChange: ((Bool) -> Void)?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            for ta in trackingAreas { removeTrackingArea(ta) }
+            // .inVisibleRect:tracking area 跟着 view 可见区域走,不需要手动维护 rect。
+            // .activeInActiveApp:只在 App 活跃时跟踪,失活了不发杂事件。
+            let ta = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(ta)
+        }
+
+        override func mouseEntered(with event: NSEvent) { onHoverChange?(true) }
+        override func mouseExited(with event: NSEvent)  { onHoverChange?(false) }
+
+        // 不挡点击 —— 编辑器在我们下面,要能拿到 mouseDown。
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    func makeNSView(context: Context) -> TrackerView {
+        let v = TrackerView()
+        v.onHoverChange = { newValue in
+            // tracking 回调可能在非 main 走;SwiftUI state 必须 main 设。
+            DispatchQueue.main.async { hovering = newValue }
+        }
+        return v
+    }
+
+    func updateNSView(_ nsView: TrackerView, context: Context) {
+        // 闭包持有的是 binding 的当前 setter,binding 每次重建都更新一下避免持引用旧版。
+        nsView.onHoverChange = { newValue in
+            DispatchQueue.main.async { hovering = newValue }
+        }
     }
 }
 

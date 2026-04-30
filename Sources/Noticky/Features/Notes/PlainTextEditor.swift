@@ -43,6 +43,10 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = scroll.documentView as? NSTextView else { return }
+        // 中文 IME 拼音预编辑期间(hasMarkedText 为 true),`tv.string = ...` 会
+        // 把 marked text 一锅端清掉。父层 SwiftUI 任意 re-render(比如 hover 变化)
+        // 都会把 updateNSView 推一遍,如果不守卫这里,marked text 每次都被清空。
+        if tv.hasMarkedText() { return }
         if tv.string != text {
             let selected = tv.selectedRanges
             tv.string = text
