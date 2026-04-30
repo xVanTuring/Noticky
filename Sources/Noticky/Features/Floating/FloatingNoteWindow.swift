@@ -53,33 +53,44 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 平铺:用接近正方形的网格把整屏填满。N 张笔记 → ceil(√N) 列,然后按行
-    /// 摆,最后一行可能不满。每格保留 padding 间距,边缘也有 margin,看起来不
-    /// 拥挤。
+    /// 平铺:**保留每张笔记的当前尺寸**,只重排位置。从左上角开始,左→右挨个放,
+    /// 当前行装不下就换行(shelf packing),行高 = 该行内最高的那张。装不下整屏
+    /// 也照常往下放(可能延伸到屏外),让用户自己拖回来。
     func tileAll() {
         guard let screen = activeScreen() else { return }
         let visible = screen.visibleFrame
-        let n = windows.count
-        guard n > 0 else { return }
+        guard !windows.isEmpty else { return }
 
-        let cols = Int(ceil(sqrt(Double(n))))
-        let rows = Int(ceil(Double(n) / Double(cols)))
-        let padding: CGFloat = 12
         let margin: CGFloat = 16
+        let padding: CGFloat = 12
+        let leftEdge = visible.minX + margin
+        let rightLimit = visible.maxX - margin
 
-        let availableW = visible.width - 2 * margin - padding * CGFloat(cols - 1)
-        let availableH = visible.height - 2 * margin - padding * CGFloat(rows - 1)
-        let cellW = floor(availableW / CGFloat(cols))
-        let cellH = floor(availableH / CGFloat(rows))
+        var x = leftEdge
+        // y 是当前行的「顶边」(macOS 坐标系 y 向上,top = maxY 一侧)。
+        var rowTopY = visible.maxY - margin
+        var rowMaxH: CGFloat = 0
+        var anyInRow = false
 
-        let ordered = orderedWindowControllers()
-        for (i, wc) in ordered.enumerated() {
-            let row = i / cols
-            let col = i % cols
-            let x = visible.minX + margin + CGFloat(col) * (cellW + padding)
-            // macOS 坐标系 y 向上,所以从 maxY 往下排,row 0 是最上一行。
-            let y = visible.maxY - margin - CGFloat(row + 1) * cellH - CGFloat(row) * padding
-            wc.animateFrame(NSRect(x: x, y: y, width: cellW, height: cellH))
+        for wc in orderedWindowControllers() {
+            guard let frame = wc.currentFrame else { continue }
+            let w = frame.width
+            let h = frame.height
+
+            // 当前行装不下且至少已放过一张 → 换行。光是一张就超宽也强行放,不再换。
+            if anyInRow, x + w > rightLimit {
+                x = leftEdge
+                rowTopY -= rowMaxH + padding
+                rowMaxH = 0
+                anyInRow = false
+            }
+
+            let origin = NSPoint(x: x, y: rowTopY - h)  // bottom-left 原点
+            wc.animateFrame(NSRect(origin: origin, size: frame.size))
+
+            x += w + padding
+            rowMaxH = max(rowMaxH, h)
+            anyInRow = true
         }
     }
 
@@ -223,6 +234,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     func matches(window other: NSWindow) -> Bool {
         window === other
     }
+
+    /// tile 时读当前 frame 决定每张笔记占多大。
+    var currentFrame: NSRect? { window?.frame }
 
     /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡,
     /// 比直接 setFrame 体验好很多。windowDidMove/Resize 会在动画期间高频回调,
