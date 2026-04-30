@@ -4,10 +4,12 @@ import CoreData
 
 final class CaptureWindowController {
     private let context: NSManagedObjectContext
+    private let floating: FloatingNotesRegistry
     private var window: NSWindow?
 
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, floating: FloatingNotesRegistry) {
         self.context = context
+        self.floating = floating
     }
 
     func toggle() {
@@ -66,8 +68,12 @@ final class CaptureWindowController {
     private func save(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        Note.create(in: context, content: trimmed)
+        let note = Note.create(in: context, content: trimmed)
         try? context.save()
+        // 创建后立刻弹出浮窗 —— ⌘⇧N 快速记录的语义本来就是"写完一条便签放桌面",
+        // 不浮出来用户根本看不到刚记的那条。floating.show 会把 isPinned 置 true
+        // 并按当前 layoutMode 自动 reflow,新笔记直接进 cascade/tile。
+        floating.show(note: note)
     }
 }
 

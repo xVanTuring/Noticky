@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         manager = ManagerWindowController(context: context, floating: floating)
         menuBar = MenuBarController(context: context, floating: floating, manager: manager, settings: settings)
-        capture = CaptureWindowController(context: context)
+        capture = CaptureWindowController(context: context, floating: floating)
         installMainMenu()
 
         hotKey = HotKeyManager()
