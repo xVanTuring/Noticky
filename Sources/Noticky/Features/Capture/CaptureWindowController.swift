@@ -1,0 +1,104 @@
+import AppKit
+import SwiftUI
+import CoreData
+
+final class CaptureWindowController {
+    private let context: NSManagedObjectContext
+    private var window: NSWindow?
+
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+
+    func toggle() {
+        if let w = window, w.isVisible {
+            w.orderOut(nil)
+            return
+        }
+        present()
+    }
+
+    private static let contentSize = NSSize(width: 560, height: 132)
+
+    private func present() {
+        let view = CaptureView(
+            onSubmit: { [weak self] text in
+                self?.save(text)
+                self?.window?.orderOut(nil)
+            },
+            onCancel: { [weak self] in
+                self?.window?.orderOut(nil)
+            }
+        )
+        let host = NSHostingController(rootView: view)
+
+        let w = window ?? makeWindow()
+        w.contentViewController = host
+        // 同 FloatingNoteWindow:contentViewController 会把 window 缩到
+        // SwiftUI 固有尺寸,必须在赋值后再调一次 setContentSize 拉回。
+        w.setContentSize(Self.contentSize)
+        w.center()
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+        window = w
+    }
+
+    private func makeWindow() -> NSWindow {
+        let w = NSWindow(
+            contentRect: NSRect(origin: .zero, size: Self.contentSize),
+            styleMask: [.titled, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        w.titlebarAppearsTransparent = true
+        w.titleVisibility = .hidden
+        w.standardWindowButton(.closeButton)?.isHidden = true
+        w.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        w.standardWindowButton(.zoomButton)?.isHidden = true
+        w.isMovableByWindowBackground = true
+        w.level = .floating
+        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        w.hidesOnDeactivate = true
+        w.isReleasedWhenClosed = false
+        return w
+    }
+
+    private func save(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        Note.create(in: context, content: trimmed)
+        try? context.save()
+    }
+}
+
+private struct CaptureView: View {
+    @State private var text = ""
+    @FocusState private var focused: Bool
+    let onSubmit: (String) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TextField("Quick note…", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 17))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 18)
+                .focused($focused)
+                .onSubmit { onSubmit(text) }
+                .onAppear { focused = true }
+                .onExitCommand { onCancel() }
+            Divider()
+            HStack(spacing: 12) {
+                Label("Save", systemImage: "return")
+                Label("Cancel", systemImage: "escape")
+                Spacer()
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+        .background(.regularMaterial)
+    }
+}
