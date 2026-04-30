@@ -84,7 +84,7 @@ Sources/Noticky/
 
 # For window state: enumerate NSApp.windows and log frame/isVisible/level.
 # For schema/data state, inspect the sqlite directly:
-sqlite3 "$HOME/Library/Containers/app.noticky.Noticky/Data/Library/Application Support/Noticky/Noticky.sqlite" \
+sqlite3 "$HOME/Library/Containers/tech.xvanturing.Noticky/Data/Library/Application Support/Noticky/Noticky.sqlite" \
     "SELECT Z_PK, ZISPINNED, substr(ZCONTENT,1,40) FROM ZNOTE;"
 
 # Crash reports: ~/Library/Logs/DiagnosticReports/Noticky-*.ips

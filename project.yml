@@ -1,6 +1,6 @@
 name: Noticky
 options:
-  bundleIdPrefix: app.noticky
+  bundleIdPrefix: tech.xvanturing
   deploymentTarget:
     macOS: "15.0"
   createIntermediateGroups: true
@@ -35,7 +35,7 @@ targets:
       - package: Textual
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.noticky.Noticky
+        PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Noticky
         CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky.entitlements
     info:
       path: Sources/Noticky/Resources/Info.plist
