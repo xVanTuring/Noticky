@@ -150,7 +150,7 @@ struct PermissionsTab: View {
                     title: "辅助功能 (Accessibility)",
                     description: "按 ⌘⇧N 时读取当前 App 选中的文字,自动填入新便签。",
                     granted: accessibilityGranted,
-                    openSettings: SelectionFetcher.openAccessibilitySettings
+                    openSettings: SelectionFetcher.requestAndOpenAccessibilitySettings
                 )
             } footer: {
                 Text("权限在「系统设置 → 隐私与安全性」里集中管理。点 Open 直达对应面板。")

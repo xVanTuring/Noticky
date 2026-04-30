@@ -22,9 +22,15 @@ enum SelectionFetcher {
         return AXIsProcessTrustedWithOptions(opts)
     }
 
-    /// 直接深链到「系统设置 → 隐私与安全性 → 辅助功能」面板。
-    /// 这个 URL scheme 是 macOS 13+ 通用的官方入口。
-    static func openAccessibilitySettings() {
+    /// 引导用户授权:先把 Noticky 注册进 TCC,再深链到辅助功能面板。
+    ///
+    /// **关键:必须先 `AXIsProcessTrustedWithOptions(prompt:true)`**。
+    /// 没这一步,App 不会出现在「系统设置 → 隐私与安全性 → 辅助功能」
+    /// 列表里 —— 用户跳过去看到的是空列表,只能手动拖 .app 进去,体验很差。
+    /// 调一次这个 API 就把 bundle 注册进 TCC daemon,列表里立刻有条目可勾。
+    /// 已授权时 prompt 调用是 no-op,安全幂等。
+    static func requestAndOpenAccessibilitySettings() {
+        requestTrust()
         guard let url = URL(string:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         ) else { return }

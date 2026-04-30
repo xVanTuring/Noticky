@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            SelectionFetcher.openAccessibilitySettings()
+            SelectionFetcher.requestAndOpenAccessibilitySettings()
             // 不顺手开 capture —— 用户准备去授权,这时候弹个空输入框反而碍事。
             // 授权完成后他会再按一次 ⌘⇧N,届时已经 trusted。
         } else {
