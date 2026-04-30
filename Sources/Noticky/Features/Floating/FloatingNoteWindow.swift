@@ -31,25 +31,28 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 把所有打开的浮窗叠到右上角,**像一摞便利贴**。每张比上一张稍微往左下错开
-    /// 8pt,既看得到层叠感,又能在堆里点中下面那张。所有窗口同时刷为统一尺寸,
-    /// 整体观感整齐。
+    /// 把所有打开的浮窗叠到右上角,**保留每张原尺寸**。第一张(key 浮窗)正常贴在
+    /// 右上角;后续每张的 **底部** 比前一张再低 `stepY` —— 这样后面那张总有一截
+    /// 露在最前那张的下面,用户可以直接点中间任何一张把它带到最前。
+    /// 各张右边都对齐到 `visible.maxX - margin`,视觉上是一摞贴右边的便条。
     func stackAll() {
         guard let screen = activeScreen() else { return }
         let visible = screen.visibleFrame
-        let size = NSSize(width: 240, height: 240)
         let margin: CGFloat = 16
-        let topRight = NSPoint(
-            x: visible.maxX - size.width - margin,
-            y: visible.maxY - size.height - margin
-        )
+        let stepY: CGFloat = 36
+        let rightX = visible.maxX - margin
 
-        // 当前 key 浮窗放最上面,其它按 z-order 往下叠 —— 用户最近用的就在顶。
         let ordered = orderedWindowControllers()
+        guard let first = ordered.first?.currentFrame else { return }
+        let firstBottomY = visible.maxY - margin - first.height
+
         for (i, wc) in ordered.enumerated() {
-            let offset = CGFloat(i) * 8
-            let origin = NSPoint(x: topRight.x - offset, y: topRight.y - offset)
-            wc.animateFrame(NSRect(origin: origin, size: size))
+            guard let frame = wc.currentFrame else { continue }
+            // 后面每张的底部各往下 stepY —— **bottom-anchored** 才能保证矮的笔记
+            // 不会被前面的高笔记完全盖住(top-anchored 在尺寸不齐时会丢可见区)。
+            let bottomY = firstBottomY - CGFloat(i) * stepY
+            let origin = NSPoint(x: rightX - frame.width, y: bottomY)
+            wc.animateFrame(NSRect(origin: origin, size: frame.size))
         }
     }
 
