@@ -28,10 +28,25 @@ enum NoteSort: String, CaseIterable, Identifiable {
     }
 }
 
-// 各 tab SwiftUI 视图。改 internal 让 SettingsWindowController 的
-// NSHostingController 能用。每个都给 .frame(width:480, height:X) 让
-// NSHostingController 推算出 preferredContentSize → 驱动 NSTabViewController
-// 切 tab 时窗口动画 resize。
+// MARK: - Root ----------------------------------------------------------------
+
+/// 设置窗口根视图。SwiftUI Settings scene + TabView,系统会渲染成 macOS 原生
+/// 「图标 toolbar + 切 tab 时窗口高度动画」样式 —— 跟 System Settings.app 一致。
+/// 每个 tab 视图自己 `.frame(width:480, height:X)`,SwiftUI 用这个驱动窗口尺寸。
+struct SettingsView: View {
+    var body: some View {
+        TabView {
+            GeneralTab()
+                .tabItem { Label("General", systemImage: "gearshape") }
+            ShortcutsTab()
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+            NotesTab()
+                .tabItem { Label("Notes", systemImage: "note.text") }
+            ICloudTab()
+                .tabItem { Label("iCloud Sync", systemImage: "icloud") }
+        }
+    }
+}
 
 // MARK: - General -------------------------------------------------------------
 

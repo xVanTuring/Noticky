@@ -107,12 +107,13 @@ sqlite3 "$HOME/Library/Containers/app.noticky.Noticky/Data/Library/Application S
   call `window.setContentSize(...)` once. Don't also set SwiftUI `.frame()`
   or `host.preferredContentSize` — three constraints triggers Auto Layout
   infinite loop crash.
-- **SwiftUI `Settings { ... }` scene's ⌘, binding doesn't go through
-  `showSettingsWindow:` selector** — AppDelegate override won't intercept.
-  Use `NSEvent.addLocalMonitorForEvents` for ⌘, instead.
-- **Settings window animated resize** requires subclassing `NSTabViewController`
-  and manually animating `window.animator().setFrame(...)` with top anchor
-  (`origin.y -= delta`). Default tab switch is snap, not animated.
+- **Settings window: just use SwiftUI `Settings { SettingsView() }` + `TabView`**.
+  On macOS 14+ the system gives free toolbar tabs, top-anchored animated
+  window resize between tabs, and ⌘, binding. Don't reach for
+  `NSTabViewController` or `NSEvent` monitors — that fights the framework.
+  From the menu bar use
+  `NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)`
+  to open it programmatically.
 
 ## Commits
 

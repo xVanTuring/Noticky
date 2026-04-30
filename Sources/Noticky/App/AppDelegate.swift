@@ -8,16 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: HotKeyManager!
     private let floating = FloatingNotesRegistry()
     private var manager: ManagerWindowController!
-    private let settings = SettingsWindowController()
-    private var settingsHotkeyMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let context = PersistenceController.shared.container.viewContext
 
         manager = ManagerWindowController(context: context, floating: floating)
-        menuBar = MenuBarController(context: context, floating: floating, manager: manager, settings: settings)
+        menuBar = MenuBarController(context: context, floating: floating, manager: manager)
         capture = CaptureWindowController(context: context)
-        installSettingsHotkey()
 
         hotKey = HotKeyManager()
         hotKey.register(combo: .captureDefault) { [weak self] in
@@ -53,20 +50,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         floating.isTerminating = true
         return .terminateNow
-    }
-
-    /// SwiftUI 的 `Settings { ... }` scene 用私有机制绑 ⌘,,**不走** `showSettingsWindow:`
-    /// selector,所以 AppDelegate override 拦不下来,会弹出 EmptyView 那个空窗。
-    /// 改成 NSEvent local monitor —— 事件分发到菜单项之前先拦截,直接开自己的窗,
-    /// `return nil` 消耗事件,SwiftUI 的菜单项 action 永远不会被触发。
-    private func installSettingsHotkey() {
-        settingsHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if mods == .command, event.charactersIgnoringModifiers == "," {
-                self?.settings.showWindow()
-                return nil
-            }
-            return event
-        }
     }
 }
