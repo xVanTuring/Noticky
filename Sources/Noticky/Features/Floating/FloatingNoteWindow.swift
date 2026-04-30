@@ -587,6 +587,12 @@ private struct FloatingNoteView: View {
                 .padding(.bottom, 10)
             }
 
+            // 顶部标题条:始终可见,跟着 note.content 自动派生(`cleanTitle` 剥过
+            // markdown 标记,`# 标题`、`**bold**`、列表前缀等都还原成纯文本)。
+            // 跟 hover toolbar 在同一个顶部 strip,左右 padding 让出 ×/⋯ 按钮的位置,
+            // hover 时三者并存不打架。空内容时 cleanTitle 为空字符串,Text 不显示。
+            NoteTitleBar(text: note.cleanTitle)
+
             // 顶部 hover 工具条独立成一个 struct,**自己拥有 hovering @State** ——
             // hover 状态切换只让这个子 struct 重渲染,不会沿父链冒泡触发整个
             // FloatingNoteView 重渲染。否则任何鼠标进出窗都会让 MarkdownNoteEditor
@@ -603,6 +609,30 @@ private struct FloatingNoteView: View {
             )
         }
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+/// 浮窗顶部始终可见的标题条。空标题时不渲染任何东西(EmptyView),保持顶部
+/// 28pt 留给 hover 工具条不挤压编辑器。文本居中、单行截断,左右各 32pt 给
+/// `×` / `⋯` 按钮腾位置。
+private struct NoteTitleBar: View {
+    let text: String
+
+    var body: some View {
+        if text.isEmpty {
+            EmptyView()
+        } else {
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary.opacity(0.65))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.top, 8)
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity)
+                // 标题条不挡点击,不抢编辑器/按钮的事件。
+                .allowsHitTesting(false)
+        }
     }
 }
 

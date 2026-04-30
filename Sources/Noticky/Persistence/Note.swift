@@ -54,10 +54,50 @@ extension Note {
         return note
     }
 
+    /// 第一非空行作为标题,剥掉常见 markdown 标记 —— `#` 标题、`>` 引用、列表
+     /// 前缀、加粗/斜体/删除线/行内代码、链接和图片语法都还原成纯文本。便于在
+    /// 标题条/菜单/管理列表里展示干净的标题。
     var displayTitle: String {
         let firstLine = content
             .components(separatedBy: .newlines)
             .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        return firstLine ?? "New note"
+        guard let raw = firstLine else { return "New note" }
+        let stripped = Self.stripMarkdownMarkers(raw).trimmingCharacters(in: .whitespaces)
+        return stripped.isEmpty ? "New note" : stripped
+    }
+
+    /// 剥 markdown 用的纯文本:首行没有内容时为空。比 `displayTitle` 更干净
+    /// (不返回 "New note" 这种占位符)。浮窗顶部标题条没内容就完全不显示,
+    /// 用这个版本判断是否要渲染。
+    var cleanTitle: String {
+        let firstLine = content
+            .components(separatedBy: .newlines)
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard let raw = firstLine else { return "" }
+        return Self.stripMarkdownMarkers(raw).trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func stripMarkdownMarkers(_ input: String) -> String {
+        var s = input
+        // 行首结构标记:#+ heading、>+ blockquote、`-`/`*`/`+` 列表、有序列表
+        // 数字、taskmark `[ ]`/`[x]`。每一类只匹配开头,顺序无所谓,匹配不到就跳过。
+        s = s.replacingOccurrences(of: "^#+\\s*",      with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "^>+\\s*",      with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "^[-*+]\\s+",   with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "^\\d+\\.\\s+", with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "^\\[[ xX]\\]\\s*", with: "", options: .regularExpression)
+        // 图片 / 链接:`![alt](url)` 和 `[text](url)` 各保留括号里的可见文本。
+        // 图片必须先于链接,因为 `![...](...)` 也匹配链接 pattern。
+        s = s.replacingOccurrences(of: "!\\[([^\\]]*)\\]\\([^\\)]*\\)", with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "\\[([^\\]]*)\\]\\([^\\)]*\\)", with: "$1", options: .regularExpression)
+        // 行内强调/代码:`**bold**`、`*italic*`、`__bold__`、`_italic_`、
+        // `~~strike~~`、`` `code` ``。粗体先于斜体,免得 `**` 被吃成两次 `*`。
+        s = s.replacingOccurrences(of: "\\*\\*([^\\*]+)\\*\\*", with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "__([^_]+)__",           with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "\\*([^\\*]+)\\*",       with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "_([^_]+)_",             with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "~~([^~]+)~~",           with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "`([^`]+)`",             with: "$1", options: .regularExpression)
+        return s
     }
 }
