@@ -5,7 +5,9 @@ import ApplicationServices
 ///
 /// 重要前提:
 /// - 用户必须在「系统设置 → 隐私与安全性 → 辅助功能」中授权 Noticky。
-///   Sandbox 不阻止 AX,但 TCC 仍要求显式授权。
+/// - **Noticky 必须不在 sandbox 中运行**。沙盒在 IPC 层拦截跨进程 AX 查询
+///   (-25204 kAXErrorCannotComplete),即使 TCC 已授权也无效 —— 详见
+///   Resources/Noticky.entitlements 注释。这是把 sandbox 关掉的核心原因。
 /// - 必须在自家窗口抢焦点 *之前* 读 —— 一旦 Noticky 成为 frontmost,
 ///   `frontmostApplication` 就是 Noticky 自己,读到的就是 capture 输入框。
 ///   所以 AppDelegate 那边要先 fetch 再 toggle。
@@ -39,6 +41,10 @@ enum SelectionFetcher {
 
     /// 读 frontmost app 焦点元素的 `kAXSelectedTextAttribute`。
     /// 没选中、没权限、或目标 app 不暴露此属性(部分 Electron/老 app)→ 返回 nil。
+    ///
+    /// **依赖前提:Noticky 已关闭 sandbox**。沙盒会在 IPC 层拦截所有跨进程
+    /// AX 查询(返回 -25204 kAXErrorCannotComplete),即使 TCC 已授权也无效。
+    /// 详见 Resources/Noticky.entitlements 注释。
     static func currentSelection() -> String? {
         guard isTrusted else { return nil }
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
@@ -50,7 +56,6 @@ enum SelectionFetcher {
             kAXFocusedUIElementAttribute as CFString,
             &focusedRef
         ) == .success, let focused = focusedRef else { return nil }
-        // CFTypeRef → AXUIElement。AX 只在运行时检查,这里强转是惯例。
         let element = focused as! AXUIElement
 
         var selectedRef: CFTypeRef?

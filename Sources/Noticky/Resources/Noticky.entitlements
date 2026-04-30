@@ -2,9 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!--
+      关掉 App Sandbox。
+      原因:⌘⇧N 抓选中文字必须做跨进程 Accessibility 查询(AXUIElementCopy-
+      AttributeValue),sandbox 在 IPC 层一律返回 -25204 (kAXErrorCannotComplete),
+      与 TCC 是否授权无关 —— TCC 决定「能调 AX」,sandbox 决定「能跨进程 IPC」,
+      两道墙独立。
+
+      副作用:
+      - 不能上 Mac App Store(MAS 强制 sandbox)。后续若做 MAS 版本,把这条改回
+        true 并把 SelectionFetcher 退化为剪贴板抓选区即可。
+      - Container 路径变更:~/Library/Containers/tech.xvanturing.Noticky/Data/.../
+        Noticky.sqlite → ~/Library/Application Support/Noticky/Noticky.sqlite。
+        PersistenceController 启动时会一次性迁移老库。
+
+      Hardened runtime 仍开启(project.yml ENABLE_HARDENED_RUNTIME = YES)+
+      公证(notarization)就能正常直接分发。
+    -->
     <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.files.user-selected.read-write</key>
-    <true/>
+    <false/>
 </dict>
 </plist>

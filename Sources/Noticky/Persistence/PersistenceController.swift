@@ -21,11 +21,58 @@ final class PersistenceController {
             // loadStores 会走删库重建路径兜底。能成的话用户笔记就保住了。
             desc.shouldMigrateStoreAutomatically = true
             desc.shouldInferMappingModelAutomatically = true
+
+            // Sandbox 关掉之后 NSPersistentContainer 默认路径从
+            //   ~/Library/Containers/<bundle>/Data/Library/Application Support/Noticky/
+            // 变成
+            //   ~/Library/Application Support/Noticky/
+            // 老用户在沙盒容器里的 sqlite 不再可见,启动时一次性把它(以及 -shm/-wal)
+            // 拷贝过来,新位置已有库则跳过。拷贝不删除老文件,留作回滚兜底。
+            if !inMemory, let target = desc.url {
+                Self.migrateFromSandboxContainerIfNeeded(target: target)
+            }
         }
 
         Self.loadStores(in: container, retryOnFailure: !inMemory)
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+    }
+
+    /// 一次性迁移:沙盒容器里的 sqlite 三件套 → 新的 Application Support 路径。
+    /// 仅当目标不存在 + 老库存在 时执行。失败/缺权限时静默跳过,Core Data
+    /// 后面会照常从空目标建一个新库;数据没了,但启动不挂。
+    private static func migrateFromSandboxContainerIfNeeded(target: URL) {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: target.path) { return }
+
+        // 沙盒模式下 NSPersistentContainer 用的就是这个路径;关掉沙盒后系统不再
+        // 把 ~/Library/... 重定向到 Containers/<bundle>/Data/...,但旧文件还在。
+        let bundleID = "tech.xvanturing.Noticky"
+        let home = fm.homeDirectoryForCurrentUser
+        let oldDir = home
+            .appendingPathComponent("Library/Containers")
+            .appendingPathComponent(bundleID)
+            .appendingPathComponent("Data/Library/Application Support/Noticky")
+        let oldStore = oldDir.appendingPathComponent(target.lastPathComponent)
+        guard fm.fileExists(atPath: oldStore.path) else { return }
+
+        do {
+            try fm.createDirectory(
+                at: target.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            for suffix in ["", "-shm", "-wal"] {
+                let from = oldDir.appendingPathComponent(target.lastPathComponent + suffix)
+                let to = target.deletingLastPathComponent()
+                    .appendingPathComponent(target.lastPathComponent + suffix)
+                guard fm.fileExists(atPath: from.path) else { continue }
+                if fm.fileExists(atPath: to.path) { continue }
+                try fm.copyItem(at: from, to: to)
+            }
+            NSLog("Noticky: migrated Core Data store from sandbox container to %@", target.path)
+        } catch {
+            NSLog("Noticky: store migration failed: %@", "\(error)")
+        }
     }
 
     /// 程序化 model 没有 .xcdatamodeld 版本号,schema 改动时 Core Data 推不出
