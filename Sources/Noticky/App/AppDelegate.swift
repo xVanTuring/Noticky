@@ -41,6 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         restorePinnedNotes(in: context)
+        // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)
+        // 在启动时一气呵成,而不是一边 spawn 一边 reflow 一边再 reflow。
+        floating.applyLayout()
     }
 
     /// 整体覆盖 SwiftUI 自动生成的 main menu。LSUIElement App 的 menu bar

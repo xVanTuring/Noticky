@@ -99,27 +99,25 @@ final class MenuBarController: NSObject {
         floatToggle.image = NSImage(systemSymbolName: "pin", accessibilityDescription: nil)
         menu.addItem(floatToggle)
 
-        // 窗口排布。所有打开的浮窗一键 stack(右上角叠成一摞)/ tile(网格平铺)。
-        // 没开浮窗时 disable —— autoenablesItems = false,只能手动控 isEnabled。
-        let stackItem = NSMenuItem(
-            title: "Stack Notes",
-            action: #selector(stackNotes),
-            keyEquivalent: ""
-        )
-        stackItem.target = self
-        stackItem.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
-        stackItem.isEnabled = floating.hasOpenWindows
-        menu.addItem(stackItem)
-
-        let tileItem = NSMenuItem(
-            title: "Tile Notes",
-            action: #selector(tileNotes),
-            keyEquivalent: ""
-        )
-        tileItem.target = self
-        tileItem.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: nil)
-        tileItem.isEnabled = floating.hasOpenWindows
-        menu.addItem(tileItem)
+        // 布局模式:radio 三选一,选中谁就持续维持那个模式。stack 模式下
+        // 点击哪张笔记自动滑到 cascade 最下方;tile 模式下拖动后按位置自动重排。
+        let layoutItem = NSMenuItem(title: "Layout", action: nil, keyEquivalent: "")
+        layoutItem.image = NSImage(systemSymbolName: "rectangle.3.group", accessibilityDescription: nil)
+        let layoutSub = NSMenu(title: "Layout")
+        for mode in LayoutMode.allCases {
+            let item = NSMenuItem(
+                title: mode.label,
+                action: #selector(setLayoutMode(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.image = NSImage(systemSymbolName: mode.icon, accessibilityDescription: nil)
+            item.state = (floating.layoutMode == mode) ? .on : .off
+            layoutSub.addItem(item)
+        }
+        layoutItem.submenu = layoutSub
+        menu.addItem(layoutItem)
 
         menu.addItem(.separator())
         let quit = NSMenuItem(
@@ -137,12 +135,10 @@ final class MenuBarController: NSObject {
         floating.setFloatOnTop(!floating.floatOnTop)
     }
 
-    @objc private func stackNotes() {
-        floating.stackAll()
-    }
-
-    @objc private func tileNotes() {
-        floating.tileAll()
+    @objc private func setLayoutMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = LayoutMode(rawValue: raw) else { return }
+        floating.setLayoutMode(mode)
     }
 
     @objc private func showManager() {

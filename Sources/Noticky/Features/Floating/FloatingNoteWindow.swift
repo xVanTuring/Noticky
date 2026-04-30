@@ -2,9 +2,40 @@ import AppKit
 import SwiftUI
 import CoreData
 
+/// 浮窗布局模式。
+/// - normal:用户手动摆位置,registry 不干预。
+/// - stack:cascade 排列,选中谁(windowDidBecomeKey)就把那张滑到 cascade 最下方
+///         (最前最完整),其它自动重排。新增/关闭也自动 reflow。
+/// - tile:平铺排列,用户拖动一张到新位置释放后,按拖到的位置在队列中重新排序
+///        并重新平铺。新增/关闭也自动 reflow。
+enum LayoutMode: String, CaseIterable {
+    case normal, stack, tile
+
+    var label: String {
+        switch self {
+        case .normal: return "Free Layout"
+        case .stack:  return "Stack"
+        case .tile:   return "Tile"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .normal: return "rectangle.3.group"
+        case .stack:  return "square.stack.3d.up"
+        case .tile:   return "square.grid.2x2"
+        }
+    }
+}
+
 /// 跟踪所有当前打开的悬浮便签,保证一条笔记最多一个浮窗。
 final class FloatingNotesRegistry {
     private var windows: [NSManagedObjectID: FloatingNoteWindowController] = [:]
+    /// 当前显示顺序。stack 模式下:[0] = cascade 最上方(最老/最旧选中的),
+    /// 末尾 = cascade 最下方(最近选中的,最完整可见)。tile 模式下用作行序优先。
+    /// 新窗 spawn 时 append;关闭时 remove;stack 模式下 windowDidBecomeKey
+    /// 时移到末尾;tile 模式下用户拖动后按当前 frame 位置重排序。
+    private var displayOrder: [NSManagedObjectID] = []
     /// AppDelegate 在 `applicationShouldTerminate` 里设为 true。退出时系统会
     /// 关掉所有 window,触发 windowWillClose → onClose,本来会把 isPinned 清掉,
     /// 下次启动 restore 就全 false。这个 flag 让 onClose 在退出阶段跳过 isPinned 写。
@@ -21,6 +52,13 @@ final class FloatingNotesRegistry {
         return UserDefaults.standard.bool(forKey: key)
     }()
 
+    /// 当前布局模式,UserDefaults 持久化。
+    private static let layoutModeKey = "Noticky.layoutMode"
+    private(set) var layoutMode: LayoutMode = {
+        let raw = UserDefaults.standard.string(forKey: FloatingNotesRegistry.layoutModeKey) ?? ""
+        return LayoutMode(rawValue: raw) ?? .normal
+    }()
+
     func setFloatOnTop(_ value: Bool) {
         guard value != floatOnTop else { return }
         floatOnTop = value
@@ -31,45 +69,58 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 把所有打开的浮窗排成 macOS 经典 cascade。**保留每张原尺寸**,各张右边
-    /// 对齐;每张笔记的**顶部**比前一张顶部低 `stepY`,所有笔记都按 cascade 顺序
-    /// 重排 z-order —— key 浮窗(用户最近用的)放在最前最下方,完整可见;它后面
-    /// 每张笔记按 cascade 顺序往上往后排,露出顶部 36pt 条让用户能点中。
-    ///
-    /// 之前用 bottom-anchored,矮笔记的顶部会戳到高笔记之上变成乱序;classic
-    /// cascade 的顶边对齐才是规整的「依次向下」效果,跟 macOS Window > Cascade 一致。
-    func stackAll() {
+    /// 切换布局模式,持久化并立刻生效。设到 `.normal` 不会动当前位置,只是停止
+    /// 后续 auto reflow,用户从此可以自由拖。
+    func setLayoutMode(_ mode: LayoutMode) {
+        guard mode != layoutMode else { return }
+        layoutMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.layoutModeKey)
+        applyLayout()
+    }
+
+    /// 按当前模式重排所有浮窗。`.normal` 是 no-op。
+    /// AppDelegate 在启动 restore 完毕也会调一次,保证启动时回到上次的模式。
+    func applyLayout() {
+        switch layoutMode {
+        case .normal: return
+        case .stack:  applyStackLayout()
+        case .tile:   applyTileLayout()
+        }
+    }
+
+    /// macOS 经典 cascade。**保留每张原尺寸**,各张右边对齐;每张顶部比前一张
+    /// 顶部低 `stepY`,按 displayOrder 排,index 0 在 cascade 最上方,末尾(最近
+    /// 选中的)在最下方完整可见。z-order 按 displayOrder 依次 orderFront,最终
+    /// 末尾那张在最前。
+    private func applyStackLayout() {
         guard let screen = activeScreen() else { return }
         let visible = screen.visibleFrame
         let margin: CGFloat = 16
         let stepY: CGFloat = 36
         let rightX = visible.maxX - margin
 
-        // cascadeOrder[0] = 最老的笔记,放在 cascade 最上方;最后一个是 key 浮窗,
-        // 排在 cascade 最下方。orderedWindowControllers 把 key 放在 [0],倒过来就行。
-        let cascadeOrder = Array(orderedWindowControllers().reversed())
-        guard !cascadeOrder.isEmpty else { return }
+        let cascadeWCs = displayOrder.compactMap { windows[$0] }
+        guard !cascadeWCs.isEmpty else { return }
 
         let firstTopY = visible.maxY - margin
-        for (i, wc) in cascadeOrder.enumerated() {
+        for (i, wc) in cascadeWCs.enumerated() {
             guard let frame = wc.currentFrame else { continue }
             let topY = firstTopY - CGFloat(i) * stepY
             let origin = NSPoint(x: rightX - frame.width, y: topY - frame.height)
             wc.animateFrame(NSRect(origin: origin, size: frame.size))
         }
 
-        // 重排 z-order:按 cascade 顺序依次 orderFront,最后一个调到最前。最终
-        // top-to-bottom 是 [key, ..., 最老],跟视觉位置(下→上)对应,每张笔记的
-        // 顶部 36pt 都不会被同 cascade 的下一张挡住。
-        for wc in cascadeOrder {
+        // z-order 重排:依次 orderFront,最后一个(最近选中的)在最前。
+        for wc in cascadeWCs {
             wc.bringToFrontWithoutActivating()
         }
     }
 
-    /// 平铺:**保留每张笔记的当前尺寸**,只重排位置。从左上角开始,左→右挨个放,
-    /// 当前行装不下就换行(shelf packing),行高 = 该行内最高的那张。装不下整屏
-    /// 也照常往下放(可能延伸到屏外),让用户自己拖回来。
-    func tileAll() {
+    /// 平铺:**保留每张当前尺寸**,只重排位置。先按 displayOrder 决定迭代顺序;
+    /// 但**用户拖动一张后会先把 displayOrder 按当前可视位置重排**,然后再 tile。
+    /// 这样拖到哪儿,松手 reflow 后那张就在哪个 slot,其它顺移补位。
+    /// shelf packing:左→右一行,装不下换行,行高 = 该行最高的那张。
+    private func applyTileLayout() {
         guard let screen = activeScreen() else { return }
         let visible = screen.visibleFrame
         guard !windows.isEmpty else { return }
@@ -80,17 +131,16 @@ final class FloatingNotesRegistry {
         let rightLimit = visible.maxX - margin
 
         var x = leftEdge
-        // y 是当前行的「顶边」(macOS 坐标系 y 向上,top = maxY 一侧)。
         var rowTopY = visible.maxY - margin
         var rowMaxH: CGFloat = 0
         var anyInRow = false
 
-        for wc in orderedWindowControllers() {
+        let tileWCs = displayOrder.compactMap { windows[$0] }
+        for wc in tileWCs {
             guard let frame = wc.currentFrame else { continue }
             let w = frame.width
             let h = frame.height
 
-            // 当前行装不下且至少已放过一张 → 换行。光是一张就超宽也强行放,不再换。
             if anyInRow, x + w > rightLimit {
                 x = leftEdge
                 rowTopY -= rowMaxH + padding
@@ -98,7 +148,7 @@ final class FloatingNotesRegistry {
                 anyInRow = false
             }
 
-            let origin = NSPoint(x: x, y: rowTopY - h)  // bottom-left 原点
+            let origin = NSPoint(x: x, y: rowTopY - h)
             wc.animateFrame(NSRect(origin: origin, size: frame.size))
 
             x += w + padding
@@ -108,7 +158,6 @@ final class FloatingNotesRegistry {
     }
 
     /// 找操作目标屏:有 key 浮窗就用 key 所在屏,否则鼠标所在屏,再否则 main。
-    /// LSUIElement App 从菜单触发时大概率没 key window,鼠标位置最直观。
     private func activeScreen() -> NSScreen? {
         if let keyScreen = NSApp.keyWindow?.screen { return keyScreen }
         let mouse = NSEvent.mouseLocation
@@ -116,17 +165,49 @@ final class FloatingNotesRegistry {
         return NSScreen.main ?? NSScreen.screens.first
     }
 
-    /// 当前 key window 排第一,其它按 windows dict 顺序。stack 时第一个会在最上面。
-    private func orderedWindowControllers() -> [FloatingNoteWindowController] {
-        let all = Array(windows.values)
-        guard let keyWin = NSApp.keyWindow else { return all }
-        let key = all.first { $0.matches(window: keyWin) }
-        guard let key else { return all }
-        return [key] + all.filter { $0 !== key }
-    }
-
     /// 当前是否有任何浮窗(供菜单 enabled 状态用)。
     var hasOpenWindows: Bool { !windows.isEmpty }
+
+    // MARK: 模式回调 ---------------------------------------------------------
+
+    /// 浮窗 windowDidBecomeKey 转过来。stack 模式下,把这张挪到 displayOrder 末尾
+    /// (= cascade 最下方 = 最完整可见),然后重排。tile 模式不动 —— 单纯点击不算
+    /// 重新排序意图。
+    fileprivate func notifyWindowBecameKey(id: NSManagedObjectID) {
+        guard layoutMode == .stack else { return }
+        guard displayOrder.contains(id) else { return }
+        displayOrder.removeAll { $0 == id }
+        displayOrder.append(id)
+        applyStackLayout()
+    }
+
+    /// 用户结束拖动/缩放浮窗(非 animateFrame 触发的位移)。tile 模式下按当前
+    /// 可视位置重排 displayOrder,再 reflow,实现「拖到哪儿就停在哪儿」。stack
+    /// 模式下不重排,直接 reflow 把它弹回 cascade 位置。
+    fileprivate func notifyUserMoveEnded(id: NSManagedObjectID) {
+        switch layoutMode {
+        case .normal:
+            return
+        case .stack:
+            applyStackLayout()
+        case .tile:
+            sortDisplayOrderByCurrentPosition()
+            applyTileLayout()
+        }
+    }
+
+    /// 按浮窗当前 frame 的视觉位置(reading order:上→下,左→右)重排 displayOrder。
+    /// tile 模式下用户拖动后用,把拖到的位置反映到队列顺序。
+    private func sortDisplayOrderByCurrentPosition() {
+        let rowThreshold: CGFloat = 40   // 顶边差距 < 40pt 视为同一行
+        displayOrder.sort { a, b in
+            guard let fa = windows[a]?.currentFrame, let fb = windows[b]?.currentFrame else { return false }
+            if abs(fa.maxY - fb.maxY) > rowThreshold {
+                return fa.maxY > fb.maxY  // 顶部更高的(maxY 更大)在前
+            }
+            return fa.minX < fb.minX        // 同行按左边
+        }
+    }
 
     /// 打开便签;若已打开,则把窗口提到最前。返回 true 表示创建了新窗口。
     @discardableResult
@@ -146,8 +227,10 @@ final class FloatingNotesRegistry {
         if let wc = windows[id] {
             wc.close()
             windows[id] = nil
+            displayOrder.removeAll { $0 == id }
             note.isPinned = false
             try? note.managedObjectContext?.save()
+            applyLayout()
         } else {
             spawn(note: note, id: id)
         }
@@ -163,12 +246,14 @@ final class FloatingNotesRegistry {
         if let wc = windows[id] {
             wc.close()
             windows[id] = nil
+            displayOrder.removeAll { $0 == id }
         }
         let context = note.managedObjectContext
         DispatchQueue.main.async {
             context?.delete(note)
             try? context?.save()
         }
+        applyLayout()
     }
 
     private func spawn(note: Note, id: NSManagedObjectID) {
@@ -181,20 +266,30 @@ final class FloatingNotesRegistry {
             onClose: { [weak self] in
                 guard let self else { return }
                 self.windows[id] = nil
+                self.displayOrder.removeAll { $0 == id }
                 guard !self.isTerminating else { return }
                 note.isPinned = false
                 try? note.managedObjectContext?.save()
+                self.applyLayout()
             },
             onRequestDelete: { [weak self] in
                 self?.delete(note: note)
+            },
+            onBecameKey: { [weak self] in
+                self?.notifyWindowBecameKey(id: id)
+            },
+            onUserMoveEnded: { [weak self] in
+                self?.notifyUserMoveEnded(id: id)
             }
         )
         wc.show(cascadeIndex: cascade)
         windows[id] = wc
+        displayOrder.append(id)
         if !note.isPinned {
             note.isPinned = true
             try? note.managedObjectContext?.save()
         }
+        applyLayout()
     }
 }
 
@@ -222,20 +317,31 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     private let initialLevel: NSWindow.Level
     private let onClose: () -> Void
     private let onRequestDelete: () -> Void
+    private let onBecameKey: () -> Void
+    private let onUserMoveEnded: () -> Void
     private var window: NSWindow?
     /// 拖动/缩放期间会高频回调,debounce 250ms 避免每像素一次 SQL 写。
     private var pendingFrameSave: DispatchWorkItem?
+    /// `animateFrame` 期间为 true,让 windowDidMove/Resize 知道这次位移是 registry
+    /// 自动重排引发的,不要当成用户拖动触发模式 reflow,免得无限循环。
+    private var isAnimating = false
+    /// 真正的用户拖动结束信号:windowDidMove 高频回调,用 debounce 200ms 攒一次。
+    private var pendingUserMove: DispatchWorkItem?
 
     init(
         note: Note,
         initialLevel: NSWindow.Level = .floating,
         onClose: @escaping () -> Void,
-        onRequestDelete: @escaping () -> Void
+        onRequestDelete: @escaping () -> Void,
+        onBecameKey: @escaping () -> Void = {},
+        onUserMoveEnded: @escaping () -> Void = {}
     ) {
         self.note = note
         self.initialLevel = initialLevel
         self.onClose = onClose
         self.onRequestDelete = onRequestDelete
+        self.onBecameKey = onBecameKey
+        self.onUserMoveEnded = onUserMoveEnded
         super.init()
     }
 
@@ -257,17 +363,23 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         window?.orderFront(nil)
     }
 
-    /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡,
-    /// 比直接 setFrame 体验好很多。windowDidMove/Resize 会在动画期间高频回调,
-    /// 已有的 250ms debounce 会把最终 frame 攒一次写库。
+    /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡。
+    /// 期间 `isAnimating = true`,windowDidMove/Resize 跳过 onUserMoveEnded
+    /// 调度,避免自动 reflow 自己触发自己。
     func animateFrame(_ frame: NSRect) {
         guard let w = window else { return }
-        NSAnimationContext.runAnimationGroup { ctx in
+        isAnimating = true
+        NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.28
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             ctx.allowsImplicitAnimation = true
             w.animator().setFrame(frame, display: true)
-        }
+        }, completionHandler: { [weak self] in
+            // 加一拍延迟,等最后一次 windowDidMove 跑完再清 flag。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                self?.isAnimating = false
+            }
+        })
     }
 
     func show(cascadeIndex: Int = 0) {
@@ -334,8 +446,19 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         NSScreen.screens.contains { $0.visibleFrame.intersects(frame) }
     }
 
-    func windowDidMove(_ notification: Notification) { scheduleFrameSave() }
-    func windowDidResize(_ notification: Notification) { scheduleFrameSave() }
+    func windowDidMove(_ notification: Notification) {
+        scheduleFrameSave()
+        scheduleUserMoveCallback()
+    }
+    func windowDidResize(_ notification: Notification) {
+        scheduleFrameSave()
+        scheduleUserMoveCallback()
+    }
+    /// 浮窗变成 key window —— 用户点击它/系统给它焦点。stack 模式下让 registry
+    /// 把它挪到 cascade 最下方。
+    func windowDidBecomeKey(_ notification: Notification) {
+        onBecameKey()
+    }
     // 失焦的视觉变化(毛玻璃)由 FloatingNoteView 内 SwiftUI 用
     // `@Environment(\.controlActiveState)` 自动响应,不需要在 Controller 里调 alpha。
 
@@ -344,6 +467,17 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         let work = DispatchWorkItem { [weak self] in self?.flushFrameSave() }
         pendingFrameSave = work
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(250), execute: work)
+    }
+
+    /// 用户拖动/缩放结束的 debounced 回调。`isAnimating` 期间(registry 自己在
+    /// 动画 setFrame)跳过 —— 那不是用户操作。否则攒 200ms 没新位移就触发,让
+    /// registry 在 tile/stack 模式下做 reflow。
+    private func scheduleUserMoveCallback() {
+        guard !isAnimating else { return }
+        pendingUserMove?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.onUserMoveEnded() }
+        pendingUserMove = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200), execute: work)
     }
 
     private func flushFrameSave() {
