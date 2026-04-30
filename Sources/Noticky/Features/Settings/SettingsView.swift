@@ -40,6 +40,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             ShortcutsTab()
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+            PermissionsTab()
+                .tabItem { Label("Permissions", systemImage: "lock.shield") }
             NotesTab()
                 .tabItem { Label("Notes", systemImage: "note.text") }
             ICloudTab()
@@ -130,6 +132,81 @@ struct ShortcutsTab: View {
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+// MARK: - Permissions ---------------------------------------------------------
+
+/// 系统授权管理。目前只有 Accessibility(决定 ⌘⇧N 能否抓选中文字)。
+/// 状态用 `AXIsProcessTrusted()` 实时取,**不缓存** —— 用户去系统设置勾掉,
+/// 切回这窗口立刻能看到红色未授权状态。`didBecomeActive` 通知触发重读。
+struct PermissionsTab: View {
+    @State private var accessibilityGranted: Bool = SelectionFetcher.isTrusted
+
+    var body: some View {
+        Form {
+            Section {
+                permissionRow(
+                    title: "辅助功能 (Accessibility)",
+                    description: "按 ⌘⇧N 时读取当前 App 选中的文字,自动填入新便签。",
+                    granted: accessibilityGranted,
+                    openSettings: SelectionFetcher.openAccessibilitySettings
+                )
+            } footer: {
+                Text("权限在「系统设置 → 隐私与安全性」里集中管理。点 Open 直达对应面板。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .frame(width: 480, height: 240)
+        // 用户去系统设置勾完授权切回 Noticky 时刷新一次。AX 状态进程内是
+        // 实时生效的,只是 SwiftUI 的 @State 不会自动复算 —— 必须显式 poke。
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification
+        )) { _ in
+            accessibilityGranted = SelectionFetcher.isTrusted
+        }
+        .onAppear {
+            accessibilityGranted = SelectionFetcher.isTrusted
+        }
+    }
+
+    @ViewBuilder
+    private func permissionRow(
+        title: String,
+        description: String,
+        granted: Bool,
+        openSettings: @escaping () -> Void
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(granted ? .green : .orange)
+                .font(.title2)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(granted ? "已授权" : "未授权")
+                    .font(.caption)
+                    .foregroundStyle(granted ? .green : .orange)
+                    .padding(.top, 2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(granted ? "Open" : "Open Settings") {
+                openSettings()
+            }
+            .controlSize(.regular)
+        }
+        .padding(.vertical, 4)
     }
 }
 
