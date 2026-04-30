@@ -22,6 +22,15 @@ enum SelectionFetcher {
         return AXIsProcessTrustedWithOptions(opts)
     }
 
+    /// 直接深链到「系统设置 → 隐私与安全性 → 辅助功能」面板。
+    /// 这个 URL scheme 是 macOS 13+ 通用的官方入口。
+    static func openAccessibilitySettings() {
+        guard let url = URL(string:
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     /// 读 frontmost app 焦点元素的 `kAXSelectedTextAttribute`。
     /// 没选中、没权限、或目标 app 不暴露此属性(部分 Electron/老 app)→ 返回 nil。
     static func currentSelection() -> String? {

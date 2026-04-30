@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let floating = FloatingNotesRegistry()
     private var manager: ManagerWindowController!
     private let settings = SettingsWindowController()
+    /// 本次启动是否已经弹过「请开启辅助功能」对话框 —— 同一进程里只引导一次,
+    /// 之后没授权就静默用空 capture,避免每按一次热键骚扰一次。
+    private var hasShownAccessibilityPrompt = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let context = PersistenceController.shared.container.viewContext
@@ -37,15 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         hotKey = HotKeyManager()
         hotKey.register(combo: .captureDefault) { [weak self] in
-            // 先读再 toggle —— Noticky 一抢焦点,frontmostApplication 就变成自己,
-            // 读到的就只能是 capture 输入框的空内容。Carbon 热键回调跑在主线程,
-            // SelectionFetcher 同步调 AX 即可,不会阻塞用户感知。
-            let prefill = SelectionFetcher.currentSelection()
-            self?.capture.toggle(prefill: prefill)
+            self?.handleCaptureHotKey()
         }
-        // 首次进入提一下权限对话框;已授权时是 no-op,用户拒绝后就只是没有 prefill,
-        // 热键和手动输入都还能用。
-        SelectionFetcher.requestTrust()
 
         restorePinnedNotes(in: context)
         // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)
@@ -92,6 +88,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         settings.showWindow()
+    }
+
+    /// ⌘⇧N 主入口。已授权 → 抓 selection 预填;未授权 → 当次启动里弹一次
+    /// NSAlert 引导用户开权限,之后(以及他选择「不开」时)用空 capture 继续。
+    ///
+    /// 关键时序:`SelectionFetcher.currentSelection()` 必须在 `capture.toggle`
+    /// **之前** 调 —— 一旦 capture 窗口抢焦点,frontmostApplication 就成了
+    /// Noticky 自己。NSAlert 路径同理:先弹 alert 再开 capture,这次按键不读
+    /// selection 也无所谓(用户还没授权)。
+    private func handleCaptureHotKey() {
+        if SelectionFetcher.isTrusted {
+            let prefill = SelectionFetcher.currentSelection()
+            capture.toggle(prefill: prefill)
+            return
+        }
+        if hasShownAccessibilityPrompt {
+            capture.toggle()
+            return
+        }
+        hasShownAccessibilityPrompt = true
+        promptForAccessibilityAccess()
+    }
+
+    private func promptForAccessibilityAccess() {
+        let alert = NSAlert()
+        alert.messageText = "开启辅助功能以自动填入选中文本"
+        alert.informativeText = """
+            Noticky 需要「辅助功能」权限才能在你按下 ⌘⇧N 时,读取当前 App 里选中的文字并自动填入。
+
+            打开「系统设置 → 隐私与安全性 → 辅助功能」,把 Noticky 勾上即可。授权后再按 ⌘⇧N 就能用了。
+            """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "打开系统设置")
+        alert.addButton(withTitle: "暂不开启")
+
+        // LSUIElement 的 App 没 Dock 图标,弹 modal 前先 activate 一下,
+        // alert 才会成为 key window 抢到键盘焦点。
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            SelectionFetcher.openAccessibilitySettings()
+            // 不顺手开 capture —— 用户准备去授权,这时候弹个空输入框反而碍事。
+            // 授权完成后他会再按一次 ⌘⇧N,届时已经 trusted。
+        } else {
+            capture.toggle()
+        }
     }
 
     /// 启动时把上次还在浮窗状态的笔记自动恢复出来。`isPinned` 一字段同时表达
