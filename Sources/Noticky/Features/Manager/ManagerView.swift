@@ -20,6 +20,10 @@ struct ManagerView: View {
     /// 让用户改;Save 写回并清空,Cancel 直接清空。
     @State private var renamingGroup: NoteGroup?
     @State private var renameText: String = ""
+    /// 新建分组用的状态:toolbar New Group 按钮把它打开,alert 让用户先输入名字
+    /// 再写库 —— 不再插一条占位 "New Group" 等用户进 sidebar 右键改名。
+    @State private var creatingGroup: Bool = false
+    @State private var newGroupName: String = ""
 
     var body: some View {
         NavigationSplitView {
@@ -51,6 +55,18 @@ struct ManagerView: View {
             }
         } message: { _ in
             Text("Enter a new name for the group.")
+        }
+        .alert("New Group", isPresented: $creatingGroup) {
+            TextField("Group name", text: $newGroupName)
+            Button("Cancel", role: .cancel) {}
+            Button("Create") {
+                let trimmed = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                _ = NoteGroup.create(in: context, name: trimmed)
+                try? context.save()
+            }
+        } message: {
+            Text("Enter a name for the new group.")
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -169,9 +185,9 @@ struct ManagerView: View {
     }
 
     private func createGroup() {
-        let group = NoteGroup.create(in: context, name: "New Group")
-        try? context.save()
-        _ = group
+        // 不再直接插占位条;弹 alert 先要用户输入名字,跟 Rename 体验一致。
+        newGroupName = ""
+        creatingGroup = true
     }
 
     @ViewBuilder
