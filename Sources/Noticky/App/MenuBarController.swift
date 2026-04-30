@@ -157,8 +157,11 @@ final class MenuBarController: NSObject {
         item.representedObject = note.objectID
         item.image = paletteIcon(for: StickyPalette.from(index: note.colorIndex))
 
-        let trimmed = note.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
+        // 用 `cleanTitle`(剥过 markdown 标记的第一非空行,空内容返回 "")。
+        // 一个口径同步到浮窗标题条 / 菜单 / 管理列表,不会出现菜单里还带 `#`
+        // 浮窗已经剥过的不一致情况。
+        let title = note.cleanTitle
+        if title.isEmpty {
             // 空笔记用斜体灰色 "Empty Note",跟参考图一致。
             item.attributedTitle = NSAttributedString(
                 string: "Empty Note",
@@ -169,11 +172,8 @@ final class MenuBarController: NSObject {
                 ]
             )
         } else {
-            // 取第一非空行作为标题,截断到 50 字防止菜单过宽。
-            let firstLine = note.content
-                .components(separatedBy: .newlines)
-                .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? trimmed
-            item.title = String(firstLine.prefix(50))
+            // 截断到 50 字防止菜单过宽。
+            item.title = String(title.prefix(50))
         }
 
         // 已 pin(浮窗打开中)的笔记打个勾,直观看到当前显示状态。
