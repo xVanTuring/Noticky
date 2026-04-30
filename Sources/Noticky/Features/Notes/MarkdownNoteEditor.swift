@@ -43,8 +43,10 @@ struct MarkdownNoteEditor: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 8)
         }
-        // 整块都接受点击,空白处也能点进编辑态,而不是非要点到文字上。
+        // 整块都接受双击,空白处也能点进编辑态。改成双击是因为单击太容易误触
+        // (拖窗、调色板、× 关闭附近),特别是 hover 工具条出现时。双击是 macOS
+        // Notes/Stickies 进编辑态的常见交互。
         .contentShape(Rectangle())
-        .onTapGesture { isEditing = true }
+        .onTapGesture(count: 2) { isEditing = true }
     }
 }
