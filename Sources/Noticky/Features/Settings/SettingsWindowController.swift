@@ -59,6 +59,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private func makeTab<V: View>(_ view: V, label: String, icon: String) -> NSTabViewItem {
         let host = NSHostingController(rootView: view)
         host.sizingOptions = .preferredContentSize
+        // NSTabViewController 会把 selected child VC 的 title 同步到 window.title。
+        // NSHostingController 默认 title 为 nil → 显示 "untitled"。设上 label 后,
+        // 窗口标题会跟着 tab 切换显示 "General"/"Shortcuts"/... ——  跟 macOS
+        // System Settings.app 一致。
+        host.title = label
         let item = NSTabViewItem(viewController: host)
         item.label = label
         item.image = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
