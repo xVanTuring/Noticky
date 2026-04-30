@@ -472,10 +472,22 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// 用户拖动/缩放结束的 debounced 回调。`isAnimating` 期间(registry 自己在
     /// 动画 setFrame)跳过 —— 那不是用户操作。否则攒 200ms 没新位移就触发,让
     /// registry 在 tile/stack 模式下做 reflow。
+    ///
+    /// 触发时还会检查 `NSEvent.pressedMouseButtons` —— 用户中途停顿(看一眼/想
+    /// 一下,鼠标键还按着)不算结束。直接 reflow 会把窗口从用户手底下挪走,体感
+    /// 是被「抢走鼠标」。鼠标键松开后再 reflow 才顺滑。
     private func scheduleUserMoveCallback() {
         guard !isAnimating else { return }
         pendingUserMove?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.onUserMoveEnded() }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            // 鼠标还按着 → 用户没真松手,推到下一拍再看。
+            if NSEvent.pressedMouseButtons != 0 {
+                self.scheduleUserMoveCallback()
+                return
+            }
+            self.onUserMoveEnded()
+        }
         pendingUserMove = work
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200), execute: work)
     }
