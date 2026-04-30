@@ -99,6 +99,28 @@ final class MenuBarController: NSObject {
         floatToggle.image = NSImage(systemSymbolName: "pin", accessibilityDescription: nil)
         menu.addItem(floatToggle)
 
+        // 窗口排布。所有打开的浮窗一键 stack(右上角叠成一摞)/ tile(网格平铺)。
+        // 没开浮窗时 disable —— autoenablesItems = false,只能手动控 isEnabled。
+        let stackItem = NSMenuItem(
+            title: "Stack Notes",
+            action: #selector(stackNotes),
+            keyEquivalent: ""
+        )
+        stackItem.target = self
+        stackItem.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
+        stackItem.isEnabled = floating.hasOpenWindows
+        menu.addItem(stackItem)
+
+        let tileItem = NSMenuItem(
+            title: "Tile Notes",
+            action: #selector(tileNotes),
+            keyEquivalent: ""
+        )
+        tileItem.target = self
+        tileItem.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: nil)
+        tileItem.isEnabled = floating.hasOpenWindows
+        menu.addItem(tileItem)
+
         menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit Noticky",
@@ -113,6 +135,14 @@ final class MenuBarController: NSObject {
 
     @objc private func toggleFloatOnTop() {
         floating.setFloatOnTop(!floating.floatOnTop)
+    }
+
+    @objc private func stackNotes() {
+        floating.stackAll()
+    }
+
+    @objc private func tileNotes() {
+        floating.tileAll()
     }
 
     @objc private func showManager() {

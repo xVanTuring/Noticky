@@ -31,6 +31,79 @@ final class FloatingNotesRegistry {
         }
     }
 
+    /// 把所有打开的浮窗叠到右上角,**像一摞便利贴**。每张比上一张稍微往左下错开
+    /// 8pt,既看得到层叠感,又能在堆里点中下面那张。所有窗口同时刷为统一尺寸,
+    /// 整体观感整齐。
+    func stackAll() {
+        guard let screen = activeScreen() else { return }
+        let visible = screen.visibleFrame
+        let size = NSSize(width: 240, height: 240)
+        let margin: CGFloat = 16
+        let topRight = NSPoint(
+            x: visible.maxX - size.width - margin,
+            y: visible.maxY - size.height - margin
+        )
+
+        // 当前 key 浮窗放最上面,其它按 z-order 往下叠 —— 用户最近用的就在顶。
+        let ordered = orderedWindowControllers()
+        for (i, wc) in ordered.enumerated() {
+            let offset = CGFloat(i) * 8
+            let origin = NSPoint(x: topRight.x - offset, y: topRight.y - offset)
+            wc.animateFrame(NSRect(origin: origin, size: size))
+        }
+    }
+
+    /// 平铺:用接近正方形的网格把整屏填满。N 张笔记 → ceil(√N) 列,然后按行
+    /// 摆,最后一行可能不满。每格保留 padding 间距,边缘也有 margin,看起来不
+    /// 拥挤。
+    func tileAll() {
+        guard let screen = activeScreen() else { return }
+        let visible = screen.visibleFrame
+        let n = windows.count
+        guard n > 0 else { return }
+
+        let cols = Int(ceil(sqrt(Double(n))))
+        let rows = Int(ceil(Double(n) / Double(cols)))
+        let padding: CGFloat = 12
+        let margin: CGFloat = 16
+
+        let availableW = visible.width - 2 * margin - padding * CGFloat(cols - 1)
+        let availableH = visible.height - 2 * margin - padding * CGFloat(rows - 1)
+        let cellW = floor(availableW / CGFloat(cols))
+        let cellH = floor(availableH / CGFloat(rows))
+
+        let ordered = orderedWindowControllers()
+        for (i, wc) in ordered.enumerated() {
+            let row = i / cols
+            let col = i % cols
+            let x = visible.minX + margin + CGFloat(col) * (cellW + padding)
+            // macOS 坐标系 y 向上,所以从 maxY 往下排,row 0 是最上一行。
+            let y = visible.maxY - margin - CGFloat(row + 1) * cellH - CGFloat(row) * padding
+            wc.animateFrame(NSRect(x: x, y: y, width: cellW, height: cellH))
+        }
+    }
+
+    /// 找操作目标屏:有 key 浮窗就用 key 所在屏,否则鼠标所在屏,再否则 main。
+    /// LSUIElement App 从菜单触发时大概率没 key window,鼠标位置最直观。
+    private func activeScreen() -> NSScreen? {
+        if let keyScreen = NSApp.keyWindow?.screen { return keyScreen }
+        let mouse = NSEvent.mouseLocation
+        if let s = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) { return s }
+        return NSScreen.main ?? NSScreen.screens.first
+    }
+
+    /// 当前 key window 排第一,其它按 windows dict 顺序。stack 时第一个会在最上面。
+    private func orderedWindowControllers() -> [FloatingNoteWindowController] {
+        let all = Array(windows.values)
+        guard let keyWin = NSApp.keyWindow else { return all }
+        let key = all.first { $0.matches(window: keyWin) }
+        guard let key else { return all }
+        return [key] + all.filter { $0 !== key }
+    }
+
+    /// 当前是否有任何浮窗(供菜单 enabled 状态用)。
+    var hasOpenWindows: Bool { !windows.isEmpty }
+
     /// 打开便签;若已打开,则把窗口提到最前。返回 true 表示创建了新窗口。
     @discardableResult
     func show(note: Note) -> Bool {
@@ -144,6 +217,24 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
 
     func setLevel(_ level: NSWindow.Level) {
         window?.level = level
+    }
+
+    /// 给 registry 用来匹配 NSApp.keyWindow 是不是这个 controller 持有的窗。
+    func matches(window other: NSWindow) -> Bool {
+        window === other
+    }
+
+    /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡,
+    /// 比直接 setFrame 体验好很多。windowDidMove/Resize 会在动画期间高频回调,
+    /// 已有的 250ms debounce 会把最终 frame 攒一次写库。
+    func animateFrame(_ frame: NSRect) {
+        guard let w = window else { return }
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.28
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            ctx.allowsImplicitAnimation = true
+            w.animator().setFrame(frame, display: true)
+        }
     }
 
     func show(cascadeIndex: Int = 0) {
