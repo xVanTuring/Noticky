@@ -16,6 +16,10 @@ struct ManagerView: View {
     @State private var selection: Note.ID?
     @State private var search: String = ""
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
+    /// 重命名分组用的状态:点 "Rename" 后存住目标 group + 当前名,alert 用 TextField
+    /// 让用户改;Save 写回并清空,Cancel 直接清空。
+    @State private var renamingGroup: NoteGroup?
+    @State private var renameText: String = ""
 
     var body: some View {
         NavigationSplitView {
@@ -27,6 +31,27 @@ struct ManagerView: View {
         // .searchable 用系统原生 search field,自动塞到 toolbar 合适位置,
         // 样式跟 Notes/Mail 一致(灰色圆角胶囊 + 放大镜 + 占位符 + ⌘ + 取消圈)。
         .searchable(text: $search, prompt: "Search all notes")
+        .alert(
+            "Rename Group",
+            isPresented: Binding(
+                get: { renamingGroup != nil },
+                set: { if !$0 { renamingGroup = nil } }
+            ),
+            presenting: renamingGroup
+        ) { group in
+            TextField("Group name", text: $renameText)
+            Button("Cancel", role: .cancel) { renamingGroup = nil }
+            Button("Save") {
+                let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    group.name = trimmed
+                    try? context.save()
+                }
+                renamingGroup = nil
+            }
+        } message: { _ in
+            Text("Enter a new name for the group.")
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button(action: createGroup) {
@@ -174,10 +199,9 @@ struct ManagerView: View {
     @ViewBuilder
     private func groupContextMenu(_ group: NoteGroup) -> some View {
         Button("Rename") {
-            // 简单方案:用一个 sheet 或 alert 改名。先不做,等有需求再加。
-            // Placeholder action — 占位让菜单结构完整。
+            renameText = group.name
+            renamingGroup = group
         }
-        .disabled(true)
         Divider()
         Button("Delete Group", role: .destructive) {
             // 关系是 nullify:删 group 后,组里的 note 自动 ungrouped。
