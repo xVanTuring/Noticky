@@ -31,6 +31,10 @@ targets:
       - path: Sources/Noticky
         excludes:
           - "Resources/**"
+      # Resources/** 整体排除是因为 Info.plist / entitlements 由 info.path 和
+      # CODE_SIGN_ENTITLEMENTS 单独 wire,不能再走 Sources。AppIcon 的资产目录
+      # 必须手动加回来,否则 Xcode 编译时找不到 CFBundleIconName 指向的资源。
+      - Sources/Noticky/Resources/Assets.xcassets
     dependencies:
       - package: Textual
     settings:
