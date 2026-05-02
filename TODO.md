@@ -10,13 +10,13 @@
 
 ## B. 体验类(常见便签 app 有 / 用户可能想要)
 
-- [ ] **拖拽笔记到分组**(目前只能右键 Move to Group)
+- [x] **拖拽笔记到分组**(目前只能右键 Move to Group)—— Manager sidebar `.onDrag` + `.onDrop`,多选拖动跟着 selection 走
 - [ ] **批量操作扩展**:多选后批量改色 / 批量 pin / 批量打开为浮窗(现在只支持移动 / 删除)
-- [ ] **导入 / 导出**(.txt / .md 单条;整库 backup 一个 zip)
+- [x] **导入 / 导出** —— 右键 Manager 选中便签 Export(单条 .md / 多条到目录);File menu Import / Backup / Restore。整库 backup 用 JSON 单文件而非 zip(等附件支持再换 zip)
 - [ ] **自定义颜色** 入口(目前固定 6 色板)
 - [ ] **字体大小调整**(单条 / 全局两套?)
 - [ ] **搜索结果高亮**(`.searchable` 已经过滤,但匹配文本不高亮)
-- [ ] **回收站保留天数自定义**(目前 30 天硬编码在 `purgeExpiredTrash`)
+- [x] **回收站保留天数自定义** —— Settings → General Stepper(7-365 天,默认 30)
 - [ ] **强制暗 / 亮主题**(目前跟随系统)
 - [ ] **Markdown 实时分屏预览**(目前是渲染 ↔ 编辑双态切换)
 - [ ] **附件 / 图片支持**(当前纯文本)
