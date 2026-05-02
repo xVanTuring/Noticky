@@ -181,22 +181,18 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 反过来:把所有藏着的浮窗重新 orderFront。可见的不动。如果 registry 是空
-    /// (用户关掉了所有浮窗),用 fetch pinned 兜底重新 spawn 一遍。
+    /// 显示**所有未删除的笔记**为浮窗 —— 不管之前 pinned 与否、是否已被关闭过。
+    /// 已 spawn 的会被 bringToFront(把 hidden 的也带回来);没 spawn 的 spawn。
+    /// menubar "Show All Stickies" 的入口,语义是"把库里所有便签都显示出来"。
     func showAll(in context: NSManagedObjectContext) {
-        if windows.isEmpty {
-            let request = NSFetchRequest<Note>(entityName: "Note")
-            request.predicate = NSPredicate(
-                format: "isPinned == %@ AND isTrashed == %@",
-                NSNumber(value: true), NSNumber(value: false)
-            )
-            request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
-            guard let pinned = try? context.fetch(request) else { return }
-            for note in pinned { show(note: note) }
-            return
-        }
-        for wc in windows.values {
-            wc.setHidden(false)
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+        request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
+        guard let notes = try? context.fetch(request) else { return }
+        for note in notes {
+            // show() 内部:已 spawn 则 bringToFront(makeKeyAndOrderFront 把 hidden
+            // 的也变可见);新的走 spawn,会自动设 isPinned = true 进入 displayOrder。
+            show(note: note)
         }
     }
 

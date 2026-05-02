@@ -72,20 +72,29 @@ final class MenuBarController: NSObject {
 
         menu.addItem(.separator())
 
-        // 显示 / 隐藏所有浮窗。标签按当前状态切:有任意可见 → "Hide All Stickies",
-        // 否则 → "Show All Stickies"。Hide 走 orderOut(不动 isPinned),Show 走
-        // orderFront,如果 registry 空(全关了)则 fetch pinned notes 重新打开。
-        let toggleItem = NSMenuItem(
-            title: floating.hasVisibleWindow ? "Hide All Stickies" : "Show All Stickies",
-            action: #selector(toggleAllStickies),
+        // 显示所有便签:fetch 所有未删笔记,逐条 spawn / bringToFront。
+        // 库里没未删笔记时 disabled。
+        let showAllStickies = NSMenuItem(
+            title: "Show All Stickies",
+            action: #selector(showAllStickiesAction),
             keyEquivalent: ""
         )
-        toggleItem.target = self
-        toggleItem.image = NSImage(
-            systemSymbolName: floating.hasVisibleWindow ? "eye.slash" : "eye",
-            accessibilityDescription: nil
+        showAllStickies.target = self
+        showAllStickies.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
+        showAllStickies.isEnabled = !notes.isEmpty
+        menu.addItem(showAllStickies)
+
+        // 隐藏所有便签:把当前可见的浮窗 orderOut(不释放 wc、不清 isPinned)。
+        // 没有可见浮窗时 disabled。
+        let hideAllStickies = NSMenuItem(
+            title: "Hide All Stickies",
+            action: #selector(hideAllStickiesAction),
+            keyEquivalent: ""
         )
-        menu.addItem(toggleItem)
+        hideAllStickies.target = self
+        hideAllStickies.image = NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)
+        hideAllStickies.isEnabled = floating.hasVisibleWindow
+        menu.addItem(hideAllStickies)
 
         let showAll = NSMenuItem(
             title: "Show All Notes",
@@ -152,12 +161,12 @@ final class MenuBarController: NSObject {
         floating.setFloatOnTop(!floating.floatOnTop)
     }
 
-    @objc private func toggleAllStickies() {
-        if floating.hasVisibleWindow {
-            floating.hideAll()
-        } else {
-            floating.showAll(in: context)
-        }
+    @objc private func showAllStickiesAction() {
+        floating.showAll(in: context)
+    }
+
+    @objc private func hideAllStickiesAction() {
+        floating.hideAll()
     }
 
     @objc private func setLayoutMode(_ sender: NSMenuItem) {
