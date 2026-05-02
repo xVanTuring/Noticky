@@ -33,6 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let context = PersistenceController.shared.container.viewContext
 
+        // 启动头一件事:把进回收站超过 30 天的笔记真删。放在 manager/menu
+        // 构造和 restorePinnedNotes 之前,这样后续视图初始化看到的就是"已清"
+        // 的状态,FetchRequest 不会瞬间显示又消失。
+        floating.purgeExpiredTrash(in: context)
+
         manager = ManagerWindowController(context: context, floating: floating)
         menuBar = MenuBarController(context: context, floating: floating, manager: manager, settings: settings)
         capture = CaptureWindowController(context: context, floating: floating)
@@ -178,9 +183,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 从列表点开/新建就置 true。
     private func restorePinnedNotes(in context: NSManagedObjectContext) {
         let request = NSFetchRequest<Note>(entityName: "Note")
-        // Swift 的 NSPredicate(format:) 不认 ObjC 字面量 YES,SQLite 里 isPinned 是
+        // Swift 的 NSPredicate(format:) 不认 ObjC 字面量 YES,SQLite 里 bool 是
         // INTEGER 0/1。用 NSNumber 显式包装最稳。
-        request.predicate = NSPredicate(format: "isPinned == %@", NSNumber(value: true))
+        // isTrashed 过滤是防御性的:trash 流程已经把 isPinned 清成 false,
+        // 但跨版本启动时旧库里可能存在 pinned + trashed 的脏数据,这里挡一下。
+        request.predicate = NSPredicate(
+            format: "isPinned == %@ AND isTrashed == %@",
+            NSNumber(value: true), NSNumber(value: false)
+        )
         request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         guard let pinned = try? context.fetch(request) else { return }
         for note in pinned {

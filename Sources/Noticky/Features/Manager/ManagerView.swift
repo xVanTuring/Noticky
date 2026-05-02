@@ -12,11 +12,18 @@ struct ManagerView: View {
     private var groups: FetchedResults<NoteGroup>
     @FetchRequest(fetchRequest: Note.sortedFetchRequest(), animation: .default)
     private var allNotes: FetchedResults<Note>
+    /// 回收站项数。展示在 sidebar 底部的徽章,数据源跟 TrashDetailView 共享
+    /// 同一个 store —— 同一个 viewContext 改动后两边都会自动刷新。
+    @FetchRequest(fetchRequest: Note.trashedFetchRequest(), animation: .default)
+    private var trashedNotes: FetchedResults<Note>
 
     /// **多选**:`List(selection:)` 给 `Binding<Set<Hashable>>` 时,系统自动支持
     /// Cmd-click(切换单条入/出选区)和 Shift-click(范围选)—— 跟 Finder/Notes
     /// 一致,不需要自己拦事件。空集合表示没选;单选时取唯一元素显示详情。
     @State private var selection: Set<Note.ID> = []
+    /// 进 Trash 视图。Trash 不在 List selection 里(不跟 note 混选),用一个独立
+    /// state 切。点击其它任何 note 会把这个清回 false(由 onChange 处理)。
+    @State private var viewingTrash: Bool = false
     @State private var search: String = ""
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     /// 重命名分组用的状态:点 "Rename" 后存住目标 group + 当前名,alert 用 TextField
@@ -91,39 +98,56 @@ struct ManagerView: View {
     // MARK: Sidebar -------------------------------------------------------------
 
     private var sidebar: some View {
-        List(selection: $selection) {
-            // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
-            if groups.isEmpty {
-                ForEach(filteredAll, id: \.id) { note in
-                    NoteSidebarRow(note: note)
-                        .tag(note.id)
-                        .contextMenu { noteContextMenu(note) }
-                }
-            } else {
-                ForEach(groups, id: \.id) { group in
-                    Section {
-                        ForEach(filteredNotes(in: group), id: \.id) { note in
-                            NoteSidebarRow(note: note)
-                                .tag(note.id)
-                                .contextMenu { noteContextMenu(note) }
-                        }
-                    } header: {
-                        Text(group.name.isEmpty ? "Untitled" : group.name)
-                            .contextMenu { groupContextMenu(group) }
+        VStack(spacing: 0) {
+            List(selection: $selection) {
+                // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
+                if groups.isEmpty {
+                    ForEach(filteredAll, id: \.id) { note in
+                        NoteSidebarRow(note: note)
+                            .tag(note.id)
+                            .contextMenu { noteContextMenu(note) }
                     }
-                }
-                if !ungroupedNotes.isEmpty {
-                    Section("Ungrouped") {
-                        ForEach(ungroupedNotes, id: \.id) { note in
-                            NoteSidebarRow(note: note)
-                                .tag(note.id)
-                                .contextMenu { noteContextMenu(note) }
+                } else {
+                    ForEach(groups, id: \.id) { group in
+                        Section {
+                            ForEach(filteredNotes(in: group), id: \.id) { note in
+                                NoteSidebarRow(note: note)
+                                    .tag(note.id)
+                                    .contextMenu { noteContextMenu(note) }
+                            }
+                        } header: {
+                            Text(group.name.isEmpty ? "Untitled" : group.name)
+                                .contextMenu { groupContextMenu(group) }
+                        }
+                    }
+                    if !ungroupedNotes.isEmpty {
+                        Section("Ungrouped") {
+                            ForEach(ungroupedNotes, id: \.id) { note in
+                                NoteSidebarRow(note: note)
+                                    .tag(note.id)
+                                    .contextMenu { noteContextMenu(note) }
+                            }
                         }
                     }
                 }
             }
+            .listStyle(.sidebar)
+            // 选中任何 note 时立刻退出 Trash 视图。这是单向耦合 —— 选 Trash 时
+            // 我们手动清掉 selection;选 note 时这里把 viewingTrash 关掉。
+            .onChange(of: selection) { _, new in
+                if !new.isEmpty { viewingTrash = false }
+            }
+
+            Divider()
+            TrashSidebarRow(
+                count: trashedNotes.count,
+                active: viewingTrash,
+                onTap: {
+                    viewingTrash = true
+                    selection = []
+                }
+            )
         }
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 220, ideal: 280, max: 360)
     }
 
@@ -131,7 +155,9 @@ struct ManagerView: View {
 
     private var detail: some View {
         Group {
-            if selection.count == 1,
+            if viewingTrash {
+                TrashDetailView(floating: floating)
+            } else if selection.count == 1,
                let id = selection.first,
                let note = allNotes.first(where: { $0.id == id && !$0.isDeleted }) {
                 NoteDetailView(note: note, floating: floating)
@@ -283,6 +309,186 @@ private struct NoteSidebarRow: View {
 }
 
 // MARK: Detail view -----------------------------------------------------------
+
+// MARK: Trash sidebar row -----------------------------------------------------
+
+/// Sidebar 底部的 Trash 入口。手动绘制成"高亮态/默认态"两种,不进 List
+/// selection 队列,这样不和 note 多选混在一起。徽章显示 trash 笔记数量。
+private struct TrashSidebarRow: View {
+    let count: Int
+    let active: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 8) {
+                Image(systemName: "trash")
+                    .frame(width: 16)
+                Text("Trash")
+                Spacer()
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(
+                            Capsule().fill(Color.secondary.opacity(0.18))
+                        )
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(active ? Color.accentColor.opacity(0.18) : .clear)
+                    .padding(.horizontal, 6)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: Trash detail ---------------------------------------------------------
+
+/// 回收站列表 + Empty Trash 按钮。每行显示标题 + trashedAt 相对时间,行尾
+/// Restore / Delete Permanently。点 Empty Trash 弹一个 alert 二次确认 ——
+/// 整体真删,这步不能误触。
+private struct TrashDetailView: View {
+    let floating: FloatingNotesRegistry
+    @Environment(\.managedObjectContext) private var context
+    @FetchRequest(fetchRequest: Note.trashedFetchRequest(), animation: .default)
+    private var trashed: FetchedResults<Note>
+    @State private var confirmingEmpty = false
+    @State private var confirmingDelete: Note?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            if trashed.isEmpty {
+                ContentUnavailableView(
+                    "Trash is empty",
+                    systemImage: "trash",
+                    description: Text("Notes you delete will appear here for 30 days.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(trashed, id: \.id) { note in
+                        TrashRow(
+                            note: note,
+                            onRestore: { floating.restore(note: note) },
+                            onDelete: { confirmingDelete = note }
+                        )
+                    }
+                }
+                .listStyle(.inset)
+            }
+        }
+        .alert(
+            "Empty Trash?",
+            isPresented: $confirmingEmpty
+        ) {
+            Button("Empty Trash", role: .destructive) {
+                floating.emptyTrash(in: context)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes all notes in Trash. This can't be undone.")
+        }
+        .alert(
+            "Delete this note permanently?",
+            isPresented: Binding(
+                get: { confirmingDelete != nil },
+                set: { if !$0 { confirmingDelete = nil } }
+            ),
+            presenting: confirmingDelete
+        ) { note in
+            Button("Delete", role: .destructive) {
+                floating.deletePermanently(note: note)
+                confirmingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        } message: { _ in
+            Text("This can't be undone.")
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            Image(systemName: "trash")
+            Text("Trash")
+                .font(.title3.weight(.semibold))
+            Text("(\(trashed.count))")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(role: .destructive) {
+                confirmingEmpty = true
+            } label: {
+                Label("Empty Trash", systemImage: "trash.slash")
+            }
+            .disabled(trashed.isEmpty)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct TrashRow: View {
+    @ObservedObject var note: Note
+    let onRestore: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        if note.isDeleted || note.managedObjectContext == nil {
+            EmptyView()
+        } else {
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(StickyPalette.from(index: note.colorIndex).color)
+                    .frame(width: 3)
+                    .frame(maxHeight: .infinity)
+                    .cornerRadius(1.5)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Text(isEmpty ? "Empty Note" : note.displayTitle)
+                        .lineLimit(1)
+                        .italic(isEmpty)
+                        .foregroundStyle(isEmpty ? .secondary : .primary)
+                    Text(trashedAtLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Restore", action: onRestore)
+                    .buttonStyle(.bordered)
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.bordered)
+                .help("Delete permanently")
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// "丢进回收站 X 之前"。30 天后启动时自动清,所以最大也就是 30 多天。
+    private var trashedAtLabel: String {
+        guard let when = note.trashedAt else { return "Trashed" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Trashed \(formatter.localizedString(for: when, relativeTo: Date()))"
+    }
+}
+
+// MARK: Note detail ----------------------------------------------------------
 
 private struct NoteDetailView: View {
     @ObservedObject var note: Note

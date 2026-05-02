@@ -154,6 +154,20 @@ final class PersistenceController {
         hasSavedFrame.isOptional = false
         hasSavedFrame.defaultValue = false
 
+        // 软删除:笔记进回收站置 isTrashed=true + trashedAt=now。所有"普通"
+        // fetch 都加 isTrashed==false 过滤,只有 Trash 视图查 ==true。30 天后
+        // 由启动时的 purge 真正 context.delete。
+        let isTrashed = NSAttributeDescription()
+        isTrashed.name = "isTrashed"
+        isTrashed.attributeType = .booleanAttributeType
+        isTrashed.isOptional = false
+        isTrashed.defaultValue = false
+
+        let trashedAt = NSAttributeDescription()
+        trashedAt.name = "trashedAt"
+        trashedAt.attributeType = .dateAttributeType
+        trashedAt.isOptional = true
+
         // NoteGroup entity --------------------------------------------------------
         let groupEntity = NSEntityDescription()
         groupEntity.name = "NoteGroup"
@@ -205,6 +219,7 @@ final class PersistenceController {
         note.properties = [
             id, content, createdAt, updatedAt, isPinned, colorIndex,
             frameX, frameY, frameW, frameH, hasSavedFrame,
+            isTrashed, trashedAt,
             noteToGroup
         ]
         groupEntity.properties = [groupId, groupName, groupCreatedAt, groupSortOrder, groupToNotes]

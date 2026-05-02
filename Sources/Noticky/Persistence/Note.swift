@@ -14,6 +14,8 @@ public final class Note: NSManagedObject, Identifiable {
     @NSManaged public var frameW: Double
     @NSManaged public var frameH: Double
     @NSManaged public var hasSavedFrame: Bool
+    @NSManaged public var isTrashed: Bool
+    @NSManaged public var trashedAt: Date?
     @NSManaged public var group: NoteGroup?
 }
 
@@ -33,11 +35,24 @@ extension Note {
 }
 
 extension Note {
+    /// 默认 fetch:**只取未进回收站的笔记**。所有列表/管理/菜单都用这个。
+    /// 想看回收站走 `trashedFetchRequest`。
     static func sortedFetchRequest() -> NSFetchRequest<Note> {
         let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
         request.sortDescriptors = [
             NSSortDescriptor(key: "isPinned", ascending: false),
             NSSortDescriptor(key: "updatedAt", ascending: false)
+        ]
+        return request
+    }
+
+    /// 回收站列表用。最近丢进去的排在最前。
+    static func trashedFetchRequest() -> NSFetchRequest<Note> {
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: true))
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "trashedAt", ascending: false)
         ]
         return request
     }

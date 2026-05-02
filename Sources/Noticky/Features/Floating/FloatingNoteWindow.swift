@@ -236,11 +236,13 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 删除便签:有浮窗先无痕关掉(不走 windowWillClose,避免对已删对象写
-    /// isPinned),再从 context 删除 + 保存。列表行和浮窗 ⋯ 菜单走同一入口。
-    /// 真正的 context.delete 推到下一个 runloop tick —— 浮窗 SwiftUI 的
-    /// `@ObservedObject note` 在同 tick 删除会收到属性变更通知并访问已 fault
-    /// 的对象,触发 CoreData EXC_BREAKPOINT 崩溃。
+    /// 软删除:把笔记打进回收站。有浮窗先无痕关掉,清 isPinned(回收站里的
+    /// 笔记不再算"开机自动恢复"对象),写 isTrashed = true + trashedAt = now。
+    /// 真正的 context.delete 由 Trash 视图的"彻底删除/清空"或启动时的 30 天
+    /// 过期 purge 完成。
+    ///
+    /// 入口跟之前 hard-delete 完全一致(列表右键、浮窗 ⋯ 菜单、⌘D),所以
+    /// 调用方代码没改,只是行为变成"进回收站"。
     func delete(note: Note) {
         let id = note.objectID
         if let wc = windows[id] {
@@ -249,11 +251,66 @@ final class FloatingNotesRegistry {
             displayOrder.removeAll { $0 == id }
         }
         let context = note.managedObjectContext
+        // 同样推到下一个 runloop tick —— 跟 hard-delete 一样,@ObservedObject
+        // 在同 tick 内 mutate isTrashed 也会触发 SwiftUI 重渲染访问 fault 对象;
+        // 推一拍让 orderOut 先生效,SwiftUI 树释放后再写库。
+        DispatchQueue.main.async {
+            note.isPinned = false
+            note.isTrashed = true
+            note.trashedAt = Date()
+            try? context?.save()
+        }
+        applyLayout()
+    }
+
+    /// 把回收站里的笔记还原回正常列表。不重新打开浮窗 —— 用户想看就自己点 Open。
+    func restore(note: Note) {
+        DispatchQueue.main.async {
+            note.isTrashed = false
+            note.trashedAt = nil
+            try? note.managedObjectContext?.save()
+        }
+    }
+
+    /// 真删一条:回收站里的"彻底删除"按钮走这条。直接 context.delete + save。
+    /// 浮窗已经在 trash 时关掉了,这里不需要再处理。
+    func deletePermanently(note: Note) {
+        let context = note.managedObjectContext
         DispatchQueue.main.async {
             context?.delete(note)
             try? context?.save()
         }
-        applyLayout()
+    }
+
+    /// 清空回收站:fetch 所有 isTrashed == true 的笔记,逐条 delete + save 一次。
+    /// 用 batch delete 也行,但要手动 merge changes 进 viewContext —— 量级小,
+    /// 走 context.delete 简单稳妥。
+    func emptyTrash(in context: NSManagedObjectContext) {
+        let request = Note.trashedFetchRequest()
+        guard let trashed = try? context.fetch(request) else { return }
+        for note in trashed {
+            context.delete(note)
+        }
+        try? context.save()
+    }
+
+    /// 启动时调一次:把超过 30 天的 trashed 笔记真删。系统级 macOS Notes/Mail
+    /// 默认 30 天,体验对齐。trashedAt 为 nil 的(理论上不该出现,旧库迁移残留)
+    /// 跳过,等下次 trash 行为重写时再处理。
+    func purgeExpiredTrash(in context: NSManagedObjectContext) {
+        let request = Note.trashedFetchRequest()
+        let cutoff = Date().addingTimeInterval(-30 * 24 * 3600)
+        // 在 fetch 阶段就过滤掉 trashedAt 不达标的,免得 fetch 全量再扫一遍。
+        request.predicate = NSPredicate(
+            format: "isTrashed == %@ AND trashedAt != nil AND trashedAt < %@",
+            NSNumber(value: true), cutoff as NSDate
+        )
+        guard let expired = try? context.fetch(request), !expired.isEmpty else { return }
+        for note in expired {
+            context.delete(note)
+        }
+        try? context.save()
+        NSLog("Noticky: purged %d expired trash note(s)", expired.count)
     }
 
     private func spawn(note: Note, id: NSManagedObjectID) {

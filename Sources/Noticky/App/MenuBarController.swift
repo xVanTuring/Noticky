@@ -50,7 +50,8 @@ final class MenuBarController: NSObject {
         menu.addItem(newItem)
 
         let request = NSFetchRequest<Note>(entityName: "Note")
-        // 拿全量,按当前 NoteSort 设置在内存里排;pinned 永远在前。
+        // 拿全量(回收站除外),按当前 NoteSort 设置在内存里排;pinned 永远在前。
+        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
         let allNotes = (try? context.fetch(request)) ?? []
         let sort = NoteSort.from(UserDefaults.standard.string(forKey: SettingsKey.noteSort) ?? "")
         let notes = allNotes.sorted { lhs, rhs in
