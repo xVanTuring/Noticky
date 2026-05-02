@@ -1,54 +1,26 @@
 import CoreData
 
-/// CloudKit container 标识。规则:`iCloud.<bundle-id>` 是 Apple 推荐的命名,
-/// developer portal 创建 CloudKit Container 时用同名即可。改这里之前先在
-/// portal 把新名字注册好,否则 NSPersistentCloudKitContainer 启动会报
-/// CKErrorPartialFailure(invalid container)。
-enum CloudKitConfig {
-    static let containerIdentifier = "iCloud.tech.xvanturing.Noticky"
-}
-
 final class PersistenceController {
     static let shared = PersistenceController()
 
     let container: NSPersistentContainer
-    /// 真正用上 CloudKit 的话是 true。Settings 关掉同步时退化为本地 NSPersistentContainer,
-    /// 不会触发任何 CloudKit 网络/账户调用。
-    let cloudKitEnabled: Bool
 
     init(inMemory: Bool = false) {
         let model = Self.makeModel()
-        // iCloud 同步开关来自 UserDefaults。**进程启动时一次性读取**,运行中改设置
-        // 不会立即生效 —— Core Data store coordinator 没有「热切换 CloudKit」API,
-        // 必须重启 App。Settings UI 在用户改这个开关后弹提示请用户重启。
-        let wantsSync = !inMemory && UserDefaults.standard.bool(forKey: SettingsKey.iCloudSyncEnabled)
-        cloudKitEnabled = wantsSync
-
-        if wantsSync {
-            container = NSPersistentCloudKitContainer(name: "Noticky", managedObjectModel: model)
-        } else {
-            container = NSPersistentContainer(name: "Noticky", managedObjectModel: model)
-        }
+        // Phase 1: 本地存储。Phase 3 切到 NSPersistentCloudKitContainer 即可,
+        // 同一个 model 兼容。
+        container = NSPersistentContainer(name: "Noticky", managedObjectModel: model)
 
         if inMemory, let desc = container.persistentStoreDescriptions.first {
             desc.url = URL(fileURLWithPath: "/dev/null")
         }
         if let desc = container.persistentStoreDescriptions.first {
-            // CloudKit 强制依赖这两项:Persistent History Tracking + Remote Change
-            // Notifications。本地模式开着也无害,Manager / Floating 之间多 context
-            // 合并刚好用得上。
             desc.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-            desc.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-
+            // 程序化 model 没有 .xcdatamodeld 版本号,但「加新属性 + 给默认值」这种
+            // 改动 Core Data 还是会尝试 inferred mapping。开了不一定成,失败时
+            // loadStores 会走删库重建路径兜底。能成的话用户笔记就保住了。
             desc.shouldMigrateStoreAutomatically = true
             desc.shouldInferMappingModelAutomatically = true
-
-            if wantsSync {
-                let cloudOptions = NSPersistentCloudKitContainerOptions(
-                    containerIdentifier: CloudKitConfig.containerIdentifier
-                )
-                desc.cloudKitContainerOptions = cloudOptions
-            }
 
             // Sandbox 关掉之后 NSPersistentContainer 默认路径从
             //   ~/Library/Containers/<bundle>/Data/Library/Application Support/Noticky/
@@ -64,12 +36,6 @@ final class PersistenceController {
         Self.loadStores(in: container, retryOnFailure: !inMemory)
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-
-        // CloudKit 模式下偶尔会推下来重复 record(本地刚 create 完又收到 server 副本),
-        // 把 transactionAuthor 设上有助于 history token 跟踪 + 后续做去重。
-        if wantsSync {
-            container.viewContext.transactionAuthor = "viewContext"
-        }
     }
 
     /// 一次性迁移:沙盒容器里的 sqlite 三件套 → 新的 Application Support 路径。
@@ -79,6 +45,8 @@ final class PersistenceController {
         let fm = FileManager.default
         if fm.fileExists(atPath: target.path) { return }
 
+        // 沙盒模式下 NSPersistentContainer 用的就是这个路径;关掉沙盒后系统不再
+        // 把 ~/Library/... 重定向到 Containers/<bundle>/Data/...,但旧文件还在。
         let bundleID = "tech.xvanturing.Noticky"
         let home = fm.homeDirectoryForCurrentUser
         let oldDir = home
@@ -109,8 +77,6 @@ final class PersistenceController {
 
     /// 程序化 model 没有 .xcdatamodeld 版本号,schema 改动时 Core Data 推不出
     /// 迁移 mapping。Phase 1 阶段直接删旧库重建——开发测试数据不值得保留。
-    /// CloudKit 模式下也走这个兜底:CloudKit 自身的 record schema 有版本管理,
-    /// 删本地库不会丢云端数据,会重新拉。
     private static func loadStores(in container: NSPersistentContainer, retryOnFailure: Bool) {
         var loadError: Error?
         container.loadPersistentStores { _, error in loadError = error }
@@ -144,14 +110,10 @@ final class PersistenceController {
         note.name = "Note"
         note.managedObjectClassName = NSStringFromClass(Note.self)
 
-        // ⚠️ CloudKit 兼容性约束:NSPersistentCloudKitContainer 要求每个属性
-        // 「optional 或 有 default」。下面 id/createdAt/updatedAt 在 schema 层
-        // 标 isOptional=true,实际代码路径(Note.create)总会立即赋值,所以 Swift
-        // 侧 @NSManaged 仍可保持非可选。
         let id = NSAttributeDescription()
         id.name = "id"
         id.attributeType = .UUIDAttributeType
-        id.isOptional = true
+        id.isOptional = false
 
         let content = NSAttributeDescription()
         content.name = "content"
@@ -162,12 +124,12 @@ final class PersistenceController {
         let createdAt = NSAttributeDescription()
         createdAt.name = "createdAt"
         createdAt.attributeType = .dateAttributeType
-        createdAt.isOptional = true
+        createdAt.isOptional = false
 
         let updatedAt = NSAttributeDescription()
         updatedAt.name = "updatedAt"
         updatedAt.attributeType = .dateAttributeType
-        updatedAt.isOptional = true
+        updatedAt.isOptional = false
 
         let isPinned = NSAttributeDescription()
         isPinned.name = "isPinned"
@@ -223,7 +185,7 @@ final class PersistenceController {
         let groupId = NSAttributeDescription()
         groupId.name = "id"
         groupId.attributeType = .UUIDAttributeType
-        groupId.isOptional = true
+        groupId.isOptional = false
 
         let groupName = NSAttributeDescription()
         groupName.name = "name"
@@ -234,7 +196,7 @@ final class PersistenceController {
         let groupCreatedAt = NSAttributeDescription()
         groupCreatedAt.name = "createdAt"
         groupCreatedAt.attributeType = .dateAttributeType
-        groupCreatedAt.isOptional = true
+        groupCreatedAt.isOptional = false
 
         let groupSortOrder = NSAttributeDescription()
         groupSortOrder.name = "sortOrder"
@@ -244,7 +206,6 @@ final class PersistenceController {
 
         // Relationships ----------------------------------------------------------
         // Note <-> NoteGroup,多对一。任何一方删除都 nullify(保留对方),不级联。
-        // CloudKit 要求 to-many 关系必须 optional + nullify,这里两端都满足。
         let noteToGroup = NSRelationshipDescription()
         noteToGroup.name = "group"
         noteToGroup.destinationEntity = groupEntity
@@ -284,21 +245,3 @@ final class PersistenceController {
         return attr
     }
 }
-
-#if DEBUG
-extension PersistenceController {
-    /// 调试用:把当前 model 推到 CloudKit 开发环境(只在你拿到真实 container ID
-    /// 之后才需要,否则会报 invalid container)。在 LLDB 或临时菜单项里调:
-    ///
-    ///   try? PersistenceController.shared.initializeCloudKitSchema()
-    ///
-    /// 这个调用是同步的、可能耗时(秒级);只跑一次,跑成功后再发布。
-    func initializeCloudKitSchema() throws {
-        guard let container = container as? NSPersistentCloudKitContainer else {
-            NSLog("Noticky: initializeCloudKitSchema skipped — not a CloudKit container")
-            return
-        }
-        try container.initializeCloudKitSchema(options: [])
-    }
-}
-#endif

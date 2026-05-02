@@ -53,7 +53,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         tabVC.addTabViewItem(makeTab(ShortcutsTab(),   label: "Shortcuts",   icon: "keyboard"))
         tabVC.addTabViewItem(makeTab(PermissionsTab(), label: "Permissions", icon: "lock.shield"))
         tabVC.addTabViewItem(makeTab(NotesTab(),       label: "Notes",       icon: "note.text"))
-        tabVC.addTabViewItem(makeTab(ICloudTab(),      label: "iCloud Sync", icon: "icloud"))
 
         return tabVC
     }
