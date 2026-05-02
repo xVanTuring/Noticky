@@ -6,6 +6,47 @@ import ServiceManagement
 enum SettingsKey {
     static let fadeWhenInactive = "Noticky.fadeWhenInactive"
     static let noteSort = "Noticky.noteSort"
+    static let captureMode = "Noticky.captureMode"
+    /// 换行分隔的 bundle ID 列表。换行而非 JSON,UserDefaults plist 里直接可读,
+    /// SwiftUI 用一个 TextEditor 就能编辑,没必要为此引入 codable 中间层。
+    static let clipboardWhitelist = "Noticky.clipboardWhitelist"
+}
+
+/// ⌘⇧N 抓选中文本的策略。
+/// - `axWithWhitelist`:默认走 Accessibility;白名单里的 bundle ID 改走剪贴板合成。
+/// - `clipboardOnly`:统统合成 ⌘C,不碰 AX(也不需要辅助功能权限)。
+/// - `disabled`:不抓,⌘⇧N 直接开空 capture。
+enum CaptureMode: String, CaseIterable, Identifiable {
+    case axWithWhitelist
+    case clipboardOnly
+    case disabled
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .axWithWhitelist: return "辅助功能 + 复制粘贴白名单"
+        case .clipboardOnly:   return "纯复制粘贴"
+        case .disabled:        return "关闭自动抓取"
+        }
+    }
+
+    static func from(_ raw: String) -> CaptureMode {
+        CaptureMode(rawValue: raw) ?? .axWithWhitelist
+    }
+}
+
+/// 解析 / 写回 `SettingsKey.clipboardWhitelist`(换行分隔的 bundle ID)。
+/// trim 空行 + whitespace,大小写敏感(macOS bundle ID 实际就是大小写敏感)。
+enum ClipboardWhitelist {
+    static func parse(_ raw: String) -> [String] {
+        raw.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    static func contains(_ raw: String, bundleID: String) -> Bool {
+        parse(raw).contains(bundleID)
+    }
 }
 
 /// 笔记列表的排序方式 —— 影响 ManagerView 和菜单栏。
@@ -38,6 +79,8 @@ struct SettingsView: View {
         TabView {
             GeneralTab()
                 .tabItem { Label("General", systemImage: "gearshape") }
+            CaptureTab()
+                .tabItem { Label("Capture", systemImage: "doc.on.clipboard") }
             ShortcutsTab()
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
             PermissionsTab()
@@ -99,6 +142,68 @@ struct GeneralTab: View {
             NSLog("Noticky: launch at login toggle failed: %@", "\(error)")
         }
         launchAtLoginEnabled = service.status == .enabled
+    }
+}
+
+// MARK: - Capture -------------------------------------------------------------
+
+/// ⌘⇧N 抓取策略 + 剪贴板白名单编辑。三选一模式 + 一个换行分隔的 bundle ID 列表
+/// (列表只在「AX + 白名单」模式下展示,纯剪贴板/关闭模式下白名单无意义)。
+struct CaptureTab: View {
+    @AppStorage(SettingsKey.captureMode) private var captureModeRaw: String = CaptureMode.axWithWhitelist.rawValue
+    @AppStorage(SettingsKey.clipboardWhitelist) private var whitelistRaw: String = ""
+
+    private var mode: CaptureMode { CaptureMode.from(captureModeRaw) }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("抓取方式:", selection: $captureModeRaw) {
+                    ForEach(CaptureMode.allCases) { m in
+                        Text(m.label).tag(m.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+            } footer: {
+                Text(modeFooter)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if mode == .axWithWhitelist {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("剪贴板白名单(每行一个 bundle ID)")
+                            .font(.callout.weight(.medium))
+                        TextEditor(text: $whitelistRaw)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(minHeight: 120)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                            )
+                        Text("常见示例:com.tencent.xinWeChat、com.microsoft.VSCode")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .frame(width: 480, height: mode == .axWithWhitelist ? 380 : 180)
+    }
+
+    private var modeFooter: String {
+        switch mode {
+        case .axWithWhitelist:
+            return "默认通过「辅助功能」抓取选中文本;白名单里的 App 改用合成 ⌘C 读剪贴板,然后自动还原原本的剪贴板内容。适合微信等不暴露 AX 选区的 App。"
+        case .clipboardOnly:
+            return "永远合成 ⌘C 读剪贴板,不依赖辅助功能权限。读完会还原原本的剪贴板内容。"
+        case .disabled:
+            return "⌘⇧N 直接打开空白 capture 输入框,不抓取任何选中文本。"
+        }
     }
 }
 

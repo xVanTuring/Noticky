@@ -90,25 +90,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.showWindow()
     }
 
-    /// ⌘⇧N 主入口。已授权 → 抓 selection 预填;未授权 → 当次启动里弹一次
-    /// NSAlert 引导用户开权限,之后(以及他选择「不开」时)用空 capture 继续。
+    /// ⌘⇧N 主入口。根据用户在 Settings → Capture 选的模式分发抓取策略,
+    /// 之后再 toggle capture 窗口预填。
     ///
-    /// 关键时序:`SelectionFetcher.currentSelection()` 必须在 `capture.toggle`
-    /// **之前** 调 —— 一旦 capture 窗口抢焦点,frontmostApplication 就成了
-    /// Noticky 自己。NSAlert 路径同理:先弹 alert 再开 capture,这次按键不读
-    /// selection 也无所谓(用户还没授权)。
+    /// 关键时序:**任何抓取调用都必须在 `capture.toggle` 之前**。
+    /// 一旦 capture 窗口抢焦点,`frontmostApplication` 就是 Noticky 自己,
+    /// AX 读到我们自己的输入框,合成 ⌘C 也是按到 Noticky 上 —— 全错。
+    /// 这函数把 frontmost app 信息(pid/bundleID)在头一两行就抓出来,
+    /// 后面分支都基于这个快照,不再二次访问 NSWorkspace。
     private func handleCaptureHotKey() {
-        if SelectionFetcher.isTrusted {
-            let prefill = SelectionFetcher.currentSelection()
-            capture.toggle(prefill: prefill)
-            return
-        }
-        if hasShownAccessibilityPrompt {
+        let mode = CaptureMode.from(
+            UserDefaults.standard.string(forKey: SettingsKey.captureMode) ?? ""
+        )
+
+        if mode == .disabled {
             capture.toggle()
             return
         }
-        hasShownAccessibilityPrompt = true
-        promptForAccessibilityAccess()
+
+        // 抢焦点前抓 frontmost。后面所有路径都用这个快照,不再访问 NSWorkspace。
+        let front = NSWorkspace.shared.frontmostApplication
+        let frontPID = front?.processIdentifier
+        let frontBundle = front?.bundleIdentifier ?? ""
+
+        switch mode {
+        case .clipboardOnly:
+            let prefill = frontPID.flatMap { ClipboardFetcher.fetch(from: $0) }
+            capture.toggle(prefill: prefill)
+
+        case .axWithWhitelist:
+            let whitelist = UserDefaults.standard.string(forKey: SettingsKey.clipboardWhitelist) ?? ""
+            let useClipboard = !frontBundle.isEmpty
+                && ClipboardWhitelist.contains(whitelist, bundleID: frontBundle)
+
+            if useClipboard {
+                let prefill = frontPID.flatMap { ClipboardFetcher.fetch(from: $0) }
+                capture.toggle(prefill: prefill)
+                return
+            }
+
+            // 走 AX —— 沿用旧分支:已授权直接抓,没授权当次启动弹一次引导。
+            if SelectionFetcher.isTrusted {
+                let prefill = SelectionFetcher.currentSelection()
+                capture.toggle(prefill: prefill)
+                return
+            }
+            if hasShownAccessibilityPrompt {
+                capture.toggle()
+                return
+            }
+            hasShownAccessibilityPrompt = true
+            promptForAccessibilityAccess()
+
+        case .disabled:
+            // 上面已 return,这分支只为穷尽 switch。
+            capture.toggle()
+        }
     }
 
     private func promptForAccessibilityAccess() {
