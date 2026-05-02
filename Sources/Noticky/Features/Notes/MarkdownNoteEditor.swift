@@ -9,7 +9,15 @@ import Textual
 /// 对 sticky note 场景特别合适 —— 大部分时间是瞄一眼,要写时点进去就是普通文本。
 struct MarkdownNoteEditor: View {
     @Binding var text: String
-    @State private var isEditing = false
+    @State private var isEditing: Bool
+
+    /// 初始模式按 Settings → Notes 的 "Open notes in edit mode" 决定。
+    /// 之后切换是 view 自身 @State(每次 init 一个新 editor 都按当前 setting 起步)。
+    init(text: Binding<String>) {
+        self._text = text
+        let startInEdit = UserDefaults.standard.bool(forKey: SettingsKey.startInEditMode)
+        self._isEditing = State(initialValue: startInEdit)
+    }
 
     var body: some View {
         Group {

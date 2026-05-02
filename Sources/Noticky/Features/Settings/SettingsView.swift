@@ -13,6 +13,37 @@ enum SettingsKey {
     static let clipboardWhitelist = "Noticky.clipboardWhitelist"
     static let doubleClickTitleToCollapse = "Noticky.doubleClickTitleToCollapse"
     static let appLanguage = "Noticky.appLanguage"
+
+    // 新建便签默认行为
+    static let defaultColorIndex = "Noticky.defaultColorIndex"   // Int (0..5,对应 StickyPalette)
+    static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
+    static let defaultNoteSize = "Noticky.defaultNoteSize"       // String raw,DefaultNoteSize enum
+    static let startInEditMode = "Noticky.startInEditMode"       // Bool,新便签直接进编辑态(默认 false:渲染态)
+}
+
+/// 新建便签时浮窗的默认尺寸预设。Settings 用 picker 选,FloatingNoteWindowController.show
+/// 在 note 没有 savedFrame 时用这个值作为初始 contentSize。
+enum DefaultNoteSize: String, CaseIterable, Identifiable {
+    case small, medium, large
+
+    var id: String { rawValue }
+    var size: NSSize {
+        switch self {
+        case .small:  return NSSize(width: 240, height: 240)
+        case .medium: return NSSize(width: 280, height: 280)
+        case .large:  return NSSize(width: 360, height: 360)
+        }
+    }
+    var label: String {
+        switch self {
+        case .small:  return L.t(.noteSizeSmall)
+        case .medium: return L.t(.noteSizeMedium)
+        case .large:  return L.t(.noteSizeLarge)
+        }
+    }
+    static func from(_ raw: String) -> DefaultNoteSize {
+        DefaultNoteSize(rawValue: raw) ?? .medium
+    }
 }
 
 /// ⌘⇧N 抓选中文本的策略。
@@ -356,18 +387,67 @@ struct PermissionsTab: View {
 // MARK: - Notes ---------------------------------------------------------------
 
 struct NotesTab: View {
+    @AppStorage(SettingsKey.defaultColorIndex) private var defaultColorIndex: Int = 0
+    @AppStorage(SettingsKey.noteFontSize) private var noteFontSize: Int = 14
+    @AppStorage(SettingsKey.defaultNoteSize) private var defaultNoteSizeRaw: String = DefaultNoteSize.medium.rawValue
+    @AppStorage(SettingsKey.startInEditMode) private var startInEditMode: Bool = false
     @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         Form {
-            Section {
-                Text(L.t(.notesPlaceholder))
-                    .foregroundStyle(.secondary)
+            // 颜色:6 圆点 HStack。点中带 accent ring,跟浮窗 ⋯ 菜单的颜色 picker 一致。
+            LabeledContent(L.t(.notesDefaultColor)) {
+                HStack(spacing: 8) {
+                    ForEach(StickyPalette.allCases) { palette in
+                        Button {
+                            defaultColorIndex = Int(palette.rawValue)
+                        } label: {
+                            Circle()
+                                .fill(palette.color)
+                                .frame(width: 22, height: 22)
+                                .overlay(
+                                    Circle().stroke(
+                                        defaultColorIndex == Int(palette.rawValue)
+                                            ? Color.accentColor
+                                            : Color.black.opacity(0.15),
+                                        lineWidth: defaultColorIndex == Int(palette.rawValue) ? 2 : 1
+                                    )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // 字号:Stepper 12..24。新建 / 已打开的编辑器都会通过 PlainTextEditor
+            // 的 @AppStorage + updateNSView 同步刷新。
+            Stepper(value: $noteFontSize, in: 12...24, step: 1) {
+                LabeledContent(L.t(.notesFontSize)) {
+                    Text("\(noteFontSize) pt")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Picker(L.t(.notesDefaultSize), selection: $defaultNoteSizeRaw) {
+                ForEach(DefaultNoteSize.allCases) { size in
+                    Text(size.label).tag(size.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Toggle(isOn: $startInEditMode) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L.t(.notesStartInEditMode))
+                    Text(L.t(.notesStartInEditModeDesc))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 140)
+        .frame(width: 480, height: 320)
     }
 }
 

@@ -5,7 +5,7 @@
 ## A. 代码里已有 stub(用户在 UI 里能看到"未实现"提示)
 
 - [x] Settings → **Shortcuts** 可自定义全局热键(Quick Capture)。menu / window 派发的 macOS 标准键(⌘N/⌘W/⌘Q/⌘,/⌘⇧0/⌘D)继续保持只读。基于 sindresorhus/KeyboardShortcuts 库
-- [ ] Settings → **Notes** 补 tab 内容:默认便签颜色 / 默认字号 / 默认窗口尺寸 / 渲染态默认开关
+- [x] Settings → **Notes** 补 tab 内容:默认便签颜色 / 默认字号(12-24,实时同步)/ 默认窗口尺寸(Small/Medium/Large)/ 默认进编辑态 toggle
 - [ ] Settings → **iCloud Sync** 真正接入(`PersistenceController` 注释提到的 Phase 3:切到 `NSPersistentCloudKitContainer`)
 
 ## B. 体验类(常见便签 app 有 / 用户可能想要)

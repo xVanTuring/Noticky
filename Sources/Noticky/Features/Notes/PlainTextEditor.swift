@@ -7,6 +7,9 @@ struct PlainTextEditor: NSViewRepresentable {
     @Binding var text: String
     var autofocus: Bool = false
     var onExitEdit: (() -> Void)? = nil
+    /// 跟 Settings → Notes 里的字号同步。改设置时已打开的编辑器会通过 updateNSView
+    /// 自动对齐(SwiftUI 重渲染 → updateNSView 调用 → 检查 font.pointSize 不同则换)。
+    @AppStorage(SettingsKey.noteFontSize) private var noteFontSize: Int = 14
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
@@ -27,7 +30,7 @@ struct PlainTextEditor: NSViewRepresentable {
         tv.isAutomaticTextReplacementEnabled = false
         tv.drawsBackground = false
         tv.backgroundColor = .clear
-        tv.font = .systemFont(ofSize: 14)
+        tv.font = .systemFont(ofSize: CGFloat(noteFontSize))
         tv.textContainerInset = NSSize(width: 8, height: 8)
         tv.string = text
 
@@ -43,6 +46,11 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = scroll.documentView as? NSTextView else { return }
+        // 字号同步。先做 —— 跟 hasMarkedText 守卫无关(font 切换不会清 marked text)。
+        let targetSize = CGFloat(noteFontSize)
+        if tv.font?.pointSize != targetSize {
+            tv.font = .systemFont(ofSize: targetSize)
+        }
         // 中文 IME 拼音预编辑期间(hasMarkedText 为 true),`tv.string = ...` 会
         // 把 marked text 一锅端清掉。父层 SwiftUI 任意 re-render(比如 hover 变化)
         // 都会把 updateNSView 推一遍,如果不守卫这里,marked text 每次都被清空。

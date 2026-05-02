@@ -67,6 +67,9 @@ extension Note {
         note.createdAt = now
         note.updatedAt = now
         note.isPinned = false
+        // 默认颜色读 Settings(用户在 Notes tab 选);未设过时 UserDefaults.integer
+        // 返回 0 = StickyPalette.yellow,等同旧行为。
+        note.colorIndex = Int16(UserDefaults.standard.integer(forKey: SettingsKey.defaultColorIndex))
         return note
     }
 

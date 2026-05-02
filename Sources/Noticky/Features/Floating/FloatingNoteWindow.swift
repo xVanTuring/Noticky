@@ -515,7 +515,12 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     func show(cascadeIndex: Int = 0) {
         guard let context = note.managedObjectContext else { return }
 
-        let defaultSize = NSSize(width: 280, height: 280)
+        // 没 savedFrame 时用 Settings → Notes 选的"默认尺寸"。已 saved 的便签不动,
+        // 用户既然手动 resize 过就尊重那个尺寸。
+        let defaultSizePref = DefaultNoteSize.from(
+            UserDefaults.standard.string(forKey: SettingsKey.defaultNoteSize) ?? ""
+        )
+        let defaultSize = defaultSizePref.size
         let host = NSHostingController(
             rootView: FloatingNoteView(
                 note: note,

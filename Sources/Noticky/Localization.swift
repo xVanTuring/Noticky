@@ -87,8 +87,13 @@ enum LocKey: String {
     case captureModeAxWhitelist, captureModeClipboardOnly, captureModeDisabled
     case captureWhitelistTitle, captureWhitelistHint
 
-    // Settings Notes / iCloud placeholders
-    case notesPlaceholder, iCloudPlaceholder
+    // Settings Notes
+    case notesDefaultColor, notesFontSize, notesDefaultSize, notesStartInEditMode
+    case notesStartInEditModeDesc
+    case noteSizeSmall, noteSizeMedium, noteSizeLarge
+
+    // Settings iCloud placeholder
+    case iCloudPlaceholder
 
     // Quick Capture
     case quickPlaceholder, quickSave, quickNewLine, quickCancel
@@ -188,7 +193,14 @@ enum L {
         .captureWhitelistTitle: "Clipboard whitelist (one bundle ID per line)",
         .captureWhitelistHint: "Examples: com.tencent.xinWeChat, com.microsoft.VSCode",
 
-        .notesPlaceholder: "More note defaults coming soon.",
+        .notesDefaultColor: "Default color",
+        .notesFontSize: "Editor font size",
+        .notesDefaultSize: "Default window size",
+        .notesStartInEditMode: "Open notes in edit mode",
+        .notesStartInEditModeDesc: "When you open a note, jump straight into the editable source view instead of the rendered Markdown preview.",
+        .noteSizeSmall: "Small (240×240)",
+        .noteSizeMedium: "Medium (280×280)",
+        .noteSizeLarge: "Large (360×360)",
         .iCloudPlaceholder: "iCloud Sync is not available yet.",
 
         .quickPlaceholder: "Quick note…",
@@ -291,7 +303,14 @@ enum L {
         .captureWhitelistTitle: "剪贴板白名单(每行一个 bundle ID)",
         .captureWhitelistHint: "常见示例:com.tencent.xinWeChat、com.microsoft.VSCode",
 
-        .notesPlaceholder: "更多便签默认设置即将推出。",
+        .notesDefaultColor: "默认颜色",
+        .notesFontSize: "编辑器字号",
+        .notesDefaultSize: "默认窗口尺寸",
+        .notesStartInEditMode: "打开便签直接进入编辑态",
+        .notesStartInEditModeDesc: "打开便签时直接显示可编辑的 Markdown 源码,而不是先看渲染预览。",
+        .noteSizeSmall: "小 (240×240)",
+        .noteSizeMedium: "中 (280×280)",
+        .noteSizeLarge: "大 (360×360)",
         .iCloudPlaceholder: "iCloud 同步暂不可用。",
 
         .quickPlaceholder: "快速便签…",
