@@ -193,7 +193,13 @@ struct ManagerView: View {
     }
 
     private func filteredNotes(in group: NoteGroup) -> [Note] {
-        applyFilterAndSort(Array(group.notes))
+        // group.notes 是 Core Data 的 inverse relationship,**不带 fetch
+        // predicate** —— 即使 Note 已经进回收站,group.notes 仍包含它。
+        // 这里手动剔掉 trashed,跟 allNotes(Note.sortedFetchRequest 已带
+        // isTrashed==false 谓词)的可见性保持一致。否则 sidebar 显示了一条
+        // trashed 笔记,detail 在 allNotes 里 first(where:) 又找不到 → 看到
+        // "Select a note" placeholder。
+        applyFilterAndSort(Array(group.notes).filter { !$0.isTrashed })
     }
 
     private var ungroupedNotes: [Note] {
