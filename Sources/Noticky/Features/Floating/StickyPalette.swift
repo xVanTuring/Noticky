@@ -17,6 +17,18 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         StickyPalette(rawValue: index) ?? .yellow
     }
 
+    /// 用在 Menu / 列表里展示色名。LocKey 走 Localization.swift 集中翻译。
+    var locKey: LocKey {
+        switch self {
+        case .yellow: return .colorYellow
+        case .pink:   return .colorPink
+        case .blue:   return .colorBlue
+        case .green:  return .colorGreen
+        case .purple: return .colorPurple
+        case .gray:   return .colorGray
+        }
+    }
+
     var color: Color { Color(nsColor: nsColor) }
 
     var nsColor: NSColor {

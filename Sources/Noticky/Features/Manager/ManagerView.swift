@@ -311,9 +311,46 @@ struct ManagerView: View {
         let targets = contextTargets(for: note)
         let multi = targets.count > 1
 
-        // Open as Sticky 只对单条有意义;批量同时弹一堆浮窗会糊屏。
-        if !multi {
+        // Open as Sticky:单条直接打开;多条放到一个子菜单里(8 条以内才显示
+        // 入口,免得用户误点把 30 个浮窗瞬间糊到屏幕上)。
+        if multi {
+            if targets.count <= 8 {
+                Button(L.t(.managerOpenCount, targets.count)) {
+                    for n in targets { floating.show(note: n) }
+                }
+            }
+        } else {
             Button(L.t(.managerOpenAsSticky)) { floating.show(note: note) }
+        }
+
+        // Pin / Unpin:总是给两个动作,让用户明确地选「全部钉住」或「全部取消钉」。
+        // 不做"toggle 当前选中是否全部 pinned"的智能猜测 —— 多选状态混合时怎么
+        // 解读 toggle 都会误伤。两按钮 + 显式语义 跟 Finder 「Add Tag / Remove Tag」 一致。
+        Menu(L.t(.managerPinMenu)) {
+            Button(L.t(.managerPinAll)) {
+                for n in targets where !n.isPinned { n.isPinned = true }
+                try? context.save()
+            }
+            Button(L.t(.managerUnpinAll)) {
+                for n in targets where n.isPinned { n.isPinned = false }
+                try? context.save()
+            }
+        }
+
+        // 颜色:6 色调色板,选哪个就把 targets 全部染过去。Label + circle.fill
+        // 系统图标 + foregroundStyle —— Menu 里能看到色块,体验比纯文字好。
+        Menu(L.t(.managerColorMenu)) {
+            ForEach(StickyPalette.allCases) { palette in
+                Button {
+                    for n in targets where n.colorIndex != palette.rawValue {
+                        n.colorIndex = palette.rawValue
+                    }
+                    try? context.save()
+                } label: {
+                    Label(L.t(palette.locKey), systemImage: "circle.fill")
+                        .foregroundStyle(palette.color)
+                }
+            }
         }
 
         Menu(multi ? L.t(.managerMoveNotesToGroup, targets.count) : L.t(.managerMoveToGroup)) {

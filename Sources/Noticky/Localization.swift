@@ -128,6 +128,10 @@ enum LocKey: String {
     case managerSelectNote, managerSelectNoteDesc
     case managerMultiSelected, managerMultiSelectedDesc
     case managerExport, managerExportCount
+    case managerOpenCount, managerPinMenu, managerPinAll, managerUnpinAll, managerColorMenu
+
+    // 色板名(批量改色用)
+    case colorYellow, colorPink, colorBlue, colorGreen, colorPurple, colorGray
 
     // File menu IO
     case fileImport, fileBackup, fileRestore
@@ -283,6 +287,17 @@ enum L {
         .managerMultiSelectedDesc: "Right-click in the sidebar to delete or move them.",
         .managerExport: "Export…",
         .managerExportCount: "Export %d notes…",
+        .managerOpenCount: "Open %d as Stickies",
+        .managerPinMenu: "Pin",
+        .managerPinAll: "Pin All",
+        .managerUnpinAll: "Unpin All",
+        .managerColorMenu: "Color",
+        .colorYellow: "Yellow",
+        .colorPink: "Pink",
+        .colorBlue: "Blue",
+        .colorGreen: "Green",
+        .colorPurple: "Purple",
+        .colorGray: "Gray",
         .fileImport: "Import…",
         .fileBackup: "Backup All Notes…",
         .fileRestore: "Restore from Backup…",
@@ -432,6 +447,17 @@ enum L {
         .managerMultiSelectedDesc: "在侧边栏右键以删除或移动它们。",
         .managerExport: "导出…",
         .managerExportCount: "导出 %d 条…",
+        .managerOpenCount: "打开为 %d 个浮窗",
+        .managerPinMenu: "钉住",
+        .managerPinAll: "全部钉住",
+        .managerUnpinAll: "全部取消钉",
+        .managerColorMenu: "颜色",
+        .colorYellow: "黄色",
+        .colorPink: "粉色",
+        .colorBlue: "蓝色",
+        .colorGreen: "绿色",
+        .colorPurple: "紫色",
+        .colorGray: "灰色",
         .fileImport: "导入…",
         .fileBackup: "备份全部便签…",
         .fileRestore: "从备份恢复…",

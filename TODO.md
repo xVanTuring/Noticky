@@ -11,7 +11,7 @@
 ## B. 体验类(常见便签 app 有 / 用户可能想要)
 
 - [x] **拖拽笔记到分组**(目前只能右键 Move to Group)—— Manager sidebar `.onDrag` + `.onDrop`,多选拖动跟着 selection 走
-- [ ] **批量操作扩展**:多选后批量改色 / 批量 pin / 批量打开为浮窗(现在只支持移动 / 删除)
+- [x] **批量操作扩展**:多选后批量改色(6 色板)/ 批量 Pin/Unpin / 批量打开为浮窗(≤8 条防糊屏)
 - [x] **导入 / 导出** —— 右键 Manager 选中便签 Export(单条 .md / 多条到目录);File menu Import / Backup / Restore。整库 backup 用 JSON 单文件而非 zip(等附件支持再换 zip)
 - [ ] **自定义颜色** 入口(目前固定 6 色板)
 - [ ] **字体大小调整**(单条 / 全局两套?)
