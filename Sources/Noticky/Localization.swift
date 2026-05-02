@@ -71,6 +71,7 @@ enum LocKey: String {
     case generalFadeWhenInactive, generalFadeWhenInactiveDesc
     case generalDoubleClickCollapse, generalDoubleClickCollapseDesc
     case generalLanguage
+    case generalTrashRetention, generalTrashRetentionDesc
 
     // Settings Shortcuts
     case shortcutsCustomizable, shortcutsSystem
@@ -179,6 +180,8 @@ enum L {
         .generalDoubleClickCollapse: "Double-click title to collapse",
         .generalDoubleClickCollapseDesc: "Double-click a sticky note's title strip to shrink the window to just the title bar; double-click again to expand. State is remembered per note.",
         .generalLanguage: "Language",
+        .generalTrashRetention: "Keep deleted notes for %d days",
+        .generalTrashRetentionDesc: "Notes in Trash are permanently removed after this many days. Range 7-365.",
 
         .shortcutsCustomizable: "Customizable",
         .shortcutsSystem: "System",
@@ -317,6 +320,8 @@ enum L {
         .generalDoubleClickCollapse: "双击标题折叠",
         .generalDoubleClickCollapseDesc: "双击便签顶部标题区,把窗口收成只剩标题条;再双击展开。状态会跟着便签一起记。",
         .generalLanguage: "语言",
+        .generalTrashRetention: "回收站保留 %d 天",
+        .generalTrashRetentionDesc: "进入回收站的便签超过设定天数后会被永久删除。范围 7-365 天。",
 
         .shortcutsCustomizable: "可自定义",
         .shortcutsSystem: "系统",

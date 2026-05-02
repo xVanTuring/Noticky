@@ -24,6 +24,24 @@ enum SettingsKey {
     /// 在 init 时一次性读 + 决定走 NSPersistentContainer 还是
     /// NSPersistentCloudKitContainer,运行时无法热切换。
     static let iCloudSyncEnabled = "Noticky.iCloudSyncEnabled"   // Bool
+
+    /// 回收站保留天数。超过这个天数的 trashed 笔记会在启动时被
+    /// `purgeExpiredTrash` 真删。范围 7-365,未设默认 30(对齐 Notes/Mail)。
+    static let trashRetentionDays = "Noticky.trashRetentionDays" // Int
+}
+
+/// 回收站保留天数的取值范围 + 默认值。集中在这里,SettingsView Stepper 和
+/// `purgeExpiredTrash` 都引用,避免散落。
+enum TrashRetention {
+    static let defaultDays = 30
+    static let range = 7...365
+    /// UserDefaults 没设时返回默认值;`.integer(forKey:)` 默认会返回 0,要显式
+    /// 拦截一下。
+    static var current: Int {
+        let raw = UserDefaults.standard.integer(forKey: SettingsKey.trashRetentionDays)
+        guard range.contains(raw) else { return defaultDays }
+        return raw
+    }
 }
 
 /// 新建便签时浮窗的默认尺寸预设。Settings 用 picker 选,FloatingNoteWindowController.show
@@ -141,6 +159,7 @@ struct GeneralTab: View {
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
     @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapse: Bool = false
+    @AppStorage(SettingsKey.trashRetentionDays) private var trashRetentionDays: Int = TrashRetention.defaultDays
     @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
@@ -186,10 +205,24 @@ struct GeneralTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            // 回收站保留天数。Stepper bind 到 @AppStorage,改一下立即落 UserDefaults,
+            // 下次启动 purgeExpiredTrash 用新值。当前已在回收站里超期的下次启动才清。
+            Stepper(value: Binding(
+                get: { trashRetentionDays > 0 ? trashRetentionDays : TrashRetention.defaultDays },
+                set: { trashRetentionDays = $0 }
+            ), in: TrashRetention.range, step: 1) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L.t(.generalTrashRetention, trashRetentionDays > 0 ? trashRetentionDays : TrashRetention.defaultDays))
+                    Text(L.t(.generalTrashRetentionDesc))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 340)
+        .frame(width: 480, height: 400)
     }
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。

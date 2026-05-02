@@ -331,12 +331,14 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 启动时调一次:把超过 30 天的 trashed 笔记真删。系统级 macOS Notes/Mail
-    /// 默认 30 天,体验对齐。trashedAt 为 nil 的(理论上不该出现,旧库迁移残留)
-    /// 跳过,等下次 trash 行为重写时再处理。
+    /// 启动时调一次:把超过保留天数的 trashed 笔记真删。默认 30 天(对齐
+    /// 系统 Notes/Mail),用户可以在 Settings → General 改(7-365 范围)。
+    /// trashedAt 为 nil 的(理论上不该出现,旧库迁移残留)跳过,等下次 trash
+    /// 行为重写时再处理。
     func purgeExpiredTrash(in context: NSManagedObjectContext) {
         let request = Note.trashedFetchRequest()
-        let cutoff = Date().addingTimeInterval(-30 * 24 * 3600)
+        let days = TrashRetention.current
+        let cutoff = Date().addingTimeInterval(-Double(days) * 24 * 3600)
         // 在 fetch 阶段就过滤掉 trashedAt 不达标的,免得 fetch 全量再扫一遍。
         request.predicate = NSPredicate(
             format: "isTrashed == %@ AND trashedAt != nil AND trashedAt < %@",
