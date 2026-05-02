@@ -205,15 +205,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func promptForAccessibilityAccess() {
         let alert = NSAlert()
-        alert.messageText = "开启辅助功能以自动填入选中文本"
-        alert.informativeText = """
-            Noticky 需要「辅助功能」权限才能在你按下 ⌘⇧N 时,读取当前 App 里选中的文字并自动填入。
-
-            打开「系统设置 → 隐私与安全性 → 辅助功能」,把 Noticky 勾上即可。授权后再按 ⌘⇧N 就能用了。
-            """
+        alert.messageText = L.t(.promptAxTitle)
+        alert.informativeText = L.t(.promptAxBody)
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "暂不开启")
+        alert.addButton(withTitle: L.t(.promptAxOpen))
+        alert.addButton(withTitle: L.t(.promptAxNotNow))
 
         // LSUIElement 的 App 没 Dock 图标,弹 modal 前先 activate 一下,
         // alert 才会成为 key window 抢到键盘焦点。

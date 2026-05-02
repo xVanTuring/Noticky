@@ -104,6 +104,9 @@ enum LocKey: String {
     case managerSelectNote, managerSelectNoteDesc
     case managerMultiSelected, managerMultiSelectedDesc
 
+    // Accessibility prompt (NSAlert)
+    case promptAxTitle, promptAxBody, promptAxOpen, promptAxNotNow
+
     // Trash
     case trashTitle, trashEmpty, trashEmptyDesc, trashEmptyButton
     case trashEmptyAlert, trashEmptyAlertMsg
@@ -209,6 +212,11 @@ enum L {
         .managerMultiSelected: "%d notes selected",
         .managerMultiSelectedDesc: "Right-click in the sidebar to delete or move them.",
 
+        .promptAxTitle: "Enable Accessibility to auto-fill selected text",
+        .promptAxBody: "Noticky needs the Accessibility permission to read the selected text from the frontmost app and prefill it when you press ⌘⇧N.\n\nOpen System Settings → Privacy & Security → Accessibility and enable Noticky. Then press ⌘⇧N again.",
+        .promptAxOpen: "Open System Settings",
+        .promptAxNotNow: "Not Now",
+
         .trashTitle: "Trash",
         .trashEmpty: "Trash is empty",
         .trashEmptyDesc: "Notes you delete will appear here for 30 days.",
@@ -302,6 +310,11 @@ enum L {
         .managerSelectNoteDesc: "从侧边栏选一条便签,或者按 ⌘N 新建。",
         .managerMultiSelected: "已选中 %d 条便签",
         .managerMultiSelectedDesc: "在侧边栏右键以删除或移动它们。",
+
+        .promptAxTitle: "开启辅助功能以自动填入选中文本",
+        .promptAxBody: "Noticky 需要「辅助功能」权限才能在你按下 ⌘⇧N 时,读取当前 App 里选中的文字并自动填入。\n\n打开「系统设置 → 隐私与安全性 → 辅助功能」,把 Noticky 勾上即可。授权后再按 ⌘⇧N 就能用了。",
+        .promptAxOpen: "打开系统设置",
+        .promptAxNotNow: "暂不开启",
 
         .trashTitle: "回收站",
         .trashEmpty: "回收站为空",
