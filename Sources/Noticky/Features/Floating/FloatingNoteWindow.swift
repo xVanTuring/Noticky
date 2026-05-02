@@ -818,8 +818,13 @@ private struct NoteTitleBar: View {
 }
 
 /// 标题条上的双击命中层。catch mouseDown:clickCount==2 → 触发 onDoubleClick;
-/// 单击则手动 `window.performDrag(with:)` 转交给系统拖窗 —— 这样这块区域既能
+/// 单击 + 真位移 → `window.performDrag(with:)` 转交给系统拖窗 —— 这样这块区域既能
 /// 双击折叠/展开,又不挡用户拖动整个浮窗。
+///
+/// **关键:performDrag 只能等 mouseDragged 累计位移超过阈值再调**。直接在第一次
+/// mouseDown 就 performDrag,触摸板的微抖动会瞬间触发 windowDidMove,导致
+/// stack/tile layout 模式的 reflow 跟双击折叠动画打架(出现折一半/卡住的视觉
+/// bug)。设 4pt 阈值,小于这个就当用户没动 —— 双击间隙的颤抖不算拖。
 ///
 /// 在 ZStack 里**必须放在 HoverToolbar 之下** —— 上层的 × / ⋯ 按钮要先吃到点击。
 /// 自身限定 ~28pt 高顶部条,不会下探到编辑器区域。
@@ -828,14 +833,36 @@ private struct TitleDoubleClickHit: NSViewRepresentable {
 
     final class HitView: NSView {
         var onDoubleClick: (() -> Void)?
+        /// 当前一次 mouseDown 的原始事件,等到 mouseDragged 越过阈值时拿它当
+        /// performDrag 的 anchor。判定为双击 / mouseUp 后清空。
+        private var pendingDownEvent: NSEvent?
+        private var downLocation: NSPoint = .zero
+        private static let dragThreshold: CGFloat = 4
 
         override func mouseDown(with event: NSEvent) {
             if event.clickCount == 2 {
+                pendingDownEvent = nil
                 onDoubleClick?()
                 return
             }
-            // 单击/拖动:转给系统的窗口移动逻辑,行为等同直接拖窗背景。
-            window?.performDrag(with: event)
+            pendingDownEvent = event
+            downLocation = event.locationInWindow
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let down = pendingDownEvent else { return }
+            let dx = event.locationInWindow.x - downLocation.x
+            let dy = event.locationInWindow.y - downLocation.y
+            if dx * dx + dy * dy >= Self.dragThreshold * Self.dragThreshold {
+                pendingDownEvent = nil
+                // performDrag 进 modal 循环直到 mouseUp;期间 windowDidMove 正常触发,
+                // 用户是真在拖,reflow 应该走。
+                window?.performDrag(with: down)
+            }
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            pendingDownEvent = nil
         }
     }
 
