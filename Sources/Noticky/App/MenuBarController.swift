@@ -71,6 +71,22 @@ final class MenuBarController: NSObject {
         }
 
         menu.addItem(.separator())
+
+        // 显示 / 隐藏所有浮窗。标签按当前状态切:有任意可见 → "Hide All Stickies",
+        // 否则 → "Show All Stickies"。Hide 走 orderOut(不动 isPinned),Show 走
+        // orderFront,如果 registry 空(全关了)则 fetch pinned notes 重新打开。
+        let toggleItem = NSMenuItem(
+            title: floating.hasVisibleWindow ? "Hide All Stickies" : "Show All Stickies",
+            action: #selector(toggleAllStickies),
+            keyEquivalent: ""
+        )
+        toggleItem.target = self
+        toggleItem.image = NSImage(
+            systemSymbolName: floating.hasVisibleWindow ? "eye.slash" : "eye",
+            accessibilityDescription: nil
+        )
+        menu.addItem(toggleItem)
+
         let showAll = NSMenuItem(
             title: "Show All Notes",
             action: #selector(showManager),
@@ -134,6 +150,14 @@ final class MenuBarController: NSObject {
 
     @objc private func toggleFloatOnTop() {
         floating.setFloatOnTop(!floating.floatOnTop)
+    }
+
+    @objc private func toggleAllStickies() {
+        if floating.hasVisibleWindow {
+            floating.hideAll()
+        } else {
+            floating.showAll(in: context)
+        }
     }
 
     @objc private func setLayoutMode(_ sender: NSMenuItem) {

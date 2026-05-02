@@ -168,6 +168,38 @@ final class FloatingNotesRegistry {
     /// 当前是否有任何浮窗(供菜单 enabled 状态用)。
     var hasOpenWindows: Bool { !windows.isEmpty }
 
+    /// 至少有一个窗口当前可见(供菜单标签从 Hide ↔ Show 切换用)。
+    var hasVisibleWindow: Bool {
+        windows.values.contains { $0.isWindowVisible }
+    }
+
+    /// 把所有当前 spawn 的浮窗 orderOut。**不走 close()** —— 不释放 wc、不触发
+    /// windowWillClose、不清 isPinned,只是视觉上藏起来。再调 showAll() 一键现身。
+    func hideAll() {
+        for wc in windows.values {
+            wc.setHidden(true)
+        }
+    }
+
+    /// 反过来:把所有藏着的浮窗重新 orderFront。可见的不动。如果 registry 是空
+    /// (用户关掉了所有浮窗),用 fetch pinned 兜底重新 spawn 一遍。
+    func showAll(in context: NSManagedObjectContext) {
+        if windows.isEmpty {
+            let request = NSFetchRequest<Note>(entityName: "Note")
+            request.predicate = NSPredicate(
+                format: "isPinned == %@ AND isTrashed == %@",
+                NSNumber(value: true), NSNumber(value: false)
+            )
+            request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
+            guard let pinned = try? context.fetch(request) else { return }
+            for note in pinned { show(note: note) }
+            return
+        }
+        for wc in windows.values {
+            wc.setHidden(false)
+        }
+    }
+
     // MARK: 模式回调 ---------------------------------------------------------
 
     /// 浮窗 windowDidBecomeKey 转过来。stack 模式下,把这张挪到 displayOrder 末尾
@@ -651,6 +683,21 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     func close() {
         window?.orderOut(nil)
         window = nil
+    }
+
+    /// 是否当前可见(orderFront 之后 = true,orderOut 之后 = false)。
+    /// 跟 close() 不同 —— 这里 window 还活着,只是不显示。
+    var isWindowVisible: Bool { window?.isVisible ?? false }
+
+    /// 隐藏 / 重新显示。orderOut 不会触发 windowWillClose,所以 isPinned / saved
+    /// frame 都保持原样;调用方下次 setHidden(false) 即可恢复。
+    func setHidden(_ hidden: Bool) {
+        guard let w = window else { return }
+        if hidden {
+            w.orderOut(nil)
+        } else {
+            w.orderFront(nil)
+        }
     }
 
     func bringToFront() {
