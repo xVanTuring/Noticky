@@ -10,6 +10,7 @@ enum SettingsKey {
     /// 换行分隔的 bundle ID 列表。换行而非 JSON,UserDefaults plist 里直接可读,
     /// SwiftUI 用一个 TextEditor 就能编辑,没必要为此引入 codable 中间层。
     static let clipboardWhitelist = "Noticky.clipboardWhitelist"
+    static let doubleClickTitleToCollapse = "Noticky.doubleClickTitleToCollapse"
 }
 
 /// ⌘⇧N 抓选中文本的策略。
@@ -99,6 +100,7 @@ struct GeneralTab: View {
     @State private var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
+    @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapse: Bool = false
 
     var body: some View {
         Form {
@@ -122,10 +124,19 @@ struct GeneralTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Toggle(isOn: $doubleClickToCollapse) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Double-click title to collapse")
+                    Text("双击便签顶部标题区,把窗口收成只剩标题条;再双击展开。状态会跟着便签一起记。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 220)
+        .frame(width: 480, height: 290)
     }
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。

@@ -690,6 +690,10 @@ private struct FloatingNoteView: View {
     @Environment(\.controlActiveState) private var controlActiveState
     /// 用户在设置面板里可关掉这个效果;@AppStorage 跨视图自动同步。
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
+    /// 双击标题切换折叠的总开关。默认 false —— 用户在 Settings 里自己开。
+    /// 关掉时整个 hit overlay 不渲染,标题区的点击 fall-through 到下面的窗口
+    /// 背景拖动逻辑(isMovableByWindowBackground = true),双击没有任何效果。
+    @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapseEnabled: Bool = false
     let onClose: () -> Void
     let onDelete: () -> Void
     let onToggleCollapse: () -> Void
@@ -761,11 +765,14 @@ private struct FloatingNoteView: View {
 
             // 双击命中层。**位于 HoverToolbar 之下** —— × / ⋯ 按钮要先吃到点击。
             // 占顶部 28pt 条,正好覆盖标题/hover 工具条所在区域;高度往下不延伸,
-            // 不会挡到下面编辑器的 mouseDown。
-            VStack {
-                TitleDoubleClickHit(onDoubleClick: onToggleCollapse)
-                    .frame(height: 28)
-                Spacer(minLength: 0)
+            // 不会挡到下面编辑器的 mouseDown。设置关掉时整个 overlay 不存在,
+            // 系统的 isMovableByWindowBackground 接管点击 = 跟未引入此功能时一样。
+            if doubleClickToCollapseEnabled {
+                VStack {
+                    TitleDoubleClickHit(onDoubleClick: onToggleCollapse)
+                        .frame(height: 28)
+                    Spacer(minLength: 0)
+                }
             }
 
             // 顶部 hover 工具条独立成一个 struct,**自己拥有 hovering @State** ——
