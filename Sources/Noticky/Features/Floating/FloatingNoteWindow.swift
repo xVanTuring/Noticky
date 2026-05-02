@@ -781,12 +781,14 @@ private struct FloatingNoteView: View {
             // 的 NSTextView updateNSView 被调,扰动中文 IME 的 marked text(拼音)。
             HoverToolbar(
                 palette: palette,
+                isCollapsed: note.isCollapsed,
                 onClose: onClose,
                 onPickColor: { picked in
                     note.colorIndex = picked.rawValue
                     note.updatedAt = Date()
                     try? context.save()
                 },
+                onToggleCollapse: onToggleCollapse,
                 onDelete: onDelete
             )
         }
@@ -888,8 +890,10 @@ private struct TitleDoubleClickHit: NSViewRepresentable {
 /// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownNoteEditor 重渲染。
 private struct HoverToolbar: View {
     let palette: StickyPalette
+    let isCollapsed: Bool
     let onClose: () -> Void
     let onPickColor: (StickyPalette) -> Void
+    let onToggleCollapse: () -> Void
     let onDelete: () -> Void
     @State private var hovering = false
     @State private var showColorPicker = false
@@ -928,9 +932,14 @@ private struct HoverToolbar: View {
                 .popover(isPresented: $showColorPicker, arrowEdge: .top) {
                     NoteActionsBubble(
                         selected: palette,
+                        isCollapsed: isCollapsed,
                         onPickColor: { picked in
                             onPickColor(picked)
                             showColorPicker = false
+                        },
+                        onToggleCollapse: {
+                            showColorPicker = false
+                            onToggleCollapse()
                         },
                         onDelete: {
                             showColorPicker = false
@@ -997,7 +1006,9 @@ private struct HoverTracker: NSViewRepresentable {
 
 private struct NoteActionsBubble: View {
     let selected: StickyPalette
+    let isCollapsed: Bool
     let onPickColor: (StickyPalette) -> Void
+    let onToggleCollapse: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -1020,6 +1031,18 @@ private struct NoteActionsBubble: View {
                 }
             }
             Divider()
+            // 展开/折叠入口 —— 跟"双击标题"功能等价但始终可用,即使用户在
+            // Settings 里关掉了 doubleClickTitleToCollapse,这里也能切换;同时
+            // 兜底处理"开了双击 → 折叠 → 关掉双击设置"导致便签卡死的情况。
+            Button(action: onToggleCollapse) {
+                HStack(spacing: 6) {
+                    Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
+                    Text(isCollapsed ? "Expand" : "Collapse")
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             Button(role: .destructive, action: onDelete) {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
