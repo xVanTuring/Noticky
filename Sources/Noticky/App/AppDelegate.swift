@@ -89,6 +89,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         appMenu.addItem(quitItem)
 
+        // File 菜单 ----
+        // 只装一项 Close (⌘W)。target=nil 走 first responder → NSWindow.performClose:。
+        // 标准 NSWindow 有 .closable 时直接关;borderless 的 StickyPanel override
+        // 了 performClose 让 ⌘W 也能关浮窗。
+        let fileMenuItem = NSMenuItem()
+        let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(NSMenuItem(
+            title: "Close",
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        ))
+        fileMenuItem.submenu = fileMenu
+        mainMenu.addItem(fileMenuItem)
+
         // Edit 菜单 ----
         // LSUIElement 隐藏 menu bar,但 NSApp.mainMenu 上的 keyEquivalent 仍参与
         // 派发。没有这一组 items,⌘V/⌘C/⌘X/⌘Z/⌘A 在 NSTextView 里全部失效 ——

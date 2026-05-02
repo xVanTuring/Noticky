@@ -398,6 +398,14 @@ final class StickyPanel: NSWindow {
         }
         return super.performKeyEquivalent(with: event)
     }
+
+    /// borderless window 没 .closable,默认 performClose 是 no-op + beep。
+    /// 我们让 ⌘W(经 main menu File → Close → performClose: 派发到 first
+    /// responder NSWindow)直接走 close() —— 等同点 × 按钮:触发 windowWillClose
+    /// → onClose,清 isPinned + 从 registry 摘除。
+    override func performClose(_ sender: Any?) {
+        close()
+    }
 }
 
 /// 配合 `isMovableByWindowBackground = true` 使用:NSHostingView 不知道 SwiftUI
