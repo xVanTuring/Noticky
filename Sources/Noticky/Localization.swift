@@ -73,8 +73,10 @@ enum LocKey: String {
     case generalLanguage
 
     // Settings Shortcuts
+    case shortcutsCustomizable, shortcutsSystem
     case shortcutQuickCapture, shortcutManageNotes, shortcutOpenSettings
-    case shortcutNewNote, shortcutQuit, shortcutsRoadmap
+    case shortcutNewNote, shortcutCloseWindow, shortcutDeleteNote
+    case shortcutQuit, shortcutsRoadmap
 
     // Settings Permissions
     case permissionAccessibilityTitle, permissionAccessibilityDesc
@@ -157,10 +159,14 @@ enum L {
         .generalDoubleClickCollapseDesc: "Double-click a sticky note's title strip to shrink the window to just the title bar; double-click again to expand. State is remembered per note.",
         .generalLanguage: "Language",
 
+        .shortcutsCustomizable: "Customizable",
+        .shortcutsSystem: "System",
         .shortcutQuickCapture: "Quick Capture",
         .shortcutManageNotes: "Manage All Notes",
         .shortcutOpenSettings: "Open Settings",
         .shortcutNewNote: "New Note (Manager / Capture)",
+        .shortcutCloseWindow: "Close Window",
+        .shortcutDeleteNote: "Delete Floating Note",
         .shortcutQuit: "Quit",
         .shortcutsRoadmap: "Customizing shortcuts is on the roadmap.",
 
@@ -256,10 +262,14 @@ enum L {
         .generalDoubleClickCollapseDesc: "双击便签顶部标题区,把窗口收成只剩标题条;再双击展开。状态会跟着便签一起记。",
         .generalLanguage: "语言",
 
+        .shortcutsCustomizable: "可自定义",
+        .shortcutsSystem: "系统",
         .shortcutQuickCapture: "快速捕获",
         .shortcutManageNotes: "管理所有便签",
         .shortcutOpenSettings: "打开设置",
         .shortcutNewNote: "新建便签(管理 / 捕获)",
+        .shortcutCloseWindow: "关闭窗口",
+        .shortcutDeleteNote: "删除当前便签(浮窗)",
         .shortcutQuit: "退出",
         .shortcutsRoadmap: "自定义快捷键将在后续版本支持。",
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ServiceManagement
+import KeyboardShortcuts
 
 /// 偏好的 UserDefaults key 集中在这里,避免散落各处拼错。
 enum SettingsKey {
@@ -239,21 +240,30 @@ struct ShortcutsTab: View {
 
     var body: some View {
         Form {
-            Section {
-                row(action: L.t(.shortcutQuickCapture),  shortcut: "⌘⇧N")
+            // 可自定义。库自己读写 UserDefaults,改完立刻 re-register 全局热键 ——
+            // AppDelegate 那侧 onKeyDown 不需要重新订阅。
+            Section(L.t(.shortcutsCustomizable)) {
+                HStack {
+                    Text(L.t(.shortcutQuickCapture))
+                    Spacer()
+                    KeyboardShortcuts.Recorder(for: .quickCapture)
+                }
+            }
+
+            // menu / window 派发的快捷键。短期内不打算让用户改 —— 它们是 macOS
+            // 标准约定,改了反而增加困惑。后续如果有需求再单独迁这一组。
+            Section(L.t(.shortcutsSystem)) {
                 row(action: L.t(.shortcutManageNotes),   shortcut: "⌘⇧0")
                 row(action: L.t(.shortcutOpenSettings),  shortcut: "⌘,")
                 row(action: L.t(.shortcutNewNote),       shortcut: "⌘N")
+                row(action: L.t(.shortcutCloseWindow),   shortcut: "⌘W")
+                row(action: L.t(.shortcutDeleteNote),    shortcut: "⌘D")
                 row(action: L.t(.shortcutQuit),          shortcut: "⌘Q")
-            } footer: {
-                Text(L.t(.shortcutsRoadmap))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 320)
+        .frame(width: 480, height: 420)
     }
 
     private func row(action: String, shortcut: String) -> some View {

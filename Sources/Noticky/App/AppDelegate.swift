@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import CoreData
+import KeyboardShortcuts
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -22,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var menuBar: MenuBarController!
     private var capture: CaptureWindowController!
-    private var hotKey: HotKeyManager!
     private let floating = FloatingNotesRegistry()
     private var manager: ManagerWindowController!
     private let settings = SettingsWindowController()
@@ -43,8 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         capture = CaptureWindowController(context: context, floating: floating)
         installMainMenu()
 
-        hotKey = HotKeyManager()
-        hotKey.register(combo: .captureDefault) { [weak self] in
+        // 全局快捷键由 sindresorhus/KeyboardShortcuts 库管理:用户在 Settings →
+        // Shortcuts 里改的快捷键库自己 persist 到 UserDefaults 并即时 re-register,
+        // 我们这里只关心"按下时干啥"。默认绑定见 ShortcutNames.swift。
+        KeyboardShortcuts.onKeyDown(for: .quickCapture) { [weak self] in
             self?.handleCaptureHotKey()
         }
 
