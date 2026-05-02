@@ -470,6 +470,8 @@ struct ICloudTab: View {
     @ObservedObject private var loc = LocalizationManager.shared
     @ObservedObject private var monitor = CloudKitSyncMonitor.shared
     @AppStorage(SettingsKey.iCloudSyncEnabled) private var enabledPref: Bool = false
+    @State private var schemaInitMessage: String?
+    @State private var schemaInitFailed: Bool = false
 
     /// 进程启动时 PersistenceController 决定的 mode。这个值不会随 toggle 改变,
     /// 与 enabledPref 不一致时说明用户改了开关但还没重启。
@@ -545,6 +547,27 @@ struct ICloudTab: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+
+                #if DEBUG
+                // CloudKit Development 环境的第一次 setup:必须把本地 model 推上去
+                // 才能创建 record types + 默认 zone。NSPersistentCloudKitContainer
+                // 不会自动做这个,要手动调 initializeCloudKitSchema(),期间应用要
+                // 短暂停止其他 CK 操作。一次成功后这个按钮就再也不需要点了。
+                Section {
+                    Button(L.t(.iCloudInitSchema)) {
+                        initializeSchema()
+                    }
+                    if let msg = schemaInitMessage {
+                        Label(msg, systemImage: schemaInitFailed ? "exclamationmark.triangle" : "checkmark.circle")
+                            .foregroundStyle(schemaInitFailed ? .red : .green)
+                            .font(.callout)
+                    }
+                } footer: {
+                    Text(L.t(.iCloudInitSchemaHint))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                #endif
             } else if !enabledPref {
                 Section {
                     Label(L.t(.iCloudDisabledHint), systemImage: "icloud.slash")
@@ -557,10 +580,39 @@ struct ICloudTab: View {
     }
 
     /// 内容多寡浮动:开关+只读 hint 时矮一些,启用+状态区时高一些。
+    /// DEBUG 构建时多一段 schema-init section。
     private var dynamicHeight: CGFloat {
+        #if DEBUG
+        if actuallyRunningCloudKit { return 600 }
+        #else
         if actuallyRunningCloudKit { return 460 }
+        #endif
         if enabledPref != actuallyRunningCloudKit { return 280 }
         return 220
+    }
+
+    /// 后台 thread 推 schema —— 这个调用是同步 + 网络阻塞,主线程跑会卡 UI。
+    /// 成功后 Cloud Console 里能看到 record types(`CD_Note`、`CD_NoteGroup`)+
+    /// 默认 zone (`com.apple.coredata.cloudkit.zone`) 出现。
+    private func initializeSchema() {
+        schemaInitMessage = nil
+        schemaInitFailed = false
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try PersistenceController.shared.initializeCloudKitSchema()
+                DispatchQueue.main.async {
+                    schemaInitMessage = L.t(.iCloudInitSchemaSuccess)
+                    schemaInitFailed = false
+                    monitor.refreshAccountStatus()
+                }
+            } catch {
+                let desc = (error as NSError).localizedDescription
+                DispatchQueue.main.async {
+                    schemaInitMessage = L.t(.iCloudInitSchemaFailed, desc)
+                    schemaInitFailed = true
+                }
+            }
+        }
     }
 
     private var accountIcon: String {

@@ -107,6 +107,9 @@ enum LocKey: String {
     case iCloudContainerLabel
     case iCloudFooter
     case iCloudDisabledHint
+    // Debug-only schema 推送
+    case iCloudInitSchema, iCloudInitSchemaHint
+    case iCloudInitSchemaSuccess, iCloudInitSchemaFailed
 
     // Quick Capture
     case quickPlaceholder, quickSave, quickNewLine, quickCancel
@@ -239,6 +242,10 @@ enum L {
         .iCloudContainerLabel: "Container",
         .iCloudFooter: "Sync uses Apple's CloudKit. Notes are encrypted in transit and at rest in your private CloudKit database. Sync runs automatically while Noticky is open.",
         .iCloudDisabledHint: "Enable iCloud sync above to view sync status.",
+        .iCloudInitSchema: "Initialize Cloud schema (Development)",
+        .iCloudInitSchemaHint: "First-time only: pushes the local Core Data schema to your CloudKit Development environment so syncing can begin. Run once after creating the container in Apple Developer portal.",
+        .iCloudInitSchemaSuccess: "Schema initialized. Sync should start within a few seconds.",
+        .iCloudInitSchemaFailed: "Failed to initialize schema: %@",
 
         .quickPlaceholder: "Quick note…",
         .quickSave: "Save", .quickNewLine: "New line", .quickCancel: "Cancel",
@@ -373,6 +380,10 @@ enum L {
         .iCloudContainerLabel: "Container",
         .iCloudFooter: "同步基于 Apple CloudKit。数据在传输和存储过程中均加密,存放在你私人 CloudKit 数据库,Noticky 打开期间会自动同步。",
         .iCloudDisabledHint: "在上方启用 iCloud 同步后即可查看同步状态。",
+        .iCloudInitSchema: "初始化云端 Schema(Development)",
+        .iCloudInitSchemaHint: "仅首次需要:把本地 Core Data schema 推送到 CloudKit Development 环境,之后才能开始同步。在 Apple Developer Portal 创建好 container 后跑一次即可。",
+        .iCloudInitSchemaSuccess: "Schema 已初始化。几秒内开始同步。",
+        .iCloudInitSchemaFailed: "Schema 初始化失败:%@",
 
         .quickPlaceholder: "快速便签…",
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",
