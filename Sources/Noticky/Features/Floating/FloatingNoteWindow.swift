@@ -294,10 +294,25 @@ final class FloatingNotesRegistry {
 }
 
 /// .borderless 窗口默认拿不到 key/main,SwiftUI 编辑器就没法获取焦点输入。
-/// 这个子类只是把两个 override 翻成 true。
+/// 这个子类还托管浮窗级别的快捷键(⌘D 删除当前便签)。
 final class StickyPanel: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    /// ⌘D 命中时回调,由 controller 注入,转发给 registry.delete(note:)。
+    var onDeleteShortcut: (() -> Void)?
+
+    /// `performKeyEquivalent` 在响应链之前先到 window —— 比 NSTextView 的 keyDown
+    /// 早,即使编辑器是 first responder 也能拦住 ⌘D。NSApp.mainMenu 仍然优先,
+    /// 所以 ⌘, / ⌘Q 不会被这里吞。
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers == "d" {
+            onDeleteShortcut?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 /// 配合 `isMovableByWindowBackground = true` 使用:NSHostingView 不知道 SwiftUI
@@ -409,6 +424,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
+        w.onDeleteShortcut = { [weak self] in self?.onRequestDelete() }
         w.level = initialLevel
         w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         w.isMovableByWindowBackground = true
