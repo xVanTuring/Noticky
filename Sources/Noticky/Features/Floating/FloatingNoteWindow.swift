@@ -313,13 +313,22 @@ final class FloatingNotesRegistry {
     /// 清空回收站:fetch 所有 isTrashed == true 的笔记,逐条 delete + save 一次。
     /// 用 batch delete 也行,但要手动 merge changes 进 viewContext —— 量级小,
     /// 走 context.delete 简单稳妥。
+    ///
+    /// **必须 main.async 推一拍**:点 Empty Trash 的 alert 还在收起动画里,这时
+    /// SwiftUI TrashDetailView 的 ForEach 仍订阅着即将 delete 的 Note,同 tick 内
+    /// 删 + save → @FetchRequest 触发 view 重渲染 → ForEach 读 `note.id`(非可选
+    /// UUID),Note 已 fault → `UUID._unconditionallyBridgeFromObjectiveC` 拿到
+    /// nil → SIGTRAP 崩溃。
+    /// 同样的坑 trash/restore/deletePermanently 已经踩过(见上面),保持一致。
     func emptyTrash(in context: NSManagedObjectContext) {
         let request = Note.trashedFetchRequest()
         guard let trashed = try? context.fetch(request) else { return }
-        for note in trashed {
-            context.delete(note)
+        DispatchQueue.main.async {
+            for note in trashed {
+                context.delete(note)
+            }
+            try? context.save()
         }
-        try? context.save()
     }
 
     /// 启动时调一次:把超过 30 天的 trashed 笔记真删。系统级 macOS Notes/Mail
