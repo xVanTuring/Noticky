@@ -13,9 +13,9 @@ enum LayoutMode: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .normal: return "Free Layout"
-        case .stack:  return "Stack"
-        case .tile:   return "Tile"
+        case .normal: return L.t(.layoutFree)
+        case .stack:  return L.t(.layoutStack)
+        case .tile:   return L.t(.layoutTile)
         }
     }
 
@@ -751,6 +751,7 @@ private struct FloatingNoteView: View {
     /// 关掉时整个 hit overlay 不渲染,标题区的点击 fall-through 到下面的窗口
     /// 背景拖动逻辑(isMovableByWindowBackground = true),双击没有任何效果。
     @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapseEnabled: Bool = false
+    @ObservedObject private var loc = LocalizationManager.shared
     let onClose: () -> Void
     let onDelete: () -> Void
     let onToggleCollapse: () -> Void
@@ -817,7 +818,7 @@ private struct FloatingNoteView: View {
             // 占位,免得用户折叠后只剩一条空 bar 不知道是啥。
             NoteTitleBar(
                 text: note.cleanTitle,
-                fallbackWhenEmpty: note.isCollapsed ? "Empty Note" : nil
+                fallbackWhenEmpty: note.isCollapsed ? L.t(.emptyNote) : nil
             )
 
             // 双击命中层。**位于 HoverToolbar 之下** —— × / ⋯ 按钮要先吃到点击。
@@ -1094,7 +1095,7 @@ private struct NoteActionsBubble: View {
             Button(action: onToggleCollapse) {
                 HStack(spacing: 6) {
                     Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
-                    Text(isCollapsed ? "Expand" : "Collapse")
+                    Text(isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse))
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
@@ -1103,7 +1104,7 @@ private struct NoteActionsBubble: View {
             Button(role: .destructive, action: onDelete) {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
-                    Text("Delete note")
+                    Text(L.t(.floatDelete))
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())

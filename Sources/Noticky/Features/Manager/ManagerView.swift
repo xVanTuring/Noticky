@@ -34,6 +34,7 @@ struct ManagerView: View {
     /// 再写库 —— 不再插一条占位 "New Group" 等用户进 sidebar 右键改名。
     @State private var creatingGroup: Bool = false
     @State private var newGroupName: String = ""
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         NavigationSplitView {
@@ -44,18 +45,18 @@ struct ManagerView: View {
         .navigationTitle("")
         // .searchable 用系统原生 search field,自动塞到 toolbar 合适位置,
         // 样式跟 Notes/Mail 一致(灰色圆角胶囊 + 放大镜 + 占位符 + ⌘ + 取消圈)。
-        .searchable(text: $search, prompt: "Search all notes")
+        .searchable(text: $search, prompt: L.t(.managerSearch))
         .alert(
-            "Rename Group",
+            L.t(.managerRenameAlertTitle),
             isPresented: Binding(
                 get: { renamingGroup != nil },
                 set: { if !$0 { renamingGroup = nil } }
             ),
             presenting: renamingGroup
         ) { group in
-            TextField("Group name", text: $renameText)
-            Button("Cancel", role: .cancel) { renamingGroup = nil }
-            Button("Save") {
+            TextField(L.t(.managerGroupNamePlaceholder), text: $renameText)
+            Button(L.t(.cancel), role: .cancel) { renamingGroup = nil }
+            Button(L.t(.save)) {
                 let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
                     group.name = trimmed
@@ -64,32 +65,32 @@ struct ManagerView: View {
                 renamingGroup = nil
             }
         } message: { _ in
-            Text("Enter a new name for the group.")
+            Text(L.t(.managerRenameMessage))
         }
-        .alert("New Group", isPresented: $creatingGroup) {
-            TextField("Group name", text: $newGroupName)
-            Button("Cancel", role: .cancel) {}
-            Button("Create") {
+        .alert(L.t(.managerNewGroupAlertTitle), isPresented: $creatingGroup) {
+            TextField(L.t(.managerGroupNamePlaceholder), text: $newGroupName)
+            Button(L.t(.cancel), role: .cancel) {}
+            Button(L.t(.managerCreate)) {
                 let trimmed = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
                 _ = NoteGroup.create(in: context, name: trimmed)
                 try? context.save()
             }
         } message: {
-            Text("Enter a name for the new group.")
+            Text(L.t(.managerNewGroupMessage))
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button(action: createGroup) {
-                    Label("New Group", systemImage: "folder.badge.plus")
+                    Label(L.t(.managerNewGroup), systemImage: "folder.badge.plus")
                 }
-                .help("New Group")
+                .help(L.t(.managerNewGroup))
             }
             ToolbarItem(placement: .primaryAction) {
                 Button(action: createNote) {
-                    Label("New Note", systemImage: "square.and.pencil")
+                    Label(L.t(.managerNewNote), systemImage: "square.and.pencil")
                 }
-                .help("New Note (⌘N)")
+                .help(L.t(.managerNewNote) + " (⌘N)")
                 .keyboardShortcut("n", modifiers: .command)
             }
         }
@@ -116,12 +117,12 @@ struct ManagerView: View {
                                     .contextMenu { noteContextMenu(note) }
                             }
                         } header: {
-                            Text(group.name.isEmpty ? "Untitled" : group.name)
+                            Text(group.name.isEmpty ? L.t(.untitled) : group.name)
                                 .contextMenu { groupContextMenu(group) }
                         }
                     }
                     if !ungroupedNotes.isEmpty {
-                        Section("Ungrouped") {
+                        Section(L.t(.managerUngrouped)) {
                             ForEach(ungroupedNotes, id: \.id) { note in
                                 NoteSidebarRow(note: note)
                                     .tag(note.id)
@@ -163,15 +164,15 @@ struct ManagerView: View {
                 NoteDetailView(note: note, floating: floating)
             } else if selection.count > 1 {
                 ContentUnavailableView(
-                    "\(selection.count) notes selected",
+                    L.t(.managerMultiSelected, selection.count),
                     systemImage: "square.stack",
-                    description: Text("Right-click in the sidebar to delete or move them.")
+                    description: Text(L.t(.managerMultiSelectedDesc))
                 )
             } else {
                 ContentUnavailableView(
-                    "Select a note",
+                    L.t(.managerSelectNote),
                     systemImage: "note.text",
-                    description: Text("Pick a note from the sidebar, or ⌘N to create one.")
+                    description: Text(L.t(.managerSelectNoteDesc))
                 )
             }
         }
@@ -242,23 +243,23 @@ struct ManagerView: View {
 
         // Open as Sticky 只对单条有意义;批量同时弹一堆浮窗会糊屏。
         if !multi {
-            Button("Open as Sticky") { floating.show(note: note) }
+            Button(L.t(.managerOpenAsSticky)) { floating.show(note: note) }
         }
 
-        Menu(multi ? "Move \(targets.count) Notes to Group" : "Move to Group") {
-            Button("Ungrouped") {
+        Menu(multi ? L.t(.managerMoveNotesToGroup, targets.count) : L.t(.managerMoveToGroup)) {
+            Button(L.t(.managerUngrouped)) {
                 for n in targets { n.group = nil }
                 try? context.save()
             }
             ForEach(groups, id: \.id) { g in
-                Button(g.name.isEmpty ? "Untitled" : g.name) {
+                Button(g.name.isEmpty ? L.t(.untitled) : g.name) {
                     for n in targets { n.group = g }
                     try? context.save()
                 }
             }
         }
         Divider()
-        Button(multi ? "Delete \(targets.count) Notes" : "Delete", role: .destructive) {
+        Button(multi ? L.t(.managerDeleteCount, targets.count) : L.t(.managerDeleteNote), role: .destructive) {
             for n in targets {
                 selection.remove(n.id)
                 floating.delete(note: n)
@@ -268,12 +269,12 @@ struct ManagerView: View {
 
     @ViewBuilder
     private func groupContextMenu(_ group: NoteGroup) -> some View {
-        Button("Rename") {
+        Button(L.t(.managerRename)) {
             renameText = group.name
             renamingGroup = group
         }
         Divider()
-        Button("Delete Group", role: .destructive) {
+        Button(L.t(.managerDeleteGroup), role: .destructive) {
             // 关系是 nullify:删 group 后,组里的 note 自动 ungrouped。
             context.delete(group)
             try? context.save()
@@ -285,6 +286,7 @@ struct ManagerView: View {
 
 private struct NoteSidebarRow: View {
     @ObservedObject var note: Note
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         if note.isDeleted || note.managedObjectContext == nil {
@@ -298,7 +300,7 @@ private struct NoteSidebarRow: View {
                     .cornerRadius(1.5)
                 let title = note.displayTitle
                 let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                Text(isEmpty ? "Empty Note" : title)
+                Text(isEmpty ? L.t(.emptyNote) : title)
                     .lineLimit(1)
                     .italic(isEmpty)
                     .foregroundStyle(isEmpty ? .secondary : .primary)
@@ -324,7 +326,7 @@ private struct TrashSidebarRow: View {
             HStack(spacing: 8) {
                 Image(systemName: "trash")
                     .frame(width: 16)
-                Text("Trash")
+                Text(L.t(.trashTitle))
                 Spacer()
                 if count > 0 {
                     Text("\(count)")
@@ -364,6 +366,7 @@ private struct TrashDetailView: View {
     private var trashed: FetchedResults<Note>
     @State private var confirmingEmpty = false
     @State private var confirmingDelete: Note?
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -371,9 +374,9 @@ private struct TrashDetailView: View {
             Divider()
             if trashed.isEmpty {
                 ContentUnavailableView(
-                    "Trash is empty",
+                    L.t(.trashEmpty),
                     systemImage: "trash",
-                    description: Text("Notes you delete will appear here for 30 days.")
+                    description: Text(L.t(.trashEmptyDesc))
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -390,38 +393,38 @@ private struct TrashDetailView: View {
             }
         }
         .alert(
-            "Empty Trash?",
+            L.t(.trashEmptyAlert),
             isPresented: $confirmingEmpty
         ) {
-            Button("Empty Trash", role: .destructive) {
+            Button(L.t(.trashEmptyButton), role: .destructive) {
                 floating.emptyTrash(in: context)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L.t(.cancel), role: .cancel) {}
         } message: {
-            Text("This permanently deletes all notes in Trash. This can't be undone.")
+            Text(L.t(.trashEmptyAlertMsg))
         }
         .alert(
-            "Delete this note permanently?",
+            L.t(.trashDeleteAlert),
             isPresented: Binding(
                 get: { confirmingDelete != nil },
                 set: { if !$0 { confirmingDelete = nil } }
             ),
             presenting: confirmingDelete
         ) { note in
-            Button("Delete", role: .destructive) {
+            Button(L.t(.delete), role: .destructive) {
                 floating.deletePermanently(note: note)
                 confirmingDelete = nil
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            Button(L.t(.cancel), role: .cancel) { confirmingDelete = nil }
         } message: { _ in
-            Text("This can't be undone.")
+            Text(L.t(.trashDeleteAlertMsg))
         }
     }
 
     private var header: some View {
         HStack {
             Image(systemName: "trash")
-            Text("Trash")
+            Text(L.t(.trashTitle))
                 .font(.title3.weight(.semibold))
             Text("(\(trashed.count))")
                 .foregroundStyle(.secondary)
@@ -429,7 +432,7 @@ private struct TrashDetailView: View {
             Button(role: .destructive) {
                 confirmingEmpty = true
             } label: {
-                Label("Empty Trash", systemImage: "trash.slash")
+                Label(L.t(.trashEmptyButton), systemImage: "trash.slash")
             }
             .disabled(trashed.isEmpty)
         }
@@ -440,6 +443,7 @@ private struct TrashDetailView: View {
 
 private struct TrashRow: View {
     @ObservedObject var note: Note
+    @ObservedObject private var loc = LocalizationManager.shared
     let onRestore: () -> Void
     let onDelete: () -> Void
 
@@ -456,7 +460,7 @@ private struct TrashRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    Text(isEmpty ? "Empty Note" : note.displayTitle)
+                    Text(isEmpty ? L.t(.emptyNote) : note.displayTitle)
                         .lineLimit(1)
                         .italic(isEmpty)
                         .foregroundStyle(isEmpty ? .secondary : .primary)
@@ -467,13 +471,13 @@ private struct TrashRow: View {
 
                 Spacer()
 
-                Button("Restore", action: onRestore)
+                Button(L.t(.restore), action: onRestore)
                     .buttonStyle(.bordered)
                 Button(role: .destructive, action: onDelete) {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.bordered)
-                .help("Delete permanently")
+                .help(L.t(.trashDeletePermanentlyHelp))
             }
             .padding(.vertical, 4)
         }
@@ -481,10 +485,17 @@ private struct TrashRow: View {
 
     /// "丢进回收站 X 之前"。30 天后启动时自动清,所以最大也就是 30 多天。
     private var trashedAtLabel: String {
-        guard let when = note.trashedAt else { return "Trashed" }
+        guard let when = note.trashedAt else { return L.t(.trashTitle) }
         let formatter = RelativeDateTimeFormatter()
+        // RelativeDateTimeFormatter 跟 LocalizationManager 选的语言对齐 ——
+        // .system 退回 Locale.current,显式选英/中则强制用对应 locale。
+        switch LocalizationManager.shared.effective {
+        case .english: formatter.locale = Locale(identifier: "en")
+        case .chinese: formatter.locale = Locale(identifier: "zh-Hans")
+        case .system:  break
+        }
         formatter.unitsStyle = .full
-        return "Trashed \(formatter.localizedString(for: when, relativeTo: Date()))"
+        return L.t(.trashedRelative, formatter.localizedString(for: when, relativeTo: Date()) as NSString)
     }
 }
 

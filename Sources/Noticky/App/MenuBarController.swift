@@ -44,7 +44,7 @@ final class MenuBarController: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        let newItem = NSMenuItem(title: "New Note", action: #selector(newNote), keyEquivalent: "n")
+        let newItem = NSMenuItem(title: L.t(.menuNewNote), action: #selector(newNote), keyEquivalent: "n")
         newItem.target = self
         newItem.image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: nil)
         menu.addItem(newItem)
@@ -75,7 +75,7 @@ final class MenuBarController: NSObject {
         // 显示所有便签:fetch 所有未删笔记,逐条 spawn / bringToFront。
         // 库里没未删笔记时 disabled。
         let showAllStickies = NSMenuItem(
-            title: "Show All Stickies",
+            title: L.t(.menuShowAllStickies),
             action: #selector(showAllStickiesAction),
             keyEquivalent: ""
         )
@@ -87,7 +87,7 @@ final class MenuBarController: NSObject {
         // 隐藏所有便签:把当前可见的浮窗 orderOut(不释放 wc、不清 isPinned)。
         // 没有可见浮窗时 disabled。
         let hideAllStickies = NSMenuItem(
-            title: "Hide All Stickies",
+            title: L.t(.menuHideAllStickies),
             action: #selector(hideAllStickiesAction),
             keyEquivalent: ""
         )
@@ -97,7 +97,7 @@ final class MenuBarController: NSObject {
         menu.addItem(hideAllStickies)
 
         let showAll = NSMenuItem(
-            title: "Show All Notes",
+            title: L.t(.menuManageAllNotes),
             action: #selector(showManager),
             keyEquivalent: "0"
         )
@@ -107,7 +107,7 @@ final class MenuBarController: NSObject {
         menu.addItem(showAll)
 
         let prefs = NSMenuItem(
-            title: "Settings…",
+            title: L.t(.menuSettings),
             action: #selector(showSettings),
             keyEquivalent: ","
         )
@@ -116,7 +116,7 @@ final class MenuBarController: NSObject {
         menu.addItem(prefs)
 
         let floatToggle = NSMenuItem(
-            title: "Float on Top",
+            title: L.t(.menuFloatOnTop),
             action: #selector(toggleFloatOnTop),
             keyEquivalent: ""
         )
@@ -127,7 +127,7 @@ final class MenuBarController: NSObject {
 
         // 布局模式:radio 三选一,选中谁就持续维持那个模式。stack 模式下
         // 点击哪张笔记自动滑到 cascade 最下方;tile 模式下拖动后按位置自动重排。
-        let layoutItem = NSMenuItem(title: "Layout", action: nil, keyEquivalent: "")
+        let layoutItem = NSMenuItem(title: L.t(.menuLayout), action: nil, keyEquivalent: "")
         layoutItem.image = NSImage(systemSymbolName: "rectangle.3.group", accessibilityDescription: nil)
         let layoutSub = NSMenu(title: "Layout")
         for mode in LayoutMode.allCases {
@@ -147,7 +147,7 @@ final class MenuBarController: NSObject {
 
         menu.addItem(.separator())
         let quit = NSMenuItem(
-            title: "Quit Noticky",
+            title: L.t(.menuQuit),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -198,7 +198,7 @@ final class MenuBarController: NSObject {
         if title.isEmpty {
             // 空笔记用斜体灰色 "Empty Note",跟参考图一致。
             item.attributedTitle = NSAttributedString(
-                string: "Empty Note",
+                string: L.t(.emptyNote),
                 attributes: [
                     .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
                     .foregroundColor: NSColor.secondaryLabelColor,

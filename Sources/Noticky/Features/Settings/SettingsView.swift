@@ -11,6 +11,7 @@ enum SettingsKey {
     /// SwiftUI 用一个 TextEditor 就能编辑,没必要为此引入 codable 中间层。
     static let clipboardWhitelist = "Noticky.clipboardWhitelist"
     static let doubleClickTitleToCollapse = "Noticky.doubleClickTitleToCollapse"
+    static let appLanguage = "Noticky.appLanguage"
 }
 
 /// ⌘⇧N 抓选中文本的策略。
@@ -25,9 +26,9 @@ enum CaptureMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .axWithWhitelist: return "辅助功能 + 复制粘贴白名单"
-        case .clipboardOnly:   return "纯复制粘贴"
-        case .disabled:        return "关闭自动抓取"
+        case .axWithWhitelist: return L.t(.captureModeAxWhitelist)
+        case .clipboardOnly:   return L.t(.captureModeClipboardOnly)
+        case .disabled:        return L.t(.captureModeDisabled)
         }
     }
 
@@ -59,9 +60,9 @@ enum NoteSort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .dateEdited: return "Date Edited"
-        case .dateCreated: return "Date Created"
-        case .title: return "Title"
+        case .dateEdited: return L.t(.sortDateEdited)
+        case .dateCreated: return L.t(.sortDateCreated)
+        case .title:       return L.t(.sortTitle)
         }
     }
 
@@ -76,20 +77,22 @@ enum NoteSort: String, CaseIterable, Identifiable {
 /// 「图标 toolbar + 切 tab 时窗口高度动画」样式 —— 跟 System Settings.app 一致。
 /// 每个 tab 视图自己 `.frame(width:480, height:X)`,SwiftUI 用这个驱动窗口尺寸。
 struct SettingsView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
+
     var body: some View {
         TabView {
             GeneralTab()
-                .tabItem { Label("General", systemImage: "gearshape") }
+                .tabItem { Label(L.t(.tabGeneral), systemImage: "gearshape") }
             CaptureTab()
-                .tabItem { Label("Capture", systemImage: "doc.on.clipboard") }
+                .tabItem { Label(L.t(.tabCapture), systemImage: "doc.on.clipboard") }
             ShortcutsTab()
-                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                .tabItem { Label(L.t(.tabShortcuts), systemImage: "keyboard") }
             PermissionsTab()
-                .tabItem { Label("Permissions", systemImage: "lock.shield") }
+                .tabItem { Label(L.t(.tabPermissions), systemImage: "lock.shield") }
             NotesTab()
-                .tabItem { Label("Notes", systemImage: "note.text") }
+                .tabItem { Label(L.t(.tabNotes), systemImage: "note.text") }
             ICloudTab()
-                .tabItem { Label("iCloud Sync", systemImage: "icloud") }
+                .tabItem { Label(L.t(.tabICloud), systemImage: "icloud") }
         }
     }
 }
@@ -101,25 +104,38 @@ struct GeneralTab: View {
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
     @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapse: Bool = false
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         Form {
-            Toggle("Launch at login", isOn: Binding(
+            Toggle(L.t(.generalLaunchAtLogin), isOn: Binding(
                 get: { launchAtLoginEnabled },
                 set: { setLaunchAtLogin($0) }
             ))
 
-            Picker("Sort by:", selection: $noteSortRaw) {
+            Picker(L.t(.generalSortBy), selection: $noteSortRaw) {
                 ForEach(NoteSort.allCases) { sort in
                     Text(sort.label).tag(sort.rawValue)
                 }
             }
             .pickerStyle(.menu)
 
+            // 语言:跟随系统 / English / 简体中文。setLanguage 是 @Published,
+            // 切换瞬间所有订阅 LocalizationManager 的 view 重渲染,无需重启。
+            Picker(L.t(.generalLanguage), selection: Binding(
+                get: { loc.current },
+                set: { loc.setLanguage($0) }
+            )) {
+                Text(L.t(.langFollowSystem)).tag(AppLanguage.system)
+                Text(L.t(.langEnglish)).tag(AppLanguage.english)
+                Text(L.t(.langChinese)).tag(AppLanguage.chinese)
+            }
+            .pickerStyle(.menu)
+
             Toggle(isOn: $fadeWhenInactive) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fade when inactive")
-                    Text("失去焦点的便签切换为毛玻璃半透明,凸显当前活跃窗口。")
+                    Text(L.t(.generalFadeWhenInactive))
+                    Text(L.t(.generalFadeWhenInactiveDesc))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -127,8 +143,8 @@ struct GeneralTab: View {
 
             Toggle(isOn: $doubleClickToCollapse) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Double-click title to collapse")
-                    Text("双击便签顶部标题区,把窗口收成只剩标题条;再双击展开。状态会跟着便签一起记。")
+                    Text(L.t(.generalDoubleClickCollapse))
+                    Text(L.t(.generalDoubleClickCollapseDesc))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -136,7 +152,7 @@ struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 290)
+        .frame(width: 480, height: 340)
     }
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。
@@ -163,13 +179,14 @@ struct GeneralTab: View {
 struct CaptureTab: View {
     @AppStorage(SettingsKey.captureMode) private var captureModeRaw: String = CaptureMode.axWithWhitelist.rawValue
     @AppStorage(SettingsKey.clipboardWhitelist) private var whitelistRaw: String = ""
+    @ObservedObject private var loc = LocalizationManager.shared
 
     private var mode: CaptureMode { CaptureMode.from(captureModeRaw) }
 
     var body: some View {
         Form {
             Section {
-                Picker("抓取方式:", selection: $captureModeRaw) {
+                Picker(L.t(.captureMethod), selection: $captureModeRaw) {
                     ForEach(CaptureMode.allCases) { m in
                         Text(m.label).tag(m.rawValue)
                     }
@@ -185,7 +202,7 @@ struct CaptureTab: View {
             if mode == .axWithWhitelist {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("剪贴板白名单(每行一个 bundle ID)")
+                        Text(L.t(.captureWhitelistTitle))
                             .font(.callout.weight(.medium))
                         TextEditor(text: $whitelistRaw)
                             .font(.system(.body, design: .monospaced))
@@ -194,7 +211,7 @@ struct CaptureTab: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
                             )
-                        Text("常见示例:com.tencent.xinWeChat、com.microsoft.VSCode")
+                        Text(L.t(.captureWhitelistHint))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -208,12 +225,9 @@ struct CaptureTab: View {
 
     private var modeFooter: String {
         switch mode {
-        case .axWithWhitelist:
-            return "默认通过「辅助功能」抓取选中文本;白名单里的 App 改用合成 ⌘C 读剪贴板,然后自动还原原本的剪贴板内容。适合微信等不暴露 AX 选区的 App。"
-        case .clipboardOnly:
-            return "永远合成 ⌘C 读剪贴板,不依赖辅助功能权限。读完会还原原本的剪贴板内容。"
-        case .disabled:
-            return "⌘⇧N 直接打开空白 capture 输入框,不抓取任何选中文本。"
+        case .axWithWhitelist: return L.t(.captureFooterAxWhitelist)
+        case .clipboardOnly:   return L.t(.captureFooterClipboardOnly)
+        case .disabled:        return L.t(.captureFooterDisabled)
         }
     }
 }
@@ -221,16 +235,18 @@ struct CaptureTab: View {
 // MARK: - Shortcuts -----------------------------------------------------------
 
 struct ShortcutsTab: View {
+    @ObservedObject private var loc = LocalizationManager.shared
+
     var body: some View {
         Form {
             Section {
-                row(action: "Quick Capture", shortcut: "⌘⇧N")
-                row(action: "Show All Notes", shortcut: "⌘⇧0")
-                row(action: "Open Settings", shortcut: "⌘,")
-                row(action: "New Note (Manager / Capture)", shortcut: "⌘N")
-                row(action: "Quit", shortcut: "⌘Q")
+                row(action: L.t(.shortcutQuickCapture),  shortcut: "⌘⇧N")
+                row(action: L.t(.shortcutManageNotes),   shortcut: "⌘⇧0")
+                row(action: L.t(.shortcutOpenSettings),  shortcut: "⌘,")
+                row(action: L.t(.shortcutNewNote),       shortcut: "⌘N")
+                row(action: L.t(.shortcutQuit),          shortcut: "⌘Q")
             } footer: {
-                Text("Customizing shortcuts is on the roadmap.")
+                Text(L.t(.shortcutsRoadmap))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -258,18 +274,19 @@ struct ShortcutsTab: View {
 /// 切回这窗口立刻能看到红色未授权状态。`didBecomeActive` 通知触发重读。
 struct PermissionsTab: View {
     @State private var accessibilityGranted: Bool = SelectionFetcher.isTrusted
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         Form {
             Section {
                 permissionRow(
-                    title: "辅助功能 (Accessibility)",
-                    description: "按 ⌘⇧N 时读取当前 App 选中的文字,自动填入新便签。",
+                    title: L.t(.permissionAccessibilityTitle),
+                    description: L.t(.permissionAccessibilityDesc),
                     granted: accessibilityGranted,
                     openSettings: SelectionFetcher.requestAndOpenAccessibilitySettings
                 )
             } footer: {
-                Text("权限在「系统设置 → 隐私与安全性」里集中管理。点 Open 直达对应面板。")
+                Text(L.t(.permissionFooter))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -309,7 +326,7 @@ struct PermissionsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(granted ? "已授权" : "未授权")
+                Text(granted ? L.t(.permissionGranted) : L.t(.permissionNotGranted))
                     .font(.caption)
                     .foregroundStyle(granted ? .green : .orange)
                     .padding(.top, 2)
@@ -317,7 +334,7 @@ struct PermissionsTab: View {
 
             Spacer(minLength: 8)
 
-            Button(granted ? "Open" : "Open Settings") {
+            Button(granted ? L.t(.permissionOpen) : L.t(.permissionOpenSettings)) {
                 openSettings()
             }
             .controlSize(.regular)
@@ -329,10 +346,12 @@ struct PermissionsTab: View {
 // MARK: - Notes ---------------------------------------------------------------
 
 struct NotesTab: View {
+    @ObservedObject private var loc = LocalizationManager.shared
+
     var body: some View {
         Form {
             Section {
-                Text("More note defaults coming soon.")
+                Text(L.t(.notesPlaceholder))
                     .foregroundStyle(.secondary)
             }
         }
@@ -345,10 +364,12 @@ struct NotesTab: View {
 // MARK: - iCloud --------------------------------------------------------------
 
 struct ICloudTab: View {
+    @ObservedObject private var loc = LocalizationManager.shared
+
     var body: some View {
         Form {
             Section {
-                Label("iCloud Sync is not available yet.", systemImage: "icloud.slash")
+                Label(L.t(.iCloudPlaceholder), systemImage: "icloud.slash")
                     .foregroundStyle(.secondary)
             }
         }

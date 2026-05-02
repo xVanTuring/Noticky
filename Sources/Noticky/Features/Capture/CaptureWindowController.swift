@@ -80,6 +80,7 @@ final class CaptureWindowController {
 
 private struct CaptureView: View {
     @State private var text: String
+    @ObservedObject private var loc = LocalizationManager.shared
     let onSubmit: (String) -> Void
     let onCancel: () -> Void
 
@@ -105,16 +106,16 @@ private struct CaptureView: View {
 
             Divider()
             HStack(spacing: 14) {
-                Label("Save", systemImage: "return")
+                Label(L.t(.quickSave), systemImage: "return")
                 Label {
-                    Text("New line")
+                    Text(L.t(.quickNewLine))
                 } icon: {
                     HStack(spacing: 2) {
                         Image(systemName: "shift")
                         Image(systemName: "return")
                     }
                 }
-                Label("Cancel", systemImage: "escape")
+                Label(L.t(.quickCancel), systemImage: "escape")
                 Spacer()
             }
             .font(.caption)
@@ -160,7 +161,7 @@ struct CaptureTextEditor: NSViewRepresentable {
             .foregroundColor: NSColor.placeholderTextColor,
             .font: NSFont.systemFont(ofSize: 17)
         ]
-        let placeholder = NSAttributedString(string: "Quick note…", attributes: placeholderAttrs)
+        let placeholder = NSAttributedString(string: L.t(.quickPlaceholder), attributes: placeholderAttrs)
         tv.setValue(placeholder, forKey: "placeholderAttributedString")
 
         // 入场就抢焦点,跟之前 TextField .focused($focused).onAppear 等价。
