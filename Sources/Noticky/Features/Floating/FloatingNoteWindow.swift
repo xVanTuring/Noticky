@@ -463,8 +463,14 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
 
     /// stack 时按 cascade 顺序重排 z-order 用。`orderFront(nil)` 不改 key,只调
     /// z 层 —— 多个浮窗依次调一遍后,最后一个就在最前。
+    ///
+    /// **必须跳过 hidden 窗** —— 否则 hideAll 走到一半时,被 hide 掉的窗会让
+    /// 系统把 key 转给下一个可见窗,触发 windowDidBecomeKey → notifyWindowBecameKey
+    /// → applyStackLayout,这里再 orderFront 所有 displayOrder 里的窗 → 刚 hide
+    /// 掉的瞬间又被显示回来。要点很多次菜单才能全 hide 就是这个原因。
     func bringToFrontWithoutActivating() {
-        window?.orderFront(nil)
+        guard let w = window, w.isVisible else { return }
+        w.orderFront(nil)
     }
 
     /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡。
