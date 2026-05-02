@@ -15,6 +15,9 @@ final class PersistenceController {
     /// 真正用上 CloudKit 的话是 true。Settings 关掉同步时退化为本地 NSPersistentContainer,
     /// 不会触发任何 CloudKit 网络/账户调用。
     let cloudKitEnabled: Bool
+    /// CloudKit import 后的去重观察者。仅 cloudKitEnabled=true 时持有,负责
+    /// 自动合并云上拉下来的同 UUID 重复 record。详见 CloudKitDeduplicator。
+    private var deduplicator: CloudKitDeduplicator?
 
     init(inMemory: Bool = false) {
         let model = Self.makeModel()
@@ -67,8 +70,12 @@ final class PersistenceController {
 
         // CloudKit 模式下偶尔会推下来重复 record(本地刚 create 完又收到 server 副本),
         // 把 transactionAuthor 设上有助于 history token 跟踪 + 后续做去重。
-        if wantsSync {
+        if wantsSync, let ckContainer = container as? NSPersistentCloudKitContainer {
             container.viewContext.transactionAuthor = "viewContext"
+            // 每次 import 成功后扫一遍按 UUID 合并重复。Apple 官方推荐的兜底,
+            // 因为 CloudKit 没有 unique constraint,sync race / 本地 store 重建
+            // 会让同 UUID 在云上有多份。
+            deduplicator = CloudKitDeduplicator(container: ckContainer)
         }
     }
 
