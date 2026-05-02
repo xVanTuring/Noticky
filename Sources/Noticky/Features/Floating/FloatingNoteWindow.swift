@@ -400,6 +400,10 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// 真正的用户拖动结束信号:windowDidMove 高频回调,用 debounce 200ms 攒一次。
     private var pendingUserMove: DispatchWorkItem?
 
+    /// 折叠状态下窗口高度:刚好够装下 28pt 的标题条 + 一点呼吸空间。
+    /// 太矮的话顶部圆角会切到字。
+    static let collapsedHeight: CGFloat = 36
+
     init(
         note: Note,
         initialLevel: NSWindow.Level = .floating,
@@ -468,6 +472,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
                 },
                 onDelete: { [weak self] in
                     self?.onRequestDelete()
+                },
+                onToggleCollapse: { [weak self] in
+                    self?.toggleCollapse()
                 }
             )
             .environment(\.managedObjectContext, context)
@@ -507,10 +514,65 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
             w.setFrameOrigin(origin)
         }
 
+        // 折叠态:压成 collapsedHeight,锚顶部 —— savedFrame 表示的是"展开尺寸",
+        // 折叠时 top edge 保持在 savedFrame.maxY,这样展开时位置不会跳。同时
+        // 摘掉 .resizable,折叠态拖边缘改高度没意义反而会乱状态。
+        if note.isCollapsed {
+            applyCollapsedFrame(to: w)
+            w.styleMask.remove(.resizable)
+        }
+
         w.makeKeyAndOrderFront(nil)
         NSApp.activate()
 
         self.window = w
+    }
+
+    /// 把窗口压到 collapsedHeight,顶部锚在当前 frame 的 maxY。**调用方负责管 styleMask**
+    /// (折叠时 caller 该 remove(.resizable),展开时 insert 回去)。
+    private func applyCollapsedFrame(to w: NSWindow) {
+        let current = w.frame
+        let topY = current.maxY
+        var f = current
+        f.size.height = Self.collapsedHeight
+        f.origin.y = topY - Self.collapsedHeight
+        w.setFrame(f, display: true)
+    }
+
+    /// 双击标题:折叠 ↔ 展开。写库 + 用 animateFrame 平滑过渡。
+    /// 展开时高度回到 savedFrame.height(若没存过则用默认 280)。
+    private func toggleCollapse() {
+        guard let w = window else { return }
+        let nowCollapsed = !note.isCollapsed
+        note.isCollapsed = nowCollapsed
+        try? note.managedObjectContext?.save()
+
+        let current = w.frame
+        let topY = current.maxY
+        let target: NSRect
+        if nowCollapsed {
+            // 折叠:高度→ collapsedHeight,顶部锚不变。
+            target = NSRect(
+                x: current.minX,
+                y: topY - Self.collapsedHeight,
+                width: current.width,
+                height: Self.collapsedHeight
+            )
+            w.styleMask.remove(.resizable)
+        } else {
+            // 展开:回到上次的展开高度。savedFrame 在折叠期间的 flushFrameSave
+            // 里只更新 X 和补偿后的 Y,W/H 保留的是展开时的,直接读出来用。
+            let expandedH = (note.savedFrame?.height).map { max($0, 80) } ?? 280
+            let expandedW = note.savedFrame?.width ?? current.width
+            target = NSRect(
+                x: current.minX,
+                y: topY - expandedH,
+                width: expandedW,
+                height: expandedH
+            )
+            w.styleMask.insert(.resizable)
+        }
+        animateFrame(target)
     }
 
     /// saved frame 至少跟某个屏幕的可见区有交集才算还能用。完全在屏幕外
@@ -569,7 +631,20 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         guard let w = window, let context = note.managedObjectContext else { return }
         // note 可能已经被删,跳过避免对 fault 对象写。
         guard !note.isDeleted else { return }
-        note.setSavedFrame(w.frame)
+
+        if note.isCollapsed {
+            // 折叠期间用户只能拖位置(高度被锁)。savedFrame 里的 W/H 保留为
+            // "展开尺寸",别覆盖 —— 展开时还要靠它还原。位置:把 saved 的顶部
+            // 边对齐到当前 frame 的顶部,这样下次展开时窗口 top 还是用户拖到的
+            // 那个位置,不会跳。
+            let savedH = note.frameH
+            let topY = w.frame.maxY
+            note.frameX = Double(w.frame.minX)
+            note.frameY = Double(topY) - savedH
+            note.hasSavedFrame = true
+        } else {
+            note.setSavedFrame(w.frame)
+        }
         try? context.save()
     }
 
@@ -589,7 +664,16 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         // 不然 250ms 后来时窗口和 note 状态都没了。
         pendingFrameSave?.cancel()
         if let w = notification.object as? NSWindow, !note.isDeleted {
-            note.setSavedFrame(w.frame)
+            // 同 flushFrameSave:折叠时只更新位置,保留展开 W/H。
+            if note.isCollapsed {
+                let savedH = note.frameH
+                let topY = w.frame.maxY
+                note.frameX = Double(w.frame.minX)
+                note.frameY = Double(topY) - savedH
+                note.hasSavedFrame = true
+            } else {
+                note.setSavedFrame(w.frame)
+            }
             try? note.managedObjectContext?.save()
         }
         window = nil
@@ -608,6 +692,7 @@ private struct FloatingNoteView: View {
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
     let onClose: () -> Void
     let onDelete: () -> Void
+    let onToggleCollapse: () -> Void
 
     private var palette: StickyPalette {
         guard !note.isDeleted, note.managedObjectContext != nil else { return .yellow }
@@ -645,26 +730,43 @@ private struct FloatingNoteView: View {
             }
             .animation(.easeInOut(duration: 0.18), value: isInactive)
 
-            VStack(spacing: 0) {
-                Spacer().frame(height: 28)
-                MarkdownNoteEditor(text: Binding(
-                    get: { note.content },
-                    set: { newValue in
-                        guard newValue != note.content else { return }
-                        note.content = newValue
-                        note.updatedAt = Date()
-                        try? context.save()
-                    }
-                ))
-                .padding(.horizontal, 6)
-                .padding(.bottom, 10)
+            // 折叠态隐藏编辑器 —— 整个 NSTextView/SwiftUI 子树移除,光标失焦无副作用。
+            // 用户双击展开后再重建。
+            if !note.isCollapsed {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: 28)
+                    MarkdownNoteEditor(text: Binding(
+                        get: { note.content },
+                        set: { newValue in
+                            guard newValue != note.content else { return }
+                            note.content = newValue
+                            note.updatedAt = Date()
+                            try? context.save()
+                        }
+                    ))
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 10)
+                }
             }
 
             // 顶部标题条:始终可见,跟着 note.content 自动派生(`cleanTitle` 剥过
             // markdown 标记,`# 标题`、`**bold**`、列表前缀等都还原成纯文本)。
             // 跟 hover toolbar 在同一个顶部 strip,左右 padding 让出 ×/⋯ 按钮的位置,
-            // hover 时三者并存不打架。空内容时 cleanTitle 为空字符串,Text 不显示。
-            NoteTitleBar(text: note.cleanTitle)
+            // hover 时三者并存不打架。展开态空内容直接不显示;折叠态用 "Empty Note"
+            // 占位,免得用户折叠后只剩一条空 bar 不知道是啥。
+            NoteTitleBar(
+                text: note.cleanTitle,
+                fallbackWhenEmpty: note.isCollapsed ? "Empty Note" : nil
+            )
+
+            // 双击命中层。**位于 HoverToolbar 之下** —— × / ⋯ 按钮要先吃到点击。
+            // 占顶部 28pt 条,正好覆盖标题/hover 工具条所在区域;高度往下不延伸,
+            // 不会挡到下面编辑器的 mouseDown。
+            VStack {
+                TitleDoubleClickHit(onDoubleClick: onToggleCollapse)
+                    .frame(height: 28)
+                Spacer(minLength: 0)
+            }
 
             // 顶部 hover 工具条独立成一个 struct,**自己拥有 hovering @State** ——
             // hover 状态切换只让这个子 struct 重渲染,不会沿父链冒泡触发整个
@@ -685,27 +787,66 @@ private struct FloatingNoteView: View {
     }
 }
 
-/// 浮窗顶部始终可见的标题条。空标题时不渲染任何东西(EmptyView),保持顶部
-/// 28pt 留给 hover 工具条不挤压编辑器。文本居中、单行截断,左右各 32pt 给
-/// `×` / `⋯` 按钮腾位置。
+/// 浮窗顶部始终可见的标题条。空标题 + 没有 fallback 时不渲染(EmptyView),
+/// 保持顶部 28pt 留给 hover 工具条不挤压编辑器。`fallbackWhenEmpty` 给折叠
+/// 态用 —— 没标题文字也得显示个占位符,否则折叠后是空 28pt 条用户看不到任何
+/// 信息。文本居中、单行截断,左右各 32pt 给 × / ⋯ 按钮腾位置。
 private struct NoteTitleBar: View {
     let text: String
+    var fallbackWhenEmpty: String? = nil
 
     var body: some View {
-        if text.isEmpty {
+        let display = text.isEmpty ? (fallbackWhenEmpty ?? "") : text
+        let isFallback = text.isEmpty && fallbackWhenEmpty != nil
+
+        if display.isEmpty {
             EmptyView()
         } else {
-            Text(text)
+            Text(display)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary.opacity(0.65))
+                .foregroundStyle(.primary.opacity(isFallback ? 0.4 : 0.65))
+                .italic(isFallback)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .padding(.top, 8)
                 .padding(.horizontal, 32)
                 .frame(maxWidth: .infinity)
-                // 标题条不挡点击,不抢编辑器/按钮的事件。
+                // 标题条不挡点击,不抢编辑器/按钮/双击 hit 区的事件。
                 .allowsHitTesting(false)
         }
+    }
+}
+
+/// 标题条上的双击命中层。catch mouseDown:clickCount==2 → 触发 onDoubleClick;
+/// 单击则手动 `window.performDrag(with:)` 转交给系统拖窗 —— 这样这块区域既能
+/// 双击折叠/展开,又不挡用户拖动整个浮窗。
+///
+/// 在 ZStack 里**必须放在 HoverToolbar 之下** —— 上层的 × / ⋯ 按钮要先吃到点击。
+/// 自身限定 ~28pt 高顶部条,不会下探到编辑器区域。
+private struct TitleDoubleClickHit: NSViewRepresentable {
+    let onDoubleClick: () -> Void
+
+    final class HitView: NSView {
+        var onDoubleClick: (() -> Void)?
+
+        override func mouseDown(with event: NSEvent) {
+            if event.clickCount == 2 {
+                onDoubleClick?()
+                return
+            }
+            // 单击/拖动:转给系统的窗口移动逻辑,行为等同直接拖窗背景。
+            window?.performDrag(with: event)
+        }
+    }
+
+    func makeNSView(context: Context) -> HitView {
+        let v = HitView()
+        v.onDoubleClick = onDoubleClick
+        return v
+    }
+
+    func updateNSView(_ nsView: HitView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
     }
 }
 

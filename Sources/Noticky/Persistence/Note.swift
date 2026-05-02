@@ -16,6 +16,7 @@ public final class Note: NSManagedObject, Identifiable {
     @NSManaged public var hasSavedFrame: Bool
     @NSManaged public var isTrashed: Bool
     @NSManaged public var trashedAt: Date?
+    @NSManaged public var isCollapsed: Bool
     @NSManaged public var group: NoteGroup?
 }
 

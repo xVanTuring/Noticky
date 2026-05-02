@@ -168,6 +168,15 @@ final class PersistenceController {
         trashedAt.attributeType = .dateAttributeType
         trashedAt.isOptional = true
 
+        // 折叠态:浮窗双击标题缩成只剩标题条;持久化让用户重启后回到上次的状态。
+        // 折叠时窗口高度强制 collapsedHeight,保留 frameW/H 当作"展开状态的几何"
+        // 用于还原。
+        let isCollapsed = NSAttributeDescription()
+        isCollapsed.name = "isCollapsed"
+        isCollapsed.attributeType = .booleanAttributeType
+        isCollapsed.isOptional = false
+        isCollapsed.defaultValue = false
+
         // NoteGroup entity --------------------------------------------------------
         let groupEntity = NSEntityDescription()
         groupEntity.name = "NoteGroup"
@@ -219,7 +228,7 @@ final class PersistenceController {
         note.properties = [
             id, content, createdAt, updatedAt, isPinned, colorIndex,
             frameX, frameY, frameW, frameH, hasSavedFrame,
-            isTrashed, trashedAt,
+            isTrashed, trashedAt, isCollapsed,
             noteToGroup
         ]
         groupEntity.properties = [groupId, groupName, groupCreatedAt, groupSortOrder, groupToNotes]
