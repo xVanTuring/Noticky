@@ -92,16 +92,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(quitItem)
 
         // File 菜单 ----
-        // 只装一项 Close (⌘W)。target=nil 走 first responder → NSWindow.performClose:。
-        // 标准 NSWindow 有 .closable 时直接关;borderless 的 StickyPanel override
-        // 了 performClose 让 ⌘W 也能关浮窗。
+        // **关键**:menubar tray 那份 NSMenu 只在用户点击图标的瞬间挂到
+        // statusItem 上,关掉就 statusItem.menu = nil。所以光靠 tray menu 的
+        // keyEquivalent,⌘N / ⌘⇧0 平时根本不在 NSApp.mainMenu 派发链里。
+        // 这里把它们也装到 main menu(永久 installed),任何 Noticky 窗口
+        // active 时都能用。Close 同理 + target=nil 走 first responder。
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
+
+        let newNoteMenuItem = NSMenuItem(
+            title: L.t(.menuNewNote),
+            action: #selector(newNoteAction(_:)),
+            keyEquivalent: "n"
+        )
+        newNoteMenuItem.target = self
+        fileMenu.addItem(newNoteMenuItem)
+
+        let manageMenuItem = NSMenuItem(
+            title: L.t(.menuManageAllNotes),
+            action: #selector(manageAllNotesAction(_:)),
+            keyEquivalent: "0"
+        )
+        manageMenuItem.target = self
+        manageMenuItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.addItem(manageMenuItem)
+
+        fileMenu.addItem(.separator())
+
         fileMenu.addItem(NSMenuItem(
             title: "Close",
             action: #selector(NSWindow.performClose(_:)),
             keyEquivalent: "w"
         ))
+
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -145,6 +168,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         settings.showWindow()
+    }
+
+    /// ⌘N 全局入口。无论当前 key window 是浮窗 / Manager / Capture / Settings,
+    /// 都新建一条便签并弹浮窗(等同 menubar New Note)。
+    @objc private func newNoteAction(_ sender: Any?) {
+        let context = PersistenceController.shared.container.viewContext
+        let note = Note.create(in: context)
+        try? context.save()
+        floating.show(note: note)
+    }
+
+    /// ⌘⇧0 全局入口。打开 Manager 窗口(已存在则 bringToFront)。
+    @objc private func manageAllNotesAction(_ sender: Any?) {
+        manager.showWindow()
     }
 
     /// ⌘⇧N 主入口。根据用户在 Settings → Capture 选的模式分发抓取策略,

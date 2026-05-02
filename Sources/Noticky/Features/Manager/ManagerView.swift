@@ -91,7 +91,11 @@ struct ManagerView: View {
                     Label(L.t(.managerNewNote), systemImage: "square.and.pencil")
                 }
                 .help(L.t(.managerNewNote) + " (⌘N)")
-                .keyboardShortcut("n", modifiers: .command)
+                // ⌘N 由 AppDelegate 装在 NSApp.mainMenu 上的 File → New Note 派
+                // 发,行为是 spawn floating(全局一致)。这里 toolbar button 的
+                // 行为略不同(只在 manager 里 select 不弹浮窗),所以**不再绑
+                // .keyboardShortcut**,免得跟 main menu 抢。点按钮走 createNote;
+                // ⌘N 走 main menu 的 spawn-floating 路径。
             }
         }
     }
