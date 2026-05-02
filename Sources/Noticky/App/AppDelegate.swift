@@ -119,6 +119,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         fileMenu.addItem(.separator())
 
+        // Import / Backup / Restore —— 走 NoteIO 的 NSOpen/NSSavePanel,不依赖
+        // 当前 key window 是哪个,适合放在 main menu。Export 走 Manager 右键
+        // 菜单(那里有 selection 上下文)。
+        let importItem = NSMenuItem(
+            title: L.t(.fileImport),
+            action: #selector(importNotesAction(_:)),
+            keyEquivalent: ""
+        )
+        importItem.target = self
+        fileMenu.addItem(importItem)
+
+        let backupItem = NSMenuItem(
+            title: L.t(.fileBackup),
+            action: #selector(backupAction(_:)),
+            keyEquivalent: ""
+        )
+        backupItem.target = self
+        fileMenu.addItem(backupItem)
+
+        let restoreItem = NSMenuItem(
+            title: L.t(.fileRestore),
+            action: #selector(restoreAction(_:)),
+            keyEquivalent: ""
+        )
+        restoreItem.target = self
+        fileMenu.addItem(restoreItem)
+
+        fileMenu.addItem(.separator())
+
         fileMenu.addItem(NSMenuItem(
             title: "Close",
             action: #selector(NSWindow.performClose(_:)),
@@ -182,6 +211,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ⌘⇧0 全局入口。打开 Manager 窗口(已存在则 bringToFront)。
     @objc private func manageAllNotesAction(_ sender: Any?) {
         manager.showWindow()
+    }
+
+    @objc private func importNotesAction(_ sender: Any?) {
+        let urls = NoteIOPanels.chooseFilesToImport()
+        guard !urls.isEmpty else { return }
+        let context = PersistenceController.shared.container.viewContext
+        let count = NoteIO.importFiles(urls, into: context)
+        showCompletionAlert(L.t(.fileImportDone, count))
+    }
+
+    @objc private func backupAction(_ sender: Any?) {
+        guard let url = NoteIOPanels.chooseBackupDestination() else { return }
+        let context = PersistenceController.shared.container.viewContext
+        let ok = NoteIO.backupAll(in: context, to: url)
+        showCompletionAlert(ok ? L.t(.fileBackupDone) : L.t(.fileBackupFailed))
+    }
+
+    @objc private func restoreAction(_ sender: Any?) {
+        guard let url = NoteIOPanels.chooseBackupToRestore() else { return }
+        let context = PersistenceController.shared.container.viewContext
+        let result = NoteIO.restoreFrom(url, into: context)
+        showCompletionAlert(L.t(.fileRestoreDone, result.notes, result.groups))
+    }
+
+    /// 通用的完成提示 alert,让用户清楚导入/导出真的发生了。所有 IO 动作都用,
+    /// 跟 NSSavePanel/NSOpenPanel 的 modal 是同一线程,不会嵌套问题。
+    private func showCompletionAlert(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = L.t(.appName)
+        alert.informativeText = message
+        alert.addButton(withTitle: L.t(.ok))
+        alert.runModal()
     }
 
     /// ⌘⇧N 主入口。根据用户在 Settings → Capture 选的模式分发抓取策略,

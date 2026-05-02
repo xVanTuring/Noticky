@@ -127,6 +127,11 @@ enum LocKey: String {
     case managerDeleteNote, managerDeleteCount
     case managerSelectNote, managerSelectNoteDesc
     case managerMultiSelected, managerMultiSelectedDesc
+    case managerExport, managerExportCount
+
+    // File menu IO
+    case fileImport, fileBackup, fileRestore
+    case fileImportDone, fileBackupDone, fileBackupFailed, fileRestoreDone
 
     // Accessibility prompt (NSAlert)
     case promptAxTitle, promptAxBody, promptAxOpen, promptAxNotNow
@@ -276,6 +281,15 @@ enum L {
         .managerSelectNoteDesc: "Pick a note from the sidebar, or ⌘N to create one.",
         .managerMultiSelected: "%d notes selected",
         .managerMultiSelectedDesc: "Right-click in the sidebar to delete or move them.",
+        .managerExport: "Export…",
+        .managerExportCount: "Export %d notes…",
+        .fileImport: "Import…",
+        .fileBackup: "Backup All Notes…",
+        .fileRestore: "Restore from Backup…",
+        .fileImportDone: "Imported %d note(s).",
+        .fileBackupDone: "Backup written successfully.",
+        .fileBackupFailed: "Backup failed. Check the log for details.",
+        .fileRestoreDone: "Restored %d note(s) and %d group(s). Existing entries with matching IDs were skipped.",
 
         .promptAxTitle: "Enable Accessibility to auto-fill selected text",
         .promptAxBody: "Noticky needs the Accessibility permission to read the selected text from the frontmost app and prefill it when you press ⌘⇧N.\n\nOpen System Settings → Privacy & Security → Accessibility and enable Noticky. Then press ⌘⇧N again.",
@@ -416,6 +430,15 @@ enum L {
         .managerSelectNoteDesc: "从侧边栏选一条便签,或者按 ⌘N 新建。",
         .managerMultiSelected: "已选中 %d 条便签",
         .managerMultiSelectedDesc: "在侧边栏右键以删除或移动它们。",
+        .managerExport: "导出…",
+        .managerExportCount: "导出 %d 条…",
+        .fileImport: "导入…",
+        .fileBackup: "备份全部便签…",
+        .fileRestore: "从备份恢复…",
+        .fileImportDone: "已导入 %d 条便签。",
+        .fileBackupDone: "备份成功。",
+        .fileBackupFailed: "备份失败,详见日志。",
+        .fileRestoreDone: "恢复了 %d 条便签和 %d 个分组。UUID 已存在的条目被跳过。",
 
         .promptAxTitle: "开启辅助功能以自动填入选中文本",
         .promptAxBody: "Noticky 需要「辅助功能」权限才能在你按下 ⌘⇧N 时,读取当前 App 里选中的文字并自动填入。\n\n打开「系统设置 → 隐私与安全性 → 辅助功能」,把 Noticky 勾上即可。授权后再按 ⌘⇧N 就能用了。",

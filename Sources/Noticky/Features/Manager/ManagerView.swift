@@ -328,6 +328,19 @@ struct ManagerView: View {
                 }
             }
         }
+
+        // Export:单条走 NSSavePanel 保存 .md;多条走 NSOpenPanel 选目录,
+        // 每条便签写一个 .md。NoteIOPanels 是同步阻塞 modal,跑主线程没问题。
+        Button(multi ? L.t(.managerExportCount, targets.count) : L.t(.managerExport)) {
+            if multi {
+                guard let folder = NoteIOPanels.chooseExportFolder() else { return }
+                _ = NoteIO.exportNotes(targets, toFolder: folder)
+            } else {
+                guard let url = NoteIOPanels.chooseExportSingleNote(suggestedTitle: note.displayTitle) else { return }
+                _ = NoteIO.exportNote(note, to: url)
+            }
+        }
+
         Divider()
         Button(multi ? L.t(.managerDeleteCount, targets.count) : L.t(.managerDeleteNote), role: .destructive) {
             for n in targets {
