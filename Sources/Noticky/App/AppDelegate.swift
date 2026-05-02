@@ -65,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installMainMenu() {
         let mainMenu = NSMenu()
 
+        // App 菜单 ----
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
 
@@ -88,7 +89,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         appMenu.addItem(quitItem)
 
+        // Edit 菜单 ----
+        // LSUIElement 隐藏 menu bar,但 NSApp.mainMenu 上的 keyEquivalent 仍参与
+        // 派发。没有这一组 items,⌘V/⌘C/⌘X/⌘Z/⌘A 在 NSTextView 里全部失效 ——
+        // first responder chain 只在系统知道有个对应 menu item 要触发 paste:/copy:
+        // 这类 action 时才会走。target=nil 让 selector 沿 responder chain 找
+        // 实现者(NSTextView 实现了 NSText 这一组方法)。
+        let editMenuItem = NSMenuItem()
+        editMenuItem.submenu = makeEditMenu()
+        mainMenu.addItem(editMenuItem)
+
         NSApp.mainMenu = mainMenu
+    }
+
+    private func makeEditMenu() -> NSMenu {
+        let menu = NSMenu(title: "Edit")
+
+        // Undo / Redo:NSResponder 上的 undo:/redo: 是 first-responder action,
+        // 没有 Swift @objc class 直接持有这俩 selector。用字符串 selector 是这种
+        // 场景的标准做法,跟 Apple 自己 MainMenu.xib 模板里的写法一致。
+        let undoItem = NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redoItem = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(undoItem)
+        menu.addItem(redoItem)
+
+        menu.addItem(.separator())
+
+        menu.addItem(NSMenuItem(title: "Cut",       action: #selector(NSText.cut(_:)),       keyEquivalent: "x"))
+        menu.addItem(NSMenuItem(title: "Copy",      action: #selector(NSText.copy(_:)),      keyEquivalent: "c"))
+        menu.addItem(NSMenuItem(title: "Paste",     action: #selector(NSText.paste(_:)),     keyEquivalent: "v"))
+
+        menu.addItem(.separator())
+
+        menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+
+        return menu
     }
 
     @objc private func openSettings() {
