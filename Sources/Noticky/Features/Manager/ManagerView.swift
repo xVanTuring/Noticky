@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
 
 /// 管理窗口的 SwiftUI 根视图。两栏 NavigationSplitView:
 ///   sidebar  → 「All Notes」+ 各分组 + 「Ungrouped」,各自可展开/折叠的笔记列表
@@ -111,6 +112,7 @@ struct ManagerView: View {
                         NoteSidebarRow(note: note)
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
+                            .onDrag { dragProvider(for: note) }
                     }
                 } else {
                     ForEach(groups, id: \.id) { group in
@@ -119,20 +121,30 @@ struct ManagerView: View {
                                 NoteSidebarRow(note: note)
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
+                                    .onDrag { dragProvider(for: note) }
                             }
                         } header: {
                             Text(group.name.isEmpty ? L.t(.untitled) : group.name)
                                 .contextMenu { groupContextMenu(group) }
+                                .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
+                                    handleDrop(providers: providers, to: group)
+                                }
                         }
                     }
-                    if !ungroupedNotes.isEmpty {
-                        Section(L.t(.managerUngrouped)) {
-                            ForEach(ungroupedNotes, id: \.id) { note in
-                                NoteSidebarRow(note: note)
-                                    .tag(note.id)
-                                    .contextMenu { noteContextMenu(note) }
-                            }
+                    // 始终给 Ungrouped section,这样有分组时可以把笔记拖回未分组。
+                    // 没有 ungrouped notes 时只显示一个空 header 当 drop target。
+                    Section {
+                        ForEach(ungroupedNotes, id: \.id) { note in
+                            NoteSidebarRow(note: note)
+                                .tag(note.id)
+                                .contextMenu { noteContextMenu(note) }
+                                .onDrag { dragProvider(for: note) }
                         }
+                    } header: {
+                        Text(L.t(.managerUngrouped))
+                            .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
+                                handleDrop(providers: providers, to: nil)
+                            }
                     }
                 }
             }
@@ -244,6 +256,54 @@ struct ManagerView: View {
             return allNotes.filter { selection.contains($0.id) }
         }
         return [note]
+    }
+
+    /// 拖一条笔记的 NSItemProvider —— payload 是换行分隔的 UUID 字符串。
+    /// 跟 contextTargets 同款规则:拖的是选中项之一 + 选中 > 1 → 多选拖动;否则只拖这一条。
+    /// drop 端 parse 这串 UUID 后 fetch + reassign group。
+    private func dragProvider(for note: Note) -> NSItemProvider {
+        let ids: [UUID]
+        if selection.contains(note.id), selection.count > 1 {
+            ids = Array(selection)
+        } else {
+            ids = [note.id]
+        }
+        let payload = ids.map { $0.uuidString }.joined(separator: "\n")
+        return NSItemProvider(object: payload as NSString)
+    }
+
+    /// drop 处理器:从 providers 拿出 UUID 列表,reassign 这些 note 到 targetGroup
+    /// (传 nil 表示移到 Ungrouped)。loadObject 是异步的,要 hop 回 main 再操作 context。
+    /// 已经在该 group 的 note 跳过(避免不必要的 save 触发同步开销)。
+    private func handleDrop(providers: [NSItemProvider], to targetGroup: NoteGroup?) -> Bool {
+        var anyHandled = false
+        for provider in providers where provider.canLoadObject(ofClass: NSString.self) {
+            anyHandled = true
+            _ = provider.loadObject(ofClass: NSString.self) { obj, _ in
+                guard let str = obj as? String else { return }
+                let ids = str.split(separator: "\n").compactMap { UUID(uuidString: String($0)) }
+                DispatchQueue.main.async {
+                    moveNotes(ids: ids, to: targetGroup)
+                }
+            }
+        }
+        return anyHandled
+    }
+
+    private func moveNotes(ids: [UUID], to targetGroup: NoteGroup?) {
+        guard !ids.isEmpty else { return }
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(
+            format: "id IN %@ AND isTrashed == %@",
+            ids, NSNumber(value: false)
+        )
+        guard let notes = try? context.fetch(request) else { return }
+        var changed = false
+        for note in notes where note.group?.objectID != targetGroup?.objectID {
+            note.group = targetGroup
+            changed = true
+        }
+        if changed { try? context.save() }
     }
 
     @ViewBuilder
