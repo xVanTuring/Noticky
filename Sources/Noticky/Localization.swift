@@ -92,8 +92,21 @@ enum LocKey: String {
     case notesStartInEditModeDesc
     case noteSizeSmall, noteSizeMedium, noteSizeLarge
 
-    // Settings iCloud placeholder
-    case iCloudPlaceholder
+    // Settings iCloud Sync
+    case iCloudEnable, iCloudEnableDesc
+    case iCloudRestartRequired, iCloudRestartHint
+    case iCloudAccountStatusLabel
+    case iCloudAccountUnknown, iCloudAccountAvailable, iCloudAccountNone
+    case iCloudAccountRestricted, iCloudAccountTempUnavail
+    case iCloudOpenAccountSettings
+    case iCloudLastSyncLabel, iCloudLastSyncNever
+    case iCloudActivityLabel
+    case iCloudActivityIdle, iCloudActivityRunning, iCloudActivitySucceeded, iCloudActivityFailed
+    case iCloudEventSetup, iCloudEventImport, iCloudEventExport
+    case iCloudRefresh
+    case iCloudContainerLabel
+    case iCloudFooter
+    case iCloudDisabledHint
 
     // Quick Capture
     case quickPlaceholder, quickSave, quickNewLine, quickCancel
@@ -201,7 +214,31 @@ enum L {
         .noteSizeSmall: "Small (240×240)",
         .noteSizeMedium: "Medium (280×280)",
         .noteSizeLarge: "Large (360×360)",
-        .iCloudPlaceholder: "iCloud Sync is not available yet.",
+        .iCloudEnable: "Sync notes via iCloud",
+        .iCloudEnableDesc: "Keep notes, groups, and trash in sync across all your Macs signed into the same iCloud account. Toggling this requires restarting Noticky to take effect.",
+        .iCloudRestartRequired: "Restart required",
+        .iCloudRestartHint: "Quit and reopen Noticky for the iCloud setting to take effect.",
+        .iCloudAccountStatusLabel: "iCloud account",
+        .iCloudAccountUnknown: "Checking…",
+        .iCloudAccountAvailable: "Signed in",
+        .iCloudAccountNone: "Not signed in",
+        .iCloudAccountRestricted: "Restricted",
+        .iCloudAccountTempUnavail: "Temporarily unavailable",
+        .iCloudOpenAccountSettings: "Open iCloud Settings",
+        .iCloudLastSyncLabel: "Last synced",
+        .iCloudLastSyncNever: "Never",
+        .iCloudActivityLabel: "Activity",
+        .iCloudActivityIdle: "Idle",
+        .iCloudActivityRunning: "Running…",
+        .iCloudActivitySucceeded: "Succeeded",
+        .iCloudActivityFailed: "Failed",
+        .iCloudEventSetup: "Setup",
+        .iCloudEventImport: "Import",
+        .iCloudEventExport: "Export",
+        .iCloudRefresh: "Refresh status",
+        .iCloudContainerLabel: "Container",
+        .iCloudFooter: "Sync uses Apple's CloudKit. Notes are encrypted in transit and at rest in your private CloudKit database. Sync runs automatically while Noticky is open.",
+        .iCloudDisabledHint: "Enable iCloud sync above to view sync status.",
 
         .quickPlaceholder: "Quick note…",
         .quickSave: "Save", .quickNewLine: "New line", .quickCancel: "Cancel",
@@ -311,7 +348,31 @@ enum L {
         .noteSizeSmall: "小 (240×240)",
         .noteSizeMedium: "中 (280×280)",
         .noteSizeLarge: "大 (360×360)",
-        .iCloudPlaceholder: "iCloud 同步暂不可用。",
+        .iCloudEnable: "通过 iCloud 同步便签",
+        .iCloudEnableDesc: "在登录同一 iCloud 账户的多台 Mac 之间同步便签、分组和回收站。修改这个开关后需要重启 Noticky 才会生效。",
+        .iCloudRestartRequired: "需要重启",
+        .iCloudRestartHint: "退出并重新打开 Noticky,iCloud 设置才会生效。",
+        .iCloudAccountStatusLabel: "iCloud 账户",
+        .iCloudAccountUnknown: "检测中…",
+        .iCloudAccountAvailable: "已登录",
+        .iCloudAccountNone: "未登录",
+        .iCloudAccountRestricted: "受限制",
+        .iCloudAccountTempUnavail: "暂不可用",
+        .iCloudOpenAccountSettings: "打开 iCloud 设置",
+        .iCloudLastSyncLabel: "最近同步",
+        .iCloudLastSyncNever: "从未",
+        .iCloudActivityLabel: "状态",
+        .iCloudActivityIdle: "空闲",
+        .iCloudActivityRunning: "进行中…",
+        .iCloudActivitySucceeded: "成功",
+        .iCloudActivityFailed: "失败",
+        .iCloudEventSetup: "初始化",
+        .iCloudEventImport: "下载",
+        .iCloudEventExport: "上传",
+        .iCloudRefresh: "刷新状态",
+        .iCloudContainerLabel: "Container",
+        .iCloudFooter: "同步基于 Apple CloudKit。数据在传输和存储过程中均加密,存放在你私人 CloudKit 数据库,Noticky 打开期间会自动同步。",
+        .iCloudDisabledHint: "在上方启用 iCloud 同步后即可查看同步状态。",
 
         .quickPlaceholder: "快速便签…",
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",

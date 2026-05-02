@@ -19,6 +19,11 @@ enum SettingsKey {
     static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
     static let defaultNoteSize = "Noticky.defaultNoteSize"       // String raw,DefaultNoteSize enum
     static let startInEditMode = "Noticky.startInEditMode"       // Bool,新便签直接进编辑态(默认 false:渲染态)
+
+    /// iCloud 同步开关。改这个值后必须重启 Noticky —— PersistenceController
+    /// 在 init 时一次性读 + 决定走 NSPersistentContainer 还是
+    /// NSPersistentCloudKitContainer,运行时无法热切换。
+    static let iCloudSyncEnabled = "Noticky.iCloudSyncEnabled"   // Bool
 }
 
 /// 新建便签时浮窗的默认尺寸预设。Settings 用 picker 选,FloatingNoteWindowController.show
@@ -453,18 +458,158 @@ struct NotesTab: View {
 
 // MARK: - iCloud --------------------------------------------------------------
 
+/// iCloud Sync 偏好。结构:
+///   1. 顶部 Toggle 开关 + 说明 + 重启提示(toggle 改了但还没重启时显示)。
+///   2. 状态区(只在已经按开启 + 进程当前实际是 CloudKit 模式时显示):
+///      账户状态 / Activity / 上次同步 / Container / Refresh 按钮。
+///   3. 没启用时显示一段 hint。
+///
+/// "开关 toggle 状态" 与 "进程当前是否是 CloudKit 模式" 是两个独立信号:用户刚
+/// 勾上但没重启,前者 true、后者 false —— 这种情况下只显示重启提示,状态区不渲染。
 struct ICloudTab: View {
     @ObservedObject private var loc = LocalizationManager.shared
+    @ObservedObject private var monitor = CloudKitSyncMonitor.shared
+    @AppStorage(SettingsKey.iCloudSyncEnabled) private var enabledPref: Bool = false
+
+    /// 进程启动时 PersistenceController 决定的 mode。这个值不会随 toggle 改变,
+    /// 与 enabledPref 不一致时说明用户改了开关但还没重启。
+    private var actuallyRunningCloudKit: Bool {
+        PersistenceController.shared.cloudKitEnabled
+    }
 
     var body: some View {
         Form {
             Section {
-                Label(L.t(.iCloudPlaceholder), systemImage: "icloud.slash")
+                Toggle(L.t(.iCloudEnable), isOn: $enabledPref)
+            } footer: {
+                Text(L.t(.iCloudEnableDesc))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
+            }
+
+            if enabledPref != actuallyRunningCloudKit {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L.t(.iCloudRestartRequired)).fontWeight(.medium)
+                            Text(L.t(.iCloudRestartHint))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+
+            if actuallyRunningCloudKit {
+                Section {
+                    LabeledContent(L.t(.iCloudAccountStatusLabel)) {
+                        HStack(spacing: 6) {
+                            Image(systemName: accountIcon)
+                                .foregroundStyle(accountTint)
+                            Text(monitor.accountStatus.localizedLabel)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    LabeledContent(L.t(.iCloudActivityLabel)) {
+                        Text(activitySummary)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent(L.t(.iCloudLastSyncLabel)) {
+                        Text(lastSyncText)
+                            .foregroundStyle(.secondary)
+                    }
+                    LabeledContent(L.t(.iCloudContainerLabel)) {
+                        Text(CloudKitConfig.containerIdentifier)
+                            .font(.system(.callout, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    HStack {
+                        Spacer()
+                        Button(L.t(.iCloudRefresh)) {
+                            monitor.refreshAccountStatus()
+                        }
+                        if monitor.accountStatus != .available {
+                            Button(L.t(.iCloudOpenAccountSettings)) {
+                                openIcloudSettings()
+                            }
+                        }
+                    }
+                } footer: {
+                    Text(L.t(.iCloudFooter))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            } else if !enabledPref {
+                Section {
+                    Label(L.t(.iCloudDisabledHint), systemImage: "icloud.slash")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
-        .scrollDisabled(true)
-        .frame(width: 480, height: 140)
+        .frame(width: 480, height: dynamicHeight)
+    }
+
+    /// 内容多寡浮动:开关+只读 hint 时矮一些,启用+状态区时高一些。
+    private var dynamicHeight: CGFloat {
+        if actuallyRunningCloudKit { return 460 }
+        if enabledPref != actuallyRunningCloudKit { return 280 }
+        return 220
+    }
+
+    private var accountIcon: String {
+        switch monitor.accountStatus {
+        case .available:               return "checkmark.icloud"
+        case .noAccount, .restricted:  return "icloud.slash"
+        default:                       return "icloud"
+        }
+    }
+
+    private var accountTint: Color {
+        switch monitor.accountStatus {
+        case .available:                                   return .green
+        case .noAccount, .restricted, .temporarilyUnavailable: return .orange
+        default:                                           return .secondary
+        }
+    }
+
+    /// 把三类事件(setup/import/export)拼成一行人话。最近发生的优先显示,
+    /// import / export 是日常状态,setup 只在初始化阶段出现一次。
+    private var activitySummary: String {
+        let parts: [(String, CloudKitSyncMonitor.EventState)] = [
+            (L.t(.iCloudEventImport), monitor.importState),
+            (L.t(.iCloudEventExport), monitor.exportState),
+            (L.t(.iCloudEventSetup),  monitor.setupState)
+        ]
+        let active = parts.compactMap { name, state -> String? in
+            switch state {
+            case .idle: return nil
+            case .running:           return "\(name): \(L.t(.iCloudActivityRunning))"
+            case .succeeded:         return "\(name): \(L.t(.iCloudActivitySucceeded))"
+            case .failed(let msg):   return "\(name): \(L.t(.iCloudActivityFailed)) — \(msg)"
+            }
+        }
+        return active.isEmpty ? L.t(.iCloudActivityIdle) : active.joined(separator: "\n")
+    }
+
+    private var lastSyncText: String {
+        guard let date = monitor.lastSyncDate else { return L.t(.iCloudLastSyncNever) }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// 打开 System Settings → Apple ID 面板。新版 macOS Settings.app 的
+    /// deep link;失败时退化到普通 System Settings。
+    private func openIcloudSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings")
+            ?? URL(string: "x-apple.systempreferences:")!
+        NSWorkspace.shared.open(url)
     }
 }

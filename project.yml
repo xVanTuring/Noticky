@@ -21,7 +21,14 @@ settings:
     PRODUCT_NAME: Noticky
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
-    CODE_SIGN_IDENTITY: "-"
+    # CloudKit / iCloud entitlements 强制要求真实 team signing,不能用 ad-hoc "-"。
+    # T8F5T6HKG8 = "Shenzhen Zhiqishidai Technology" 企业账号。
+    # ⚠️ CloudKit container `iCloud.tech.xvanturing.Noticky` 需要在该 team 的
+    #    Apple Developer portal(https://developer.apple.com/account/resources/identifiers/list/cloudContainer)
+    #    下手动创建,Identifier 完全一致;App ID `tech.xvanturing.Noticky` 也要
+    #    在同一 team 注册并勾上 iCloud + Push Notifications capability。
+    DEVELOPMENT_TEAM: T8F5T6HKG8
+    CODE_SIGN_IDENTITY: "Apple Development"
     DEAD_CODE_STRIPPING: YES
     GENERATE_INFOPLIST_FILE: NO
     SWIFT_STRICT_CONCURRENCY: minimal
