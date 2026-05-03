@@ -61,6 +61,35 @@ Sources/Noticky/
   **Adding a new schema version**: copy `SchemaV1.swift` → `SchemaV2.swift`,
   edit only V2, add `case v2` to `SchemaVersion`, set `current = .v2`.
   **Never edit a published version** — its hash is baked into user sqlites.
+
+## Schema → CloudKit deployment workflow
+
+When bumping `SchemaVersion.current` (e.g., V1 → V2):
+
+1. **Local migration**: lightweight migration handles user sqlites automatically
+   on first launch with the new build. No user action.
+2. **Verify the migration code path** before tagging release:
+   Settings → iCloud Sync → "Run migration self-test" (DEBUG build).
+   Builds a synthetic prior version, writes sample data, migrates forward,
+   asserts data preserved. Pass = lightweight migration handles your changes.
+   Fail = either your changes need a custom mapping model, or `SchemaMigrationTester`
+   itself needs a new synthetic case for the kind of change you made.
+3. **Push schema to CloudKit Development**:
+   Settings → iCloud Sync → "Initialize Cloud schema (Development)".
+   `NSPersistentCloudKitContainer.initializeCloudKitSchema()` walks the model
+   and creates/updates record types in the Dev environment of your CloudKit
+   container. After success, the deployed-version label updates to the
+   current `SchemaVersion`. The "Local schema differs from last push" warning
+   reminds you when the field is stale.
+4. **Promote Development → Production** in the CloudKit Console
+   (https://icloud.developer.apple.com → your container → Schema → Deploy
+   Schema Changes). **This is the only step Noticky cannot do programmatically**
+   — it must happen via the web UI per Apple's CloudKit deployment model.
+   Deploying anything destructive (removing fields/types from Production) is
+   irreversible without losing all user cloud data.
+5. **CloudKit production schema is append-only.** You can add fields/record
+   types in V2; you can never remove them once deployed to Production.
+   Unused fields stay in Production's schema forever.
 - **`Note.isPinned` doubles as "auto-show on launch"**. `applicationShouldTerminate`
   sets `floating.isTerminating = true` so `windowWillClose` skips clearing it.
 - **xcodegen as project file authority**. `project.yml` is tracked, `*.xcodeproj/`

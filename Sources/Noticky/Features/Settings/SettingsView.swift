@@ -28,6 +28,12 @@ enum SettingsKey {
     /// 回收站保留天数。超过这个天数的 trashed 笔记会在启动时被
     /// `purgeExpiredTrash` 真删。范围 7-365,未设默认 30(对齐 Notes/Mail)。
     static let trashRetentionDays = "Noticky.trashRetentionDays" // Int
+
+    /// 上次成功推到 CloudKit Development 环境的 schema 版本号(SchemaVersion.rawValue)。
+    /// **仅 DEBUG 用** —— 给开发者在 Settings → iCloud Sync 里看"本机推过的版本
+    /// vs 当前 SchemaVersion.current"是否一致,提醒发布前要重新 push schema
+    /// 并到 CloudKit Console 把 Dev → Prod 部署一遍。终端用户 release build 看不到这块。
+    static let cloudKitDeployedSchemaVersion = "Noticky.cloudKitDeployedSchemaVersion" // String
 }
 
 /// 回收站保留天数的取值范围 + 默认值。集中在这里,SettingsView Stepper 和
@@ -503,8 +509,12 @@ struct ICloudTab: View {
     @ObservedObject private var loc = LocalizationManager.shared
     @ObservedObject private var monitor = CloudKitSyncMonitor.shared
     @AppStorage(SettingsKey.iCloudSyncEnabled) private var enabledPref: Bool = false
+    @AppStorage(SettingsKey.cloudKitDeployedSchemaVersion) private var deployedSchemaVersion: String = ""
     @State private var schemaInitMessage: String?
     @State private var schemaInitFailed: Bool = false
+    @State private var migrationTestMessage: String?
+    @State private var migrationTestFailed: Bool = false
+    @State private var migrationTestRunning: Bool = false
 
     /// 进程启动时 PersistenceController 决定的 mode。这个值不会随 toggle 改变,
     /// 与 enabledPref 不一致时说明用户改了开关但还没重启。
@@ -582,24 +592,8 @@ struct ICloudTab: View {
                 }
 
                 #if DEBUG
-                // CloudKit Development 环境的第一次 setup:必须把本地 model 推上去
-                // 才能创建 record types + 默认 zone。NSPersistentCloudKitContainer
-                // 不会自动做这个,要手动调 initializeCloudKitSchema(),期间应用要
-                // 短暂停止其他 CK 操作。一次成功后这个按钮就再也不需要点了。
-                Section {
-                    Button(L.t(.iCloudInitSchema)) {
-                        initializeSchema()
-                    }
-                    if let msg = schemaInitMessage {
-                        Label(msg, systemImage: schemaInitFailed ? "exclamationmark.triangle" : "checkmark.circle")
-                            .foregroundStyle(schemaInitFailed ? .red : .green)
-                            .font(.callout)
-                    }
-                } footer: {
-                    Text(L.t(.iCloudInitSchemaHint))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                schemaDebugSection
+                migrationTesterSection
                 #endif
             } else if !enabledPref {
                 Section {
@@ -613,10 +607,10 @@ struct ICloudTab: View {
     }
 
     /// 内容多寡浮动:开关+只读 hint 时矮一些,启用+状态区时高一些。
-    /// DEBUG 构建时多一段 schema-init section。
+    /// DEBUG 构建时多两段(schema 跟踪 + migration tester)。
     private var dynamicHeight: CGFloat {
         #if DEBUG
-        if actuallyRunningCloudKit { return 600 }
+        if actuallyRunningCloudKit { return 800 }
         #else
         if actuallyRunningCloudKit { return 460 }
         #endif
@@ -624,18 +618,96 @@ struct ICloudTab: View {
         return 220
     }
 
+    #if DEBUG
+    /// CloudKit Development 环境的 schema 推送 + 部署版本跟踪。
+    /// 每次 SchemaVersion.current 升级后必须重跑,否则新字段在云上不存在,
+    /// sync 会忽略它们。Push 成功后还要去 CloudKit Console 把 Dev 部署到 Production。
+    @ViewBuilder
+    private var schemaDebugSection: some View {
+        Section {
+            LabeledContent(L.t(.iCloudSchemaCurrent)) {
+                Text(SchemaVersion.current.rawValue)
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent(L.t(.iCloudSchemaDeployed)) {
+                Text(deployedSchemaVersion.isEmpty
+                     ? L.t(.iCloudSchemaDeployedNever)
+                     : deployedSchemaVersion)
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(deployedSchemaVersion == SchemaVersion.current.rawValue
+                                     ? Color.secondary : Color.orange)
+            }
+            if !deployedSchemaVersion.isEmpty,
+               deployedSchemaVersion != SchemaVersion.current.rawValue {
+                Label {
+                    Text(L.t(.iCloudSchemaNeedsRedeploy))
+                        .font(.callout)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
+            Button(L.t(.iCloudInitSchema)) {
+                initializeSchema()
+            }
+            if let msg = schemaInitMessage {
+                Label(msg, systemImage: schemaInitFailed ? "exclamationmark.triangle" : "checkmark.circle")
+                    .foregroundStyle(schemaInitFailed ? Color.red : Color.green)
+                    .font(.callout)
+            }
+        } header: {
+            Text(L.t(.iCloudSchemaSection))
+        } footer: {
+            Text(L.t(.iCloudInitSchemaHint))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Lightweight migration 端到端自检。每次 bumping SchemaVersion.current 之前
+    /// 跑一次确认升级链路能跑通(SchemaMigrationTester 会拿合成的旧版 store 走
+    /// 一遍真实迁移)。
+    @ViewBuilder
+    private var migrationTesterSection: some View {
+        Section {
+            Button(L.t(.iCloudMigrationTest)) {
+                runMigrationTest()
+            }
+            .disabled(migrationTestRunning)
+            if migrationTestRunning {
+                Label(L.t(.iCloudMigrationTestRunning), systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            } else if let msg = migrationTestMessage {
+                Label(msg, systemImage: migrationTestFailed ? "exclamationmark.triangle" : "checkmark.circle")
+                    .foregroundStyle(migrationTestFailed ? Color.red : Color.green)
+                    .font(.callout)
+            }
+        } footer: {
+            Text(L.t(.iCloudMigrationTestHint))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+    #endif
+
     /// 后台 thread 推 schema —— 这个调用是同步 + 网络阻塞,主线程跑会卡 UI。
     /// 成功后 Cloud Console 里能看到 record types(`CD_Note`、`CD_NoteGroup`)+
     /// 默认 zone (`com.apple.coredata.cloudkit.zone`) 出现。
+    /// 成功后把 SchemaVersion.current.rawValue 写进 UserDefaults,
+    /// 下次进 Settings 能看到 "deployed=X | current=Y" 的对比。
     private func initializeSchema() {
         schemaInitMessage = nil
         schemaInitFailed = false
+        let pushedVersion = SchemaVersion.current.rawValue
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 try PersistenceController.shared.initializeCloudKitSchema()
                 DispatchQueue.main.async {
                     schemaInitMessage = L.t(.iCloudInitSchemaSuccess)
                     schemaInitFailed = false
+                    deployedSchemaVersion = pushedVersion
                     monitor.refreshAccountStatus()
                 }
             } catch {
@@ -646,6 +718,30 @@ struct ICloudTab: View {
                 }
             }
         }
+    }
+
+    /// 同步执行 SchemaMigrationTester.run() —— Core Data 操作放到后台 queue,
+    /// 防止短暂阻塞 UI(实际开销 < 1s,但保险起见还是不在 main 上跑)。
+    private func runMigrationTest() {
+        migrationTestRunning = true
+        migrationTestMessage = nil
+        migrationTestFailed = false
+        #if DEBUG
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = SchemaMigrationTester.run()
+            DispatchQueue.main.async {
+                migrationTestRunning = false
+                switch result {
+                case .passed(let msg):
+                    migrationTestMessage = L.t(.iCloudMigrationTestPass, msg)
+                    migrationTestFailed = false
+                case .failed(let msg):
+                    migrationTestMessage = L.t(.iCloudMigrationTestFail, msg)
+                    migrationTestFailed = true
+                }
+            }
+        }
+        #endif
     }
 
     private var accountIcon: String {

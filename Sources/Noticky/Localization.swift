@@ -111,6 +111,13 @@ enum LocKey: String {
     // Debug-only schema 推送
     case iCloudInitSchema, iCloudInitSchemaHint
     case iCloudInitSchemaSuccess, iCloudInitSchemaFailed
+    // Debug-only schema deployment 跟踪 + migration tester
+    case iCloudSchemaSection
+    case iCloudSchemaCurrent, iCloudSchemaDeployed, iCloudSchemaDeployedNever
+    case iCloudSchemaNeedsRedeploy
+    case iCloudMigrationTest, iCloudMigrationTestHint
+    case iCloudMigrationTestRunning
+    case iCloudMigrationTestPass, iCloudMigrationTestFail
 
     // Quick Capture
     case quickPlaceholder, quickSave, quickNewLine, quickCancel
@@ -258,6 +265,16 @@ enum L {
         .iCloudInitSchemaHint: "First-time only: pushes the local Core Data schema to your CloudKit Development environment so syncing can begin. Run once after creating the container in Apple Developer portal.",
         .iCloudInitSchemaSuccess: "Schema initialized. Sync should start within a few seconds.",
         .iCloudInitSchemaFailed: "Failed to initialize schema: %@",
+        .iCloudSchemaSection: "Schema (Debug)",
+        .iCloudSchemaCurrent: "Local schema version",
+        .iCloudSchemaDeployed: "Last pushed to CloudKit Dev",
+        .iCloudSchemaDeployedNever: "(never on this machine)",
+        .iCloudSchemaNeedsRedeploy: "Local schema differs from last push — re-run \"Initialize Cloud schema\" before release, then deploy Dev → Production in CloudKit Console.",
+        .iCloudMigrationTest: "Run migration self-test",
+        .iCloudMigrationTestHint: "Builds a synthetic previous-version store and migrates it forward with the current model. Run before bumping SchemaVersion.current to verify lightweight migration still works.",
+        .iCloudMigrationTestRunning: "Running migration test…",
+        .iCloudMigrationTestPass: "✓ %@",
+        .iCloudMigrationTestFail: "✗ %@",
 
         .quickPlaceholder: "Quick note…",
         .quickSave: "Save", .quickNewLine: "New line", .quickCancel: "Cancel",
@@ -418,6 +435,16 @@ enum L {
         .iCloudInitSchemaHint: "仅首次需要:把本地 Core Data schema 推送到 CloudKit Development 环境,之后才能开始同步。在 Apple Developer Portal 创建好 container 后跑一次即可。",
         .iCloudInitSchemaSuccess: "Schema 已初始化。几秒内开始同步。",
         .iCloudInitSchemaFailed: "Schema 初始化失败:%@",
+        .iCloudSchemaSection: "Schema(开发者)",
+        .iCloudSchemaCurrent: "本地 schema 版本",
+        .iCloudSchemaDeployed: "上次推到 CloudKit Dev",
+        .iCloudSchemaDeployedNever: "(本机从未推过)",
+        .iCloudSchemaNeedsRedeploy: "本地 schema 与上次推送不一致 —— 发布前重跑「初始化云端 Schema」,再去 CloudKit Console 把 Dev → Production 部署一遍。",
+        .iCloudMigrationTest: "跑一次迁移自检",
+        .iCloudMigrationTestHint: "用合成的旧版本 store 走一遍 lightweight migration 升到当前 model。每次改 SchemaVersion.current 之前跑一次,确认升级链路没坏。",
+        .iCloudMigrationTestRunning: "迁移测试中…",
+        .iCloudMigrationTestPass: "✓ %@",
+        .iCloudMigrationTestFail: "✗ %@",
 
         .quickPlaceholder: "快速便签…",
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",
