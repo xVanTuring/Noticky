@@ -25,7 +25,7 @@
 
 ## C. 分发 / 上架
 
-- [ ] **Core Data versioned model**(`PersistenceController.swift:79` 注释:目前是 nuke + 重建兜底,App Store 前必须换)
+- [x] **Core Data versioned model** —— `Persistence/Schema/SchemaV{N}.swift` + `CoreDataSchema` 注册表;model 写 `versionIdentifiers=["v1"]`;lightweight migration 一直开;失败兜底改成"备份 sqlite 三件套到桌面 + NSAlert + quit",不再静默 nuke
 - [ ] **Developer ID 代码签名** + **notarytool 公证**(目前 Debug 直接跑)
 - [ ] **DMG 打包脚本**
 - [ ] **Sparkle 自更新框架**

@@ -1,3 +1,4 @@
+import AppKit
 import CoreData
 
 /// CloudKit container 标识。规则:`iCloud.<bundle-id>` 是 Apple 推荐的命名,
@@ -20,7 +21,7 @@ final class PersistenceController {
     private var deduplicator: CloudKitDeduplicator?
 
     init(inMemory: Bool = false) {
-        let model = Self.makeModel()
+        let model = CoreDataSchema.currentModel()
         // iCloud 同步开关来自 UserDefaults。**进程启动时一次性读取**,运行中改设置
         // 不会立即生效 —— Core Data store coordinator 没有「热切换 CloudKit」API,
         // 必须重启 App。Settings UI 在用户改这个开关后弹提示请用户重启。
@@ -43,6 +44,11 @@ final class PersistenceController {
             desc.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
             desc.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
 
+            // Lightweight migration: 加字段、删字段、字段重命名(配 renaming
+            // identifier)、加 entity、加 relationship —— 99% 的 schema 改动
+            // Core Data 自己能推出 mapping。复杂改动(拆 entity、字段值转换)
+            // 才需要写 NSEntityMigrationPolicy + NSMappingModel,届时把这两个
+            // 改成 false 并手动 migrate。
             desc.shouldMigrateStoreAutomatically = true
             desc.shouldInferMappingModelAutomatically = true
 
@@ -64,7 +70,7 @@ final class PersistenceController {
             }
         }
 
-        Self.loadStores(in: container, retryOnFailure: !inMemory)
+        Self.loadStores(in: container, allowFailureUI: !inMemory)
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
 
@@ -114,181 +120,110 @@ final class PersistenceController {
         }
     }
 
-    /// 程序化 model 没有 .xcdatamodeld 版本号,schema 改动时 Core Data 推不出
-    /// 迁移 mapping。Phase 1 阶段直接删旧库重建——开发测试数据不值得保留。
-    /// CloudKit 模式下也走这个兜底:CloudKit 自身的 record schema 有版本管理,
-    /// 删本地库不会丢云端数据,会重新拉。
-    private static func loadStores(in container: NSPersistentContainer, retryOnFailure: Bool) {
+    /// 加载 store。失败时:
+    ///   1. 把 sqlite/shm/wal 备份到 ~/Desktop/Noticky-Recovery-{ts}/(best-effort)
+    ///   2. 弹 NSAlert,告知用户 + 提供"打开备份目录"按钮
+    ///   3. terminate App
+    ///
+    /// **不再静默删库重建。** 老逻辑会让用户在升级失败时悄悄丢全部便签;
+    /// CloudKit 模式下尤其危险——本地 only 改动(还没同步上去的)直接没了。
+    /// 现在的策略是宁可启动失败,也要保住数据。
+    private static func loadStores(in container: NSPersistentContainer, allowFailureUI: Bool) {
         var loadError: Error?
         container.loadPersistentStores { _, error in loadError = error }
         guard let error = loadError else { return }
 
-        guard retryOnFailure,
-              let desc = container.persistentStoreDescriptions.first,
-              let url = desc.url else {
+        let storeURL = container.persistentStoreDescriptions.first?.url
+        NSLog("Noticky: store load failed: %@", "\(error)")
+
+        guard allowFailureUI else {
+            // inMemory / 测试场景,直接抛
             fatalError("Noticky: failed to load persistent store: \(error)")
         }
 
-        NSLog("Noticky: store load failed (%@), nuking %@ and retrying", "\(error)", url.path)
+        let backup = storeURL.flatMap { backupStore(at: $0) }
+        let storeVersion = storeURL.flatMap { CoreDataSchema.storeVersionIdentifiers(at: $0) }
+
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Noticky 启动失败"
+        alert.informativeText = composeFailureMessage(
+            error: error,
+            storeURL: storeURL,
+            storeVersionIdentifiers: storeVersion,
+            backupURL: backup
+        )
+        if backup != nil {
+            alert.addButton(withTitle: "在 Finder 中显示备份")
+        }
+        alert.addButton(withTitle: "退出")
+
+        // LSUIElement App 没 Dock 图标,弹 modal 前 activate 一下保证抢到焦点。
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        if backup != nil, response == .alertFirstButtonReturn, let backup {
+            NSWorkspace.shared.activateFileViewerSelecting([backup])
+        }
+        NSApp.terminate(nil)
+        // terminate 是异步的,run loop 还会再转一会儿。block 在这里不让后续
+        // 代码继续执行(否则会用一个没 load 的 container 去做事,各种崩)。
+        RunLoop.current.run()
+        fatalError("unreachable")
+    }
+
+    /// 把 sqlite 三件套(.sqlite/.sqlite-shm/.sqlite-wal)拷贝到 ~/Desktop。
+    /// 失败时返回 nil —— 备份是 best-effort,主流程继续走 alert + quit。
+    /// 返回备份目录的 URL(让 alert 可以弹 Finder 定位)。
+    private static func backupStore(at storeURL: URL) -> URL? {
         let fm = FileManager.default
-        for suffix in ["", "-shm", "-wal"] {
-            let target = url.deletingLastPathComponent()
-                .appendingPathComponent(url.lastPathComponent + suffix)
-            try? fm.removeItem(at: target)
-        }
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let desktop = fm.homeDirectoryForCurrentUser.appendingPathComponent("Desktop")
+        let backupDir = desktop.appendingPathComponent("Noticky-Recovery-\(timestamp)")
 
-        var retryError: Error?
-        container.loadPersistentStores { _, error in retryError = error }
-        if let retryError {
-            fatalError("Noticky: store reset still failed: \(retryError)")
+        do {
+            try fm.createDirectory(at: backupDir, withIntermediateDirectories: true)
+            for suffix in ["", "-shm", "-wal"] {
+                let from = storeURL.deletingLastPathComponent()
+                    .appendingPathComponent(storeURL.lastPathComponent + suffix)
+                guard fm.fileExists(atPath: from.path) else { continue }
+                let to = backupDir.appendingPathComponent(from.lastPathComponent)
+                try fm.copyItem(at: from, to: to)
+            }
+            NSLog("Noticky: backed up sqlite to %@", backupDir.path)
+            return backupDir
+        } catch {
+            NSLog("Noticky: store backup failed: %@", "\(error)")
+            return nil
         }
     }
 
-    private static func makeModel() -> NSManagedObjectModel {
-        let model = NSManagedObjectModel()
-
-        let note = NSEntityDescription()
-        note.name = "Note"
-        note.managedObjectClassName = NSStringFromClass(Note.self)
-
-        // ⚠️ CloudKit 兼容性约束:NSPersistentCloudKitContainer 要求每个属性
-        // 「optional 或 有 default」。下面 id/createdAt/updatedAt 在 schema 层
-        // 标 isOptional=true,实际代码路径(Note.create)总会立即赋值,所以 Swift
-        // 侧 @NSManaged 仍可保持非可选。
-        let id = NSAttributeDescription()
-        id.name = "id"
-        id.attributeType = .UUIDAttributeType
-        id.isOptional = true
-
-        let content = NSAttributeDescription()
-        content.name = "content"
-        content.attributeType = .stringAttributeType
-        content.isOptional = false
-        content.defaultValue = ""
-
-        let createdAt = NSAttributeDescription()
-        createdAt.name = "createdAt"
-        createdAt.attributeType = .dateAttributeType
-        createdAt.isOptional = true
-
-        let updatedAt = NSAttributeDescription()
-        updatedAt.name = "updatedAt"
-        updatedAt.attributeType = .dateAttributeType
-        updatedAt.isOptional = true
-
-        let isPinned = NSAttributeDescription()
-        isPinned.name = "isPinned"
-        isPinned.attributeType = .booleanAttributeType
-        isPinned.isOptional = false
-        isPinned.defaultValue = false
-
-        let colorIndex = NSAttributeDescription()
-        colorIndex.name = "colorIndex"
-        colorIndex.attributeType = .integer16AttributeType
-        colorIndex.isOptional = false
-        colorIndex.defaultValue = 0
-
-        let frameX = Self.doubleAttr("frameX")
-        let frameY = Self.doubleAttr("frameY")
-        let frameW = Self.doubleAttr("frameW")
-        let frameH = Self.doubleAttr("frameH")
-
-        let hasSavedFrame = NSAttributeDescription()
-        hasSavedFrame.name = "hasSavedFrame"
-        hasSavedFrame.attributeType = .booleanAttributeType
-        hasSavedFrame.isOptional = false
-        hasSavedFrame.defaultValue = false
-
-        // 软删除:笔记进回收站置 isTrashed=true + trashedAt=now。所有"普通"
-        // fetch 都加 isTrashed==false 过滤,只有 Trash 视图查 ==true。30 天后
-        // 由启动时的 purge 真正 context.delete。
-        let isTrashed = NSAttributeDescription()
-        isTrashed.name = "isTrashed"
-        isTrashed.attributeType = .booleanAttributeType
-        isTrashed.isOptional = false
-        isTrashed.defaultValue = false
-
-        let trashedAt = NSAttributeDescription()
-        trashedAt.name = "trashedAt"
-        trashedAt.attributeType = .dateAttributeType
-        trashedAt.isOptional = true
-
-        // 折叠态:浮窗双击标题缩成只剩标题条;持久化让用户重启后回到上次的状态。
-        // 折叠时窗口高度强制 collapsedHeight,保留 frameW/H 当作"展开状态的几何"
-        // 用于还原。
-        let isCollapsed = NSAttributeDescription()
-        isCollapsed.name = "isCollapsed"
-        isCollapsed.attributeType = .booleanAttributeType
-        isCollapsed.isOptional = false
-        isCollapsed.defaultValue = false
-
-        // NoteGroup entity --------------------------------------------------------
-        let groupEntity = NSEntityDescription()
-        groupEntity.name = "NoteGroup"
-        groupEntity.managedObjectClassName = NSStringFromClass(NoteGroup.self)
-
-        let groupId = NSAttributeDescription()
-        groupId.name = "id"
-        groupId.attributeType = .UUIDAttributeType
-        groupId.isOptional = true
-
-        let groupName = NSAttributeDescription()
-        groupName.name = "name"
-        groupName.attributeType = .stringAttributeType
-        groupName.isOptional = false
-        groupName.defaultValue = ""
-
-        let groupCreatedAt = NSAttributeDescription()
-        groupCreatedAt.name = "createdAt"
-        groupCreatedAt.attributeType = .dateAttributeType
-        groupCreatedAt.isOptional = true
-
-        let groupSortOrder = NSAttributeDescription()
-        groupSortOrder.name = "sortOrder"
-        groupSortOrder.attributeType = .integer32AttributeType
-        groupSortOrder.isOptional = false
-        groupSortOrder.defaultValue = Int32(0)
-
-        // Relationships ----------------------------------------------------------
-        // Note <-> NoteGroup,多对一。任何一方删除都 nullify(保留对方),不级联。
-        // CloudKit 要求 to-many 关系必须 optional + nullify,这里两端都满足。
-        let noteToGroup = NSRelationshipDescription()
-        noteToGroup.name = "group"
-        noteToGroup.destinationEntity = groupEntity
-        noteToGroup.maxCount = 1
-        noteToGroup.minCount = 0
-        noteToGroup.isOptional = true
-        noteToGroup.deleteRule = .nullifyDeleteRule
-
-        let groupToNotes = NSRelationshipDescription()
-        groupToNotes.name = "notes"
-        groupToNotes.destinationEntity = note
-        groupToNotes.maxCount = 0  // unlimited
-        groupToNotes.minCount = 0
-        groupToNotes.isOptional = true
-        groupToNotes.deleteRule = .nullifyDeleteRule
-
-        noteToGroup.inverseRelationship = groupToNotes
-        groupToNotes.inverseRelationship = noteToGroup
-
-        note.properties = [
-            id, content, createdAt, updatedAt, isPinned, colorIndex,
-            frameX, frameY, frameW, frameH, hasSavedFrame,
-            isTrashed, trashedAt, isCollapsed,
-            noteToGroup
-        ]
-        groupEntity.properties = [groupId, groupName, groupCreatedAt, groupSortOrder, groupToNotes]
-        model.entities = [note, groupEntity]
-        return model
-    }
-
-    private static func doubleAttr(_ name: String) -> NSAttributeDescription {
-        let attr = NSAttributeDescription()
-        attr.name = name
-        attr.attributeType = .doubleAttributeType
-        attr.isOptional = false
-        attr.defaultValue = 0.0
-        return attr
+    private static func composeFailureMessage(
+        error: Error,
+        storeURL: URL?,
+        storeVersionIdentifiers: Set<String>?,
+        backupURL: URL?
+    ) -> String {
+        var lines: [String] = []
+        lines.append("无法加载本地数据。")
+        lines.append("")
+        lines.append("错误:\(error.localizedDescription)")
+        if let identifiers = storeVersionIdentifiers, !identifiers.isEmpty {
+            lines.append("本地库版本:\(identifiers.sorted().joined(separator: ", "))")
+        }
+        lines.append("当前 App schema:\(SchemaVersion.current.rawValue)")
+        if let backupURL {
+            lines.append("")
+            lines.append("已自动备份原始数据到桌面:")
+            lines.append(backupURL.lastPathComponent)
+        } else {
+            lines.append("")
+            lines.append("⚠️ 数据备份失败,请在退出前手动复制:")
+            if let storeURL { lines.append(storeURL.deletingLastPathComponent().path) }
+        }
+        lines.append("")
+        lines.append("请把备份发给开发者排查后再继续使用。")
+        return lines.joined(separator: "\n")
     }
 }
 

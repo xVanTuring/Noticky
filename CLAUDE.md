@@ -51,10 +51,16 @@ Sources/Noticky/
   (window levels, Spaces, menubar, NSStatusItem). SwiftUI for content via
   `NSHostingController`. **Don't fight this** — full SwiftUI lifecycle (no
   `@NSApplicationDelegateAdaptor`-only) loses too much AppKit access.
-- **Programmatic Core Data model** (no `.xcdatamodeld` bundle). See
-  `PersistenceController.makeModel()`. Lightweight migration is enabled
-  (`shouldInferMappingModelAutomatically`); failure path nukes + recreates
-  the store. Acceptable for dev; will need versioned model before App Store.
+- **Programmatic Core Data model** (no `.xcdatamodeld` bundle), versioned via
+  `Persistence/Schema/SchemaV{N}.swift` + `CoreDataSchema` registry. Each schema
+  version has its own builder; `SchemaVersion.current` is the head. Lightweight
+  migration is on (`shouldInferMappingModelAutomatically`) — handles 99% of
+  changes (add/remove fields, renames with `renamingIdentifier`, add entities).
+  Load failure no longer nukes — backs up sqlite/shm/wal to `~/Desktop/
+  Noticky-Recovery-{ts}/` and shows critical NSAlert before quitting.
+  **Adding a new schema version**: copy `SchemaV1.swift` → `SchemaV2.swift`,
+  edit only V2, add `case v2` to `SchemaVersion`, set `current = .v2`.
+  **Never edit a published version** — its hash is baked into user sqlites.
 - **`Note.isPinned` doubles as "auto-show on launch"**. `applicationShouldTerminate`
   sets `floating.isTerminating = true` so `windowWillClose` skips clearing it.
 - **xcodegen as project file authority**. `project.yml` is tracked, `*.xcodeproj/`
