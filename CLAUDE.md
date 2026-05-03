@@ -162,6 +162,63 @@ sqlite3 "$HOME/Library/Containers/tech.xvanturing.Noticky/Data/Library/Applicati
   bridges SwiftUI `.frame(...)` to `NSViewController.preferredContentSize`,
   so the tab controller can read the target size.
 
+## First release
+
+`scripts/release.sh` does the whole chain: archive → exportArchive (Developer
+ID re-sign) → notarize app → staple → DMG → notarize DMG → staple. Output:
+`dist/v<VERSION>/{Noticky.app, .zip, .dmg}`. The script is idempotent.
+
+**One-time per machine**, before the first run:
+
+1. **Developer ID Application certificate** in keychain (team T8F5T6HKG8).
+   Verify: `security find-identity -v -p codesigning | grep "Developer ID Application"`.
+   If missing, install via Xcode → Settings → Accounts → Manage Certificates →
+   + → Developer ID Application (or have an Admin issue + share the .p12).
+
+2. **Developer ID provisioning profile** named `"Noticky Developer ID"`.
+   Required because iCloud + Push Notifications entitlements force Xcode to
+   demand a profile, even for Developer ID direct distribution. Manual signing
+   is used (cloud-managed Developer ID certs need Account Holder / Admin role,
+   xvanturing@icloud.com is a member of T8F5T6HKG8 not admin).
+   Create at https://developer.apple.com/account/resources/profiles/add:
+     Distribution → Developer ID → App ID `tech.xvanturing.Noticky` →
+     pick the Developer ID Application cert (T8F5T6HKG8) →
+     Provisioning Profile Name = `Noticky Developer ID` (exact match;
+     `scripts/ExportOptions.plist` looks it up by name) →
+     Generate → Download → double-click to install.
+
+3. **Notarytool credentials** in keychain. Generate an app-specific password
+   at https://appleid.apple.com → Sign-In and Security → App-Specific Passwords,
+   then:
+   ```sh
+   xcrun notarytool store-credentials "noticky-notary" \
+     --apple-id  "<your-apple-id>" \
+     --team-id   "T8F5T6HKG8" \
+     --password  "<app-specific-password>"
+   ```
+   The script looks for keychain profile `noticky-notary` (override via
+   `NOTARY_PROFILE=foo ./scripts/release.sh`).
+
+**Per-release** (after one-time setup):
+
+```sh
+./scripts/release.sh
+```
+
+Allow ~5–15 min total: build is fast, notarization waits on Apple's queue.
+On success, smoke test by mounting the DMG, drag to /Applications,
+right-click Open the first time, then verify menubar / ⌘⇧N capture / Settings.
+
+Then publish: upload `dist/v<VERSION>/Noticky-<VERSION>.dmg` to GitHub Releases
+or your distribution channel, tag the commit (`git tag v<VERSION> && git push --tags`).
+
+**CloudKit production deployment is independent** — see "Schema → CloudKit
+deployment workflow" above. The Release build's entitlement uses
+`aps-environment=production`, so end users on this build hit your CloudKit
+**Production** environment. Make sure schema is deployed to Production in
+CloudKit Console *before* shipping a release that adds new fields, or sync
+will silently drop them.
+
 ## Commits
 
 Per Noticky-specific authorization (see memory `feedback_noticky_commits_autonomous.md`),

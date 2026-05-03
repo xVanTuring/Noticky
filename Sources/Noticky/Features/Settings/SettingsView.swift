@@ -692,11 +692,14 @@ struct ICloudTab: View {
     }
     #endif
 
+    #if DEBUG
     /// 后台 thread 推 schema —— 这个调用是同步 + 网络阻塞,主线程跑会卡 UI。
     /// 成功后 Cloud Console 里能看到 record types(`CD_Note`、`CD_NoteGroup`)+
     /// 默认 zone (`com.apple.coredata.cloudkit.zone`) 出现。
     /// 成功后把 SchemaVersion.current.rawValue 写进 UserDefaults,
     /// 下次进 Settings 能看到 "deployed=X | current=Y" 的对比。
+    /// 整体 #if DEBUG 包,因为依赖的 PersistenceController.initializeCloudKitSchema()
+    /// 也是 DEBUG-only(release 构建里 release 用户不应该能 push schema)。
     private func initializeSchema() {
         schemaInitMessage = nil
         schemaInitFailed = false
@@ -726,7 +729,6 @@ struct ICloudTab: View {
         migrationTestRunning = true
         migrationTestMessage = nil
         migrationTestFailed = false
-        #if DEBUG
         DispatchQueue.global(qos: .userInitiated).async {
             let result = SchemaMigrationTester.run()
             DispatchQueue.main.async {
@@ -741,8 +743,8 @@ struct ICloudTab: View {
                 }
             }
         }
-        #endif
     }
+    #endif
 
     private var accountIcon: String {
         switch monitor.accountStatus {

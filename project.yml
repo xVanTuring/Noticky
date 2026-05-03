@@ -19,19 +19,35 @@ settings:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "15.0"
     PRODUCT_NAME: Noticky
+    # Hardened Runtime 是 Developer ID 公证的硬性要求(notarytool 拒绝未启用的 .app)。
+    # 也是 dev 阶段就开,免得 release 时再排查 unentitled framework 之类的兼容性问题。
     ENABLE_HARDENED_RUNTIME: YES
-    CODE_SIGN_STYLE: Automatic
-    # CloudKit / iCloud entitlements 强制要求真实 team signing,不能用 ad-hoc "-"。
     # T8F5T6HKG8 = "Shenzhen Zhiqishidai Technology" 企业账号。
     # ⚠️ CloudKit container `iCloud.tech.xvanturing.Noticky` 需要在该 team 的
     #    Apple Developer portal(https://developer.apple.com/account/resources/identifiers/list/cloudContainer)
     #    下手动创建,Identifier 完全一致;App ID `tech.xvanturing.Noticky` 也要
     #    在同一 team 注册并勾上 iCloud + Push Notifications capability。
     DEVELOPMENT_TEAM: T8F5T6HKG8
-    CODE_SIGN_IDENTITY: "Apple Development"
     DEAD_CODE_STRIPPING: YES
     GENERATE_INFOPLIST_FILE: NO
     SWIFT_STRICT_CONCURRENCY: minimal
+  configs:
+    Debug:
+      # 开发期 Apple Development 自动签名,entitlements 走 development APS
+      # (CloudKit Dev 环境)。
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "Apple Development"
+    Release:
+      # Release **build 阶段**也用 Apple Development 自动签名 —— 这只是为了让
+      # archive 能编译过。真正的 Developer ID 签名在 release.sh 的
+      # `xcodebuild -exportArchive` 阶段做,通过 ExportOptions.plist 指定
+      # method=developer-id,Xcode 会自动 fetch Developer ID profile 并重签。
+      # 这是 Apple canonical 的 Direct Distribution 流程。
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "Apple Development"
+      # --timestamp:RFC 3161 时间戳,公证强制要求。Release 阶段 export 时由
+      # ExportOptions.plist 的 signingOptions 接管,这里加上保险一层。
+      OTHER_CODE_SIGN_FLAGS: "--timestamp"
 
 targets:
   Noticky:
@@ -51,7 +67,14 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Noticky
-        CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky.entitlements
+      configs:
+        # Debug 用开发环境 entitlements(aps-environment=development → CloudKit Dev)。
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky.entitlements
+        # Release 用 production entitlements(aps-environment=production → CloudKit Prod)。
+        # 部署 schema 到 Production 见 CLAUDE.md "Schema → CloudKit deployment workflow"。
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky-Release.entitlements
     info:
       path: Sources/Noticky/Resources/Info.plist
       properties:

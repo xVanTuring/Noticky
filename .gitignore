@@ -49,3 +49,7 @@ fastlane/test_output
 # Logs / scratch
 /tmp_*
 *.log
+
+# Release artifacts (built by scripts/release.sh).
+# Track scripts/ + project.yml; the .app/.zip/.dmg outputs aren't versioned.
+dist/

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ExportOptions for Developer ID direct distribution.
+  Used by `xcodebuild -exportArchive` in release.sh.
+
+  signingStyle=manual: 用本地 keychain 已有的 Developer ID Application cert
+    + 在本机已安装的 Developer ID provisioning profile,**不走** cloud-managed
+    cert 的 Apple 端 fetch 流程。
+    原因:cloud-managed Developer ID cert 需要 Account Holder/Admin 权限,
+    member 角色用户走 automatic 会被 Apple 拒(403 FORBIDDEN_ERROR)。
+
+  signingCertificate: 不能写完整的 SHA / Common Name,Apple 文档要求用类型名。
+    "Developer ID Application" 让 Xcode 在 keychain 中找匹配的 Developer ID
+    Application cert,只要 team ID 对得上就能用。
+
+  provisioningProfiles: 必须在本机已经安装 Developer ID profile,profile name
+    跟这里写的一致。如果没有,先在 Apple Developer Portal 手动建一个:
+    https://developer.apple.com/account/resources/profiles/add
+      → Software → Developer ID
+      → App ID = tech.xvanturing.Noticky
+      → 选 Developer ID Application cert (T8F5T6HKG8)
+      → 起名 "Noticky Developer ID" → 下载 → 双击安装。
+-->
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>developer-id</string>
+    <key>teamID</key>
+    <string>T8F5T6HKG8</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>signingCertificate</key>
+    <string>Developer ID Application</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>tech.xvanturing.Noticky</key>
+        <string>Noticky Developer ID</string>
+    </dict>
+</dict>
+</plist>
