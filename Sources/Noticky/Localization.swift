@@ -95,7 +95,7 @@ enum LocKey: String {
 
     // Settings iCloud Sync
     case iCloudEnable, iCloudEnableDesc
-    case iCloudRestartRequired, iCloudRestartHint
+    case iCloudRestartRequired, iCloudRestartHint, iCloudRestartNow
     case iCloudAccountStatusLabel
     case iCloudAccountUnknown, iCloudAccountAvailable, iCloudAccountNone
     case iCloudAccountRestricted, iCloudAccountTempUnavail
@@ -240,6 +240,7 @@ enum L {
         .iCloudEnableDesc: "Keep notes, groups, and trash in sync across all your Macs signed into the same iCloud account. Toggling this requires restarting Noticky to take effect.",
         .iCloudRestartRequired: "Restart required",
         .iCloudRestartHint: "Quit and reopen Noticky for the iCloud setting to take effect.",
+        .iCloudRestartNow: "Restart Noticky now",
         .iCloudAccountStatusLabel: "iCloud account",
         .iCloudAccountUnknown: "Checking…",
         .iCloudAccountAvailable: "Signed in",
@@ -410,6 +411,7 @@ enum L {
         .iCloudEnableDesc: "在登录同一 iCloud 账户的多台 Mac 之间同步便签、分组和回收站。修改这个开关后需要重启 Noticky 才会生效。",
         .iCloudRestartRequired: "需要重启",
         .iCloudRestartHint: "退出并重新打开 Noticky,iCloud 设置才会生效。",
+        .iCloudRestartNow: "立即重启 Noticky",
         .iCloudAccountStatusLabel: "iCloud 账户",
         .iCloudAccountUnknown: "检测中…",
         .iCloudAccountAvailable: "已登录",

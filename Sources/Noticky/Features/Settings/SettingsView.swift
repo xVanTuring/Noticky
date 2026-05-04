@@ -545,6 +545,13 @@ struct ICloudTab: View {
                         Image(systemName: "arrow.clockwise.circle")
                             .foregroundStyle(.orange)
                     }
+                    HStack {
+                        Spacer()
+                        Button(L.t(.iCloudRestartNow)) {
+                            relaunchApp()
+                        }
+                        .keyboardShortcut(.defaultAction)
+                    }
                 }
             }
 
@@ -614,8 +621,34 @@ struct ICloudTab: View {
         #else
         if actuallyRunningCloudKit { return 460 }
         #endif
-        if enabledPref != actuallyRunningCloudKit { return 280 }
+        if enabledPref != actuallyRunningCloudKit { return 320 }
         return 220
+    }
+
+    /// 一键重启:fork 一个 shell trampoline,等当前 PID 退出后再 `open` app bundle,
+    /// 然后走标准 `NSApp.terminate(nil)` 路径,让 applicationShouldTerminate 跑完
+    /// (它把 floating.isTerminating 置 true,保住 isPinned 状态不被 windowWillClose 清掉)。
+    /// 必须等当前进程退出再 open,否则 LaunchServices 看到同 bundle id 已在跑会忽略。
+    private func relaunchApp() {
+        // @AppStorage 写盘是 runloop 末尾,terminate 前同步一次确保新值落盘,
+        // 否则新进程 init PersistenceController 时还读到旧值。
+        UserDefaults.standard.synchronize()
+
+        let bundlePath = Bundle.main.bundleURL.path
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let escaped = bundlePath.replacingOccurrences(of: "'", with: "'\\''")
+        let script = "while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done; open '\(escaped)'"
+
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", script]
+        do {
+            try task.run()
+        } catch {
+            NSLog("Noticky relaunch trampoline failed: \(error)")
+            return
+        }
+        NSApp.terminate(nil)
     }
 
     #if DEBUG
