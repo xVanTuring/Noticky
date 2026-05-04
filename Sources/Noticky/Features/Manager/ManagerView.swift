@@ -9,13 +9,18 @@ struct ManagerView: View {
     let floating: FloatingNotesRegistry
 
     @Environment(\.managedObjectContext) private var context
-    @FetchRequest(fetchRequest: NoteGroup.sortedFetchRequest(), animation: .default)
+    // **不要给这三个 FetchRequest 加 `animation:`**:拖拽改 group 后,row 会
+    // 跨 section 移到目标分组的 sort 头部(被 updatedAt bump 推上去)。带
+    // `animation: .default` 时 SwiftUI 会给这种跨段移动一个连续动画,中间
+    // 每一行都要重算 frame,从底拖到顶看到的就是肉眼可见的卡顿。无动画下
+    // 是瞬时跳到新位置,没有过渡帧 —— 跟 Finder/Notes sidebar 行为一致。
+    @FetchRequest(fetchRequest: NoteGroup.sortedFetchRequest())
     private var groups: FetchedResults<NoteGroup>
-    @FetchRequest(fetchRequest: Note.sortedFetchRequest(), animation: .default)
+    @FetchRequest(fetchRequest: Note.sortedFetchRequest())
     private var allNotes: FetchedResults<Note>
     /// 回收站项数。展示在 sidebar 底部的徽章,数据源跟 TrashDetailView 共享
     /// 同一个 store —— 同一个 viewContext 改动后两边都会自动刷新。
-    @FetchRequest(fetchRequest: Note.trashedFetchRequest(), animation: .default)
+    @FetchRequest(fetchRequest: Note.trashedFetchRequest())
     private var trashedNotes: FetchedResults<Note>
 
     /// **多选**:`List(selection:)` 给 `Binding<Set<Hashable>>` 时,系统自动支持
