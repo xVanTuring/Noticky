@@ -116,10 +116,17 @@ struct ManagerView: View {
                 } else {
                     ForEach(groups, id: \.id) { group in
                         Section {
+                            // SwiftUI Section/List 不支持把 section body 当成单
+                            // 个 drop zone,所以把 .onDrop 复制到组里**每一条**
+                            // 行上,效果上「整组区域可放」。drop 到行 X = drop 到 X
+                            // 所属 group。同 group 自拖由 moveNotes 内部 dedup。
                             ForEach(filteredNotes(in: group), id: \.id) { note in
                                 NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
+                                    .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
+                                        handleDrop(providers: providers, to: group)
+                                    }
                             }
                         } header: {
                             Text(group.name.isEmpty ? L.t(.untitled) : group.name)
@@ -136,6 +143,9 @@ struct ManagerView: View {
                             NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
+                                .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
+                                    handleDrop(providers: providers, to: nil)
+                                }
                         }
                     } header: {
                         Text(L.t(.managerUngrouped))
@@ -438,7 +448,29 @@ private struct NoteSidebarRow: View {
                     .frame(width: 16, height: 22)
                     .contentShape(Rectangle())
                     .opacity(hovering ? 1 : 0)
-                    .onDrag(dragProvider)
+                    // 自定义 drag preview:不再用拽柄图标本身当拖拽缩略图(只剩
+                    // 三条线太小看不清),改成「色条 + 标题」的胶囊,跟 sidebar
+                    // 行视觉对齐,鼠标拖到哪能立刻看出在拖哪一条。
+                    .onDrag(dragProvider) {
+                        HStack(spacing: 6) {
+                            Rectangle()
+                                .fill(StickyPalette.from(index: note.colorIndex).color)
+                                .frame(width: 3, height: 14)
+                                .cornerRadius(1.5)
+                            Text(isEmpty ? L.t(.emptyNote) : title)
+                                .lineLimit(1)
+                                .italic(isEmpty)
+                                .foregroundStyle(isEmpty ? .secondary : .primary)
+                                .padding(.trailing, 8)
+                        }
+                        .padding(.leading, 6)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.background)
+                                .shadow(radius: 4)
+                        )
+                    }
                     .help(L.t(.managerDragHandleHint))
             }
             .frame(height: 22)
