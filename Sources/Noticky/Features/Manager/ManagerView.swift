@@ -37,6 +37,11 @@ struct ManagerView: View {
     @State private var newGroupName: String = ""
     @ObservedObject private var loc = LocalizationManager.shared
 
+    /// 自定义 cell inset:垂直清零(让相邻 row 的 .onDrop hit area 直接接上,
+    /// 行缝里也能 drop),水平保留 sidebar 默认风格的缩进。视觉留白挪到 row
+    /// 内部 padding,详见 NoteSidebarRow 末尾注释。
+    private let rowInsets = EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 8)
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -113,6 +118,7 @@ struct ManagerView: View {
                 if groups.isEmpty {
                     ForEach(snapshot.all, id: \.id) { note in
                         NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
+                            .listRowInsets(rowInsets)
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
                     }
@@ -125,6 +131,7 @@ struct ManagerView: View {
                             // 所属 group。同 group 自拖由 moveNotes 内部 dedup。
                             ForEach(snapshot.byGroup[group.objectID] ?? [], id: \.id) { note in
                                 NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
+                                    .listRowInsets(rowInsets)
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
                                     .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
@@ -144,6 +151,7 @@ struct ManagerView: View {
                     Section {
                         ForEach(snapshot.ungrouped, id: \.id) { note in
                             NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
+                                .listRowInsets(rowInsets)
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
                                 .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
@@ -509,7 +517,15 @@ private struct NoteSidebarRow: View {
                     }
                     .help(L.t(.managerDragHandleHint))
             }
-            .frame(height: 22)
+            // 视觉留白挪到 row 内部 padding,**不放在 cell listRowInsets**:
+            // 这样 .onDrop(在 ForEach 处挂)的 hit area = 整个 row 矩形,而
+            // 父 .listRowInsets 把 cell 的垂直 inset 清零后,相邻 row 的 hit
+            // 区上下贴在一起,**两条之间的空隙也能 drop**,不再出现"扔到行
+            // 缝里掉地上"的情况。`.contentShape(Rectangle())` 把 hit shape
+            // 锁成完整矩形,避免文字/Spacer 形成的局部不连续。
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
     }
 }
