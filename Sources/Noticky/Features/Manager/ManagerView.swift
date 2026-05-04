@@ -109,7 +109,7 @@ struct ManagerView: View {
                 // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
                 if groups.isEmpty {
                     ForEach(filteredAll, id: \.id) { note in
-                        NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
+                        NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
                     }
@@ -121,7 +121,7 @@ struct ManagerView: View {
                             // 行上,效果上「整组区域可放」。drop 到行 X = drop 到 X
                             // 所属 group。同 group 自拖由 moveNotes 内部 dedup。
                             ForEach(filteredNotes(in: group), id: \.id) { note in
-                                NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
+                                NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
                                     .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
@@ -140,7 +140,7 @@ struct ManagerView: View {
                     // 没有 ungrouped notes 时只显示一个空 header 当 drop target。
                     Section {
                         ForEach(ungroupedNotes, id: \.id) { note in
-                            NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
+                            NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
                                 .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
@@ -269,18 +269,17 @@ struct ManagerView: View {
         return [note]
     }
 
-    /// 拖一条笔记的 NSItemProvider —— payload 是换行分隔的 UUID 字符串。
-    /// 跟 contextTargets 同款规则:拖的是选中项之一 + 选中 > 1 → 多选拖动;否则只拖这一条。
-    /// drop 端 parse 这串 UUID 后 fetch + reassign group。
-    private func dragProvider(for note: Note) -> NSItemProvider {
-        let ids: [UUID]
+    /// 拖一条笔记时要带的 UUID 列表。跟 contextTargets 同款规则:拖的是选中
+    /// 项之一 + 选中 > 1 → 多选拖动;否则只拖这一条。返回 `[UUID]` 而不是
+    /// 现成的 NSItemProvider —— `[UUID]` 是 Equatable,SwiftUI 能 diff,
+    /// `NSItemProvider` 工厂闭包则不行,详见 NoteSidebarRow.dragIDs 注释。
+    /// 真正构造 NSItemProvider 在 row 的 `.onDrag` 闭包里,跟 drop 端用同款
+    /// 「换行分隔 UUID 字符串」编码。
+    private func dragIDs(for note: Note) -> [UUID] {
         if selection.contains(note.id), selection.count > 1 {
-            ids = Array(selection)
-        } else {
-            ids = [note.id]
+            return Array(selection)
         }
-        let payload = ids.map { $0.uuidString }.joined(separator: "\n")
-        return NSItemProvider(object: payload as NSString)
+        return [note.id]
     }
 
     /// drop 处理器:从 providers 拿出 UUID 列表,reassign 这些 note 到 targetGroup
@@ -418,10 +417,12 @@ struct ManagerView: View {
 private struct NoteSidebarRow: View {
     @ObservedObject var note: Note
     @ObservedObject private var loc = LocalizationManager.shared
-    /// 拖拽 payload provider —— 只挂在右侧 drag handle 上,不挂在整行。
-    /// 详见下方 onDrag 注释。
-    let dragProvider: () -> NSItemProvider
-    @State private var hovering = false
+    /// 拖拽 payload 的 UUID 列表。**必须是值类型 [UUID] 而不是 closure** ——
+    /// SwiftUI struct view 的 diffing 比 stored properties 来判断是否需要
+    /// 重画;闭包不 Equatable,父 body 每次重跑都生成新 closure,SwiftUI
+    /// 把所有 row 标记为 dirty → 拖拽期间整个 sidebar 不停 redraw → 卡顿。
+    /// `[UUID]` Equatable,选区不变就能跳过 redraw。
+    let dragIDs: [UUID]
 
     var body: some View {
         if note.isDeleted || note.managedObjectContext == nil {
@@ -440,25 +441,28 @@ private struct NoteSidebarRow: View {
                     .italic(isEmpty)
                     .foregroundStyle(isEmpty ? .secondary : .primary)
                 Spacer(minLength: 0)
-                // Drag handle:**`.onDrag` 必须只挂在这个小图标上,不能挂在整行**。
+                // Drag handle —— **`.onDrag` 必须只挂在这一图标上,不能挂在整行**。
                 // macOS SwiftUI 已知 bug:`.onDrag` 在 mouseDown 时就拿走事件,
-                // `List(selection:)` 收不到点击,导致点文字/色条不能选中。把 onDrag
-                // 限制在右侧 hover 出现的 handle 上 —— 拖拽到分组改 group 仍然可用,
-                // 普通点击文字/空白都能正常进选中。右键菜单 "Move to group" 提供
-                // 无需拖拽的等价路径。
+                // `List(selection:)` 收不到点击 → 点文字/色条不能选中。把 onDrag
+                // 限制在右侧 handle 上,普通点击都能正常进选中。
+                //
+                // **常驻显示而不是 hover 出现**:之前用 `.onHover` 切 opacity,
+                // 拖拽时光标扫过几十行触发同样多次 hover 状态变更 + opacity
+                // 隐式动画,极度卡顿。直接常显省掉这一整条路径。
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.tertiary)
                     .frame(width: 16, height: 22)
                     .contentShape(Rectangle())
-                    .opacity(hovering ? 1 : 0)
-                    // 自定义 drag preview:整张 sidebar 行的样式 —— 色条 + 标题
-                    // 显式锚定 frame 到 240×30。SwiftUI 的 drag image 渲染**不
-                    // 保留** intrinsic sizing,父没给 frame 时容易塌成只剩
-                    // 色条那种瘦竖条,所以这里全部写死。背景必须用不透明系统色
-                    // (windowBackgroundColor),`.background` 这种半透明在 drag
-                    // image 合成时会和阴影互相吃掉。
-                    .onDrag(dragProvider) {
+                    // 自定义 drag preview:整张 sidebar 行的样式 —— 色条 + 标题。
+                    // 显式锚定 frame 到 240×30:SwiftUI drag image 渲染**不保留**
+                    // intrinsic sizing,父没 frame 容易塌成只剩色条那种瘦竖条。
+                    // 背景用不透明 windowBackgroundColor;`.background` 那种半透明
+                    // 会被阴影合成吃掉。
+                    .onDrag {
+                        let payload = dragIDs.map { $0.uuidString }.joined(separator: "\n")
+                        return NSItemProvider(object: payload as NSString)
+                    } preview: {
                         HStack(spacing: 8) {
                             Rectangle()
                                 .fill(StickyPalette.from(index: note.colorIndex).color)
@@ -483,7 +487,6 @@ private struct NoteSidebarRow: View {
                     .help(L.t(.managerDragHandleHint))
             }
             .frame(height: 22)
-            .onHover { hovering = $0 }
         }
     }
 }
