@@ -104,11 +104,14 @@ struct ManagerView: View {
     // MARK: Sidebar -------------------------------------------------------------
 
     private var sidebar: some View {
-        VStack(spacing: 0) {
+        // 每次 body 评估一次性算好分桶,后面 ForEach 直接 O(1) 取。详见
+        // computeNotesSnapshot 注释。
+        let snapshot = computeNotesSnapshot()
+        return VStack(spacing: 0) {
             List(selection: $selection) {
                 // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
                 if groups.isEmpty {
-                    ForEach(filteredAll, id: \.id) { note in
+                    ForEach(snapshot.all, id: \.id) { note in
                         NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
@@ -120,7 +123,7 @@ struct ManagerView: View {
                             // 个 drop zone,所以把 .onDrop 复制到组里**每一条**
                             // 行上,效果上「整组区域可放」。drop 到行 X = drop 到 X
                             // 所属 group。同 group 自拖由 moveNotes 内部 dedup。
-                            ForEach(filteredNotes(in: group), id: \.id) { note in
+                            ForEach(snapshot.byGroup[group.objectID] ?? [], id: \.id) { note in
                                 NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
@@ -139,7 +142,7 @@ struct ManagerView: View {
                     // 始终给 Ungrouped section,这样有分组时可以把笔记拖回未分组。
                     // 没有 ungrouped notes 时只显示一个空 header 当 drop target。
                     Section {
-                        ForEach(ungroupedNotes, id: \.id) { note in
+                        ForEach(snapshot.ungrouped, id: \.id) { note in
                             NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
@@ -207,35 +210,36 @@ struct ManagerView: View {
         search.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var filteredAll: [Note] {
-        applyFilterAndSort(Array(allNotes))
+    /// **按 group 预分桶 + 排序的 snapshot**,sidebar body 一次评估只算一次。
+    ///
+    /// 早先版本是 `filteredNotes(in: group)` 在 ForEach 里每个 section 各自
+    /// `allNotes.filter { ... }` + `.sorted(...)`,M 个分组就 M·N 次扫 + M 次
+    /// 排。拖拽时 body 重跑频繁,直接卡。这里改成走一次 allNotes:先 search
+    /// + 排序,再 group by `note.group?.objectID`。同结果 O(N log N),不再随
+    /// 分组数线性放大。
+    ///
+    /// 返回 `(byGroup, ungrouped, all)` 三元组,sidebar 三种渲染分支各取所需。
+    /// `byGroup` 的 key 是 `NSManagedObjectID`(NoteGroup 的);ungrouped 是
+    /// `note.group == nil` 的那些。
+    private struct NotesSnapshot {
+        var byGroup: [NSManagedObjectID: [Note]]
+        var ungrouped: [Note]
+        var all: [Note]
     }
 
-    private func filteredNotes(in group: NoteGroup) -> [Note] {
-        // **必须从 allNotes 过滤,不能读 group.notes**。
-        //
-        // 1) allNotes 是 @FetchRequest<Note>:任何 Note 改动(包括 .group
-        //    relationship 切换)都会 invalidate body,section 立刻重算。
-        // 2) group.notes 是 Core Data 的 inverse to-many,SwiftUI 不会订阅它;
-        //    `groups: FetchedResults<NoteGroup>` 也只在 NoteGroup 自身字段变
-        //    时 re-emit,relationship 变更不算 —— 所以拖拽改 group 后 view
-        //    不刷新,要点一下才看到结果。从 allNotes 过滤就绕过这个 bug。
-        // 3) Note.sortedFetchRequest() 已带 isTrashed == false 谓词,
-        //    不需要再手动滤 trashed。
-        applyFilterAndSort(allNotes.filter { $0.group?.objectID == group.objectID })
-    }
-
-    private var ungroupedNotes: [Note] {
-        applyFilterAndSort(allNotes.filter { $0.group == nil })
-    }
-
-    /// pinned 的笔记永远排在前面;同 pinned 状态内按设置选的方式排。
-    private func applyFilterAndSort(_ notes: [Note]) -> [Note] {
-        let filtered = trimmedSearch.isEmpty
-            ? notes
-            : notes.filter { $0.content.localizedCaseInsensitiveContains(trimmedSearch) }
+    private func computeNotesSnapshot() -> NotesSnapshot {
+        let trimmed = trimmedSearch
         let sort = NoteSort.from(noteSortRaw)
-        return filtered.sorted { lhs, rhs in
+
+        // 单趟 sort + filter,后面所有 section 直接拿结果分桶。
+        var working: [Note] = []
+        working.reserveCapacity(allNotes.count)
+        for note in allNotes {
+            if trimmed.isEmpty || note.content.localizedCaseInsensitiveContains(trimmed) {
+                working.append(note)
+            }
+        }
+        working.sort { lhs, rhs in
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
             switch sort {
             case .dateEdited:  return lhs.updatedAt > rhs.updatedAt
@@ -244,6 +248,17 @@ struct ManagerView: View {
                 return lhs.displayTitle.localizedStandardCompare(rhs.displayTitle) == .orderedAscending
             }
         }
+
+        var byGroup: [NSManagedObjectID: [Note]] = [:]
+        var ungrouped: [Note] = []
+        for note in working {
+            if let oid = note.group?.objectID {
+                byGroup[oid, default: []].append(note)
+            } else {
+                ungrouped.append(note)
+            }
+        }
+        return NotesSnapshot(byGroup: byGroup, ungrouped: ungrouped, all: working)
     }
 
     // MARK: Actions -------------------------------------------------------------
@@ -309,8 +324,16 @@ struct ManagerView: View {
         )
         guard let notes = try? context.fetch(request) else { return }
         var changed = false
+        let now = Date()
         for note in notes where note.group?.objectID != targetGroup?.objectID {
             note.group = targetGroup
+            // 顺手 bump updatedAt:NSFetchedResultsController 只追踪 sort
+            // descriptors / predicate 里的字段,relationship-only 改动不会
+            // 派发 update 事件 —— SwiftUI @FetchRequest 也就收不到通知,
+            // sidebar 不会刷新。Note.sortedFetchRequest 用的是
+            // (isPinned, updatedAt) 排序,bump updatedAt 既能可靠触发
+            // FetchRequest 重发,语义也合理(用户主动改动了这条 note)。
+            note.updatedAt = now
             changed = true
         }
         if changed { try? context.save() }
