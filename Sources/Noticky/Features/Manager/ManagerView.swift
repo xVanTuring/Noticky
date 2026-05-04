@@ -424,12 +424,8 @@ private struct NoteSidebarRow: View {
                     .lineLimit(1)
                     .italic(isEmpty)
                     .foregroundStyle(isEmpty ? .secondary : .primary)
-                Spacer(minLength: 0)
             }
             .frame(height: 22)
-            // 必须把 hit shape 撑成整行的矩形,否则 HStack 只占文字宽度,List 行
-            // 选中区只有 Text 右边的空白能命中 —— 点文字反而落不到 List(selection:)。
-            .contentShape(Rectangle())
         }
     }
 }
