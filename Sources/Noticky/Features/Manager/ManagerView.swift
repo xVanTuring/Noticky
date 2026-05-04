@@ -212,13 +212,17 @@ struct ManagerView: View {
     }
 
     private func filteredNotes(in group: NoteGroup) -> [Note] {
-        // group.notes 是 Core Data 的 inverse relationship,**不带 fetch
-        // predicate** —— 即使 Note 已经进回收站,group.notes 仍包含它。
-        // 这里手动剔掉 trashed,跟 allNotes(Note.sortedFetchRequest 已带
-        // isTrashed==false 谓词)的可见性保持一致。否则 sidebar 显示了一条
-        // trashed 笔记,detail 在 allNotes 里 first(where:) 又找不到 → 看到
-        // "Select a note" placeholder。
-        applyFilterAndSort(Array(group.notes).filter { !$0.isTrashed })
+        // **必须从 allNotes 过滤,不能读 group.notes**。
+        //
+        // 1) allNotes 是 @FetchRequest<Note>:任何 Note 改动(包括 .group
+        //    relationship 切换)都会 invalidate body,section 立刻重算。
+        // 2) group.notes 是 Core Data 的 inverse to-many,SwiftUI 不会订阅它;
+        //    `groups: FetchedResults<NoteGroup>` 也只在 NoteGroup 自身字段变
+        //    时 re-emit,relationship 变更不算 —— 所以拖拽改 group 后 view
+        //    不刷新,要点一下才看到结果。从 allNotes 过滤就绕过这个 bug。
+        // 3) Note.sortedFetchRequest() 已带 isTrashed == false 谓词,
+        //    不需要再手动滤 trashed。
+        applyFilterAndSort(allNotes.filter { $0.group?.objectID == group.objectID })
     }
 
     private var ungroupedNotes: [Note] {
