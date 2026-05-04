@@ -42,11 +42,6 @@ struct ManagerView: View {
     @State private var newGroupName: String = ""
     @ObservedObject private var loc = LocalizationManager.shared
 
-    /// 自定义 cell inset:垂直清零(让相邻 row 的 .onDrop hit area 直接接上,
-    /// 行缝里也能 drop),水平保留 sidebar 默认风格的缩进。视觉留白挪到 row
-    /// 内部 padding,详见 NoteSidebarRow 末尾注释。
-    private let rowInsets = EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 8)
-
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -120,54 +115,41 @@ struct ManagerView: View {
         return VStack(spacing: 0) {
             List(selection: $selection) {
                 // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
+                // 拖拽改 group 已下线 —— SwiftUI 在 macOS 上的 List + onDrag/
+                // onDrop 路径有几个互相耦合的卡点(onDrag 与 selection 互锁、
+                // 跨段 drop 触发的 list diff 卡顿、per-row drop target 在
+                // FetchRequest 重发后大量 setup/teardown),试过多轮还是不流畅。
+                // 改组完全走右键 → "Move to group" 菜单,该路径调用
+                // moveNotes(ids:to:) 会顺手 bump updatedAt,sidebar 会立刻刷新。
                 if groups.isEmpty {
                     ForEach(snapshot.all, id: \.id) { note in
-                        NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
-                            .listRowInsets(rowInsets)
+                        NoteSidebarRow(note: note)
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
                     }
                 } else {
                     ForEach(groups, id: \.id) { group in
                         Section {
-                            // SwiftUI Section/List 不支持把 section body 当成单
-                            // 个 drop zone,所以把 .onDrop 复制到组里**每一条**
-                            // 行上,效果上「整组区域可放」。drop 到行 X = drop 到 X
-                            // 所属 group。同 group 自拖由 moveNotes 内部 dedup。
                             ForEach(snapshot.byGroup[group.objectID] ?? [], id: \.id) { note in
-                                NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
-                                    .listRowInsets(rowInsets)
+                                NoteSidebarRow(note: note)
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
-                                    .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
-                                        handleDrop(providers: providers, to: group)
-                                    }
                             }
                         } header: {
                             Text(group.name.isEmpty ? L.t(.untitled) : group.name)
                                 .contextMenu { groupContextMenu(group) }
-                                .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
-                                    handleDrop(providers: providers, to: group)
-                                }
                         }
                     }
-                    // 始终给 Ungrouped section,这样有分组时可以把笔记拖回未分组。
-                    // 没有 ungrouped notes 时只显示一个空 header 当 drop target。
+                    // Ungrouped section:即便没有 ungrouped notes 也保留一个空
+                    // header,样式上跟其它分组对齐。
                     Section {
                         ForEach(snapshot.ungrouped, id: \.id) { note in
-                            NoteSidebarRow(note: note, dragIDs: dragIDs(for: note))
-                                .listRowInsets(rowInsets)
+                            NoteSidebarRow(note: note)
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
-                                .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
-                                    handleDrop(providers: providers, to: nil)
-                                }
                         }
                     } header: {
                         Text(L.t(.managerUngrouped))
-                            .onDrop(of: [.utf8PlainText], isTargeted: nil) { providers in
-                                handleDrop(providers: providers, to: nil)
-                            }
                     }
                 }
             }
@@ -297,37 +279,12 @@ struct ManagerView: View {
         return [note]
     }
 
-    /// 拖一条笔记时要带的 UUID 列表。跟 contextTargets 同款规则:拖的是选中
-    /// 项之一 + 选中 > 1 → 多选拖动;否则只拖这一条。返回 `[UUID]` 而不是
-    /// 现成的 NSItemProvider —— `[UUID]` 是 Equatable,SwiftUI 能 diff,
-    /// `NSItemProvider` 工厂闭包则不行,详见 NoteSidebarRow.dragIDs 注释。
-    /// 真正构造 NSItemProvider 在 row 的 `.onDrag` 闭包里,跟 drop 端用同款
-    /// 「换行分隔 UUID 字符串」编码。
-    private func dragIDs(for note: Note) -> [UUID] {
-        if selection.contains(note.id), selection.count > 1 {
-            return Array(selection)
-        }
-        return [note.id]
-    }
-
-    /// drop 处理器:从 providers 拿出 UUID 列表,reassign 这些 note 到 targetGroup
-    /// (传 nil 表示移到 Ungrouped)。loadObject 是异步的,要 hop 回 main 再操作 context。
-    /// 已经在该 group 的 note 跳过(避免不必要的 save 触发同步开销)。
-    private func handleDrop(providers: [NSItemProvider], to targetGroup: NoteGroup?) -> Bool {
-        var anyHandled = false
-        for provider in providers where provider.canLoadObject(ofClass: NSString.self) {
-            anyHandled = true
-            _ = provider.loadObject(ofClass: NSString.self) { obj, _ in
-                guard let str = obj as? String else { return }
-                let ids = str.split(separator: "\n").compactMap { UUID(uuidString: String($0)) }
-                DispatchQueue.main.async {
-                    moveNotes(ids: ids, to: targetGroup)
-                }
-            }
-        }
-        return anyHandled
-    }
-
+    /// 把指定 ids 的笔记 reassign 到 targetGroup(nil = Ungrouped),并 bump
+    /// updatedAt。**必须 bump updatedAt**:Note.sortedFetchRequest 排序键是
+    /// `(isPinned, updatedAt)`,只动 group relationship 时
+    /// NSFetchedResultsController 不发 update 事件,SwiftUI @FetchRequest 不刷
+    /// 新,sidebar 不动。bump 后既能可靠触发刷新,也符合"用户改动了 note"的
+    /// 语义(在 dateEdited 排序下被推到 section 头部,跟 Notes/Mail 一致)。
     private func moveNotes(ids: [UUID], to targetGroup: NoteGroup?) {
         guard !ids.isEmpty else { return }
         let request = NSFetchRequest<Note>(entityName: "Note")
@@ -399,15 +356,17 @@ struct ManagerView: View {
             }
         }
 
+        // Move to group:走 moveNotes 而不是直接 `n.group = ...`,因为
+        // `moveNotes` 会在 reassign 时同时 bump updatedAt —— relationship-only
+        // 改动 NSFetchedResultsController 不发 update,sidebar 不会刷新。详见
+        // moveNotes 内注释。
         Menu(multi ? L.t(.managerMoveNotesToGroup, targets.count) : L.t(.managerMoveToGroup)) {
             Button(L.t(.managerUngrouped)) {
-                for n in targets { n.group = nil }
-                try? context.save()
+                moveNotes(ids: targets.map { $0.id }, to: nil)
             }
             ForEach(groups, id: \.id) { g in
                 Button(g.name.isEmpty ? L.t(.untitled) : g.name) {
-                    for n in targets { n.group = g }
-                    try? context.save()
+                    moveNotes(ids: targets.map { $0.id }, to: g)
                 }
             }
         }
@@ -453,12 +412,6 @@ struct ManagerView: View {
 private struct NoteSidebarRow: View {
     @ObservedObject var note: Note
     @ObservedObject private var loc = LocalizationManager.shared
-    /// 拖拽 payload 的 UUID 列表。**必须是值类型 [UUID] 而不是 closure** ——
-    /// SwiftUI struct view 的 diffing 比 stored properties 来判断是否需要
-    /// 重画;闭包不 Equatable,父 body 每次重跑都生成新 closure,SwiftUI
-    /// 把所有 row 标记为 dirty → 拖拽期间整个 sidebar 不停 redraw → 卡顿。
-    /// `[UUID]` Equatable,选区不变就能跳过 redraw。
-    let dragIDs: [UUID]
 
     var body: some View {
         if note.isDeleted || note.managedObjectContext == nil {
@@ -477,60 +430,8 @@ private struct NoteSidebarRow: View {
                     .italic(isEmpty)
                     .foregroundStyle(isEmpty ? .secondary : .primary)
                 Spacer(minLength: 0)
-                // Drag handle —— **`.onDrag` 必须只挂在这一图标上,不能挂在整行**。
-                // macOS SwiftUI 已知 bug:`.onDrag` 在 mouseDown 时就拿走事件,
-                // `List(selection:)` 收不到点击 → 点文字/色条不能选中。把 onDrag
-                // 限制在右侧 handle 上,普通点击都能正常进选中。
-                //
-                // **常驻显示而不是 hover 出现**:之前用 `.onHover` 切 opacity,
-                // 拖拽时光标扫过几十行触发同样多次 hover 状态变更 + opacity
-                // 隐式动画,极度卡顿。直接常显省掉这一整条路径。
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 16, height: 22)
-                    .contentShape(Rectangle())
-                    // 自定义 drag preview:整张 sidebar 行的样式 —— 色条 + 标题。
-                    // 显式锚定 frame 到 240×30:SwiftUI drag image 渲染**不保留**
-                    // intrinsic sizing,父没 frame 容易塌成只剩色条那种瘦竖条。
-                    // 背景用不透明 windowBackgroundColor;`.background` 那种半透明
-                    // 会被阴影合成吃掉。
-                    .onDrag {
-                        let payload = dragIDs.map { $0.uuidString }.joined(separator: "\n")
-                        return NSItemProvider(object: payload as NSString)
-                    } preview: {
-                        HStack(spacing: 8) {
-                            Rectangle()
-                                .fill(StickyPalette.from(index: note.colorIndex).color)
-                                .frame(width: 3, height: 16)
-                                .cornerRadius(1.5)
-                            Text(isEmpty ? L.t(.emptyNote) : title)
-                                .lineLimit(1)
-                                .italic(isEmpty)
-                                .foregroundStyle(isEmpty ? .secondary : .primary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 10)
-                        .frame(width: 240, height: 30, alignment: .leading)
-                        .background(Color(NSColor.windowBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-                        )
-                        .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
-                    }
-                    .help(L.t(.managerDragHandleHint))
             }
-            // 视觉留白挪到 row 内部 padding,**不放在 cell listRowInsets**:
-            // 这样 .onDrop(在 ForEach 处挂)的 hit area = 整个 row 矩形,而
-            // 父 .listRowInsets 把 cell 的垂直 inset 清零后,相邻 row 的 hit
-            // 区上下贴在一起,**两条之间的空隙也能 drop**,不再出现"扔到行
-            // 缝里掉地上"的情况。`.contentShape(Rectangle())` 把 hit shape
-            // 锁成完整矩形,避免文字/Spacer 形成的局部不连续。
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .frame(height: 22)
         }
     }
 }
