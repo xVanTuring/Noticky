@@ -448,28 +448,33 @@ private struct NoteSidebarRow: View {
                     .frame(width: 16, height: 22)
                     .contentShape(Rectangle())
                     .opacity(hovering ? 1 : 0)
-                    // 自定义 drag preview:不再用拽柄图标本身当拖拽缩略图(只剩
-                    // 三条线太小看不清),改成「色条 + 标题」的胶囊,跟 sidebar
-                    // 行视觉对齐,鼠标拖到哪能立刻看出在拖哪一条。
+                    // 自定义 drag preview:整张 sidebar 行的样式 —— 色条 + 标题
+                    // 显式锚定 frame 到 240×30。SwiftUI 的 drag image 渲染**不
+                    // 保留** intrinsic sizing,父没给 frame 时容易塌成只剩
+                    // 色条那种瘦竖条,所以这里全部写死。背景必须用不透明系统色
+                    // (windowBackgroundColor),`.background` 这种半透明在 drag
+                    // image 合成时会和阴影互相吃掉。
                     .onDrag(dragProvider) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Rectangle()
                                 .fill(StickyPalette.from(index: note.colorIndex).color)
-                                .frame(width: 3, height: 14)
+                                .frame(width: 3, height: 16)
                                 .cornerRadius(1.5)
                             Text(isEmpty ? L.t(.emptyNote) : title)
                                 .lineLimit(1)
                                 .italic(isEmpty)
                                 .foregroundStyle(isEmpty ? .secondary : .primary)
-                                .padding(.trailing, 8)
+                            Spacer(minLength: 0)
                         }
-                        .padding(.leading, 6)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(.background)
-                                .shadow(radius: 4)
+                        .padding(.horizontal, 10)
+                        .frame(width: 240, height: 30, alignment: .leading)
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
                         )
+                        .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
                     }
                     .help(L.t(.managerDragHandleHint))
             }
