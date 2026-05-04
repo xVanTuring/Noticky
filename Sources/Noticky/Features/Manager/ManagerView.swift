@@ -109,19 +109,17 @@ struct ManagerView: View {
                 // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
                 if groups.isEmpty {
                     ForEach(filteredAll, id: \.id) { note in
-                        NoteSidebarRow(note: note)
+                        NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
                             .tag(note.id)
                             .contextMenu { noteContextMenu(note) }
-                            .onDrag { dragProvider(for: note) }
                     }
                 } else {
                     ForEach(groups, id: \.id) { group in
                         Section {
                             ForEach(filteredNotes(in: group), id: \.id) { note in
-                                NoteSidebarRow(note: note)
+                                NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
                                     .tag(note.id)
                                     .contextMenu { noteContextMenu(note) }
-                                    .onDrag { dragProvider(for: note) }
                             }
                         } header: {
                             Text(group.name.isEmpty ? L.t(.untitled) : group.name)
@@ -135,10 +133,9 @@ struct ManagerView: View {
                     // 没有 ungrouped notes 时只显示一个空 header 当 drop target。
                     Section {
                         ForEach(ungroupedNotes, id: \.id) { note in
-                            NoteSidebarRow(note: note)
+                            NoteSidebarRow(note: note, dragProvider: { dragProvider(for: note) })
                                 .tag(note.id)
                                 .contextMenu { noteContextMenu(note) }
-                                .onDrag { dragProvider(for: note) }
                         }
                     } header: {
                         Text(L.t(.managerUngrouped))
@@ -407,6 +404,10 @@ struct ManagerView: View {
 private struct NoteSidebarRow: View {
     @ObservedObject var note: Note
     @ObservedObject private var loc = LocalizationManager.shared
+    /// 拖拽 payload provider —— 只挂在右侧 drag handle 上,不挂在整行。
+    /// 详见下方 onDrag 注释。
+    let dragProvider: () -> NSItemProvider
+    @State private var hovering = false
 
     var body: some View {
         if note.isDeleted || note.managedObjectContext == nil {
@@ -424,8 +425,24 @@ private struct NoteSidebarRow: View {
                     .lineLimit(1)
                     .italic(isEmpty)
                     .foregroundStyle(isEmpty ? .secondary : .primary)
+                Spacer(minLength: 0)
+                // Drag handle:**`.onDrag` 必须只挂在这个小图标上,不能挂在整行**。
+                // macOS SwiftUI 已知 bug:`.onDrag` 在 mouseDown 时就拿走事件,
+                // `List(selection:)` 收不到点击,导致点文字/色条不能选中。把 onDrag
+                // 限制在右侧 hover 出现的 handle 上 —— 拖拽到分组改 group 仍然可用,
+                // 普通点击文字/空白都能正常进选中。右键菜单 "Move to group" 提供
+                // 无需拖拽的等价路径。
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16, height: 22)
+                    .contentShape(Rectangle())
+                    .opacity(hovering ? 1 : 0)
+                    .onDrag(dragProvider)
+                    .help(L.t(.managerDragHandleHint))
             }
             .frame(height: 22)
+            .onHover { hovering = $0 }
         }
     }
 }

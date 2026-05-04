@@ -126,7 +126,7 @@ enum LocKey: String {
     case floatCollapse, floatExpand, floatDelete
 
     // Manager toolbar / sidebar
-    case managerSearch, managerNewGroup, managerNewNote
+    case managerSearch, managerNewGroup, managerNewNote, managerDragHandleHint
     case managerOpenAsSticky, managerMoveToGroup, managerMoveNotesToGroup
     case managerUngrouped, managerRename, managerRenameAlertTitle, managerGroupNamePlaceholder
     case managerRenameMessage, managerNewGroupAlertTitle, managerNewGroupMessage, managerCreate
@@ -285,6 +285,7 @@ enum L {
         .managerSearch: "Search all notes",
         .managerNewGroup: "New Group",
         .managerNewNote: "New Note",
+        .managerDragHandleHint: "Drag to move to another group",
         .managerOpenAsSticky: "Open as Sticky",
         .managerMoveToGroup: "Move to Group",
         .managerMoveNotesToGroup: "Move %d Notes to Group",
@@ -456,6 +457,7 @@ enum L {
         .managerSearch: "搜索所有便签",
         .managerNewGroup: "新建分组",
         .managerNewNote: "新建便签",
+        .managerDragHandleHint: "拖动以移动到其它分组",
         .managerOpenAsSticky: "打开为浮窗",
         .managerMoveToGroup: "移动到分组",
         .managerMoveNotesToGroup: "将 %d 条便签移到分组",
