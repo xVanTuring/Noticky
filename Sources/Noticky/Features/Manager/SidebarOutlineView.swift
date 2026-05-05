@@ -193,7 +193,6 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     /// AppKit — otherwise selectionDidChange would write the same value back
     /// to the binding and we'd loop.
     private var suppressSelectionWriteback = false
-    private var lastSnapshot: SidebarSnapshot?
 
     init(_ parent: SidebarOutlineView) {
         self.parent = parent
@@ -202,12 +201,12 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     // MARK: - Snapshot application
 
     func applySnapshot(_ s: SidebarSnapshot, expandAll: Bool) {
-        if let last = lastSnapshot, last == s {
-            // Same data — skip reload to avoid flicker. Selection writeback is
-            // separate (applyBindingSelection).
-            return
-        }
-        lastSnapshot = s
+        // **Always reloadData**. Earlier we tried skipping when the snapshot
+        // was structurally identical (same NSManagedObjectIDs in same order),
+        // but that misses edits to a note's *content* — typing into a note
+        // doesn't change the ID set, so the row's title would stay stuck on
+        // "Empty note" until something else forced a reload. NSOutlineView
+        // reuses cell views, so reloadData for ~30 visible rows is cheap.
 
         // Rebuild lookup tables.
         groupByID.removeAll(keepingCapacity: true)
