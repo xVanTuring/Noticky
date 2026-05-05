@@ -112,51 +112,29 @@ struct ManagerView: View {
         // 每次 body 评估一次性算好分桶,后面 ForEach 直接 O(1) 取。详见
         // computeNotesSnapshot 注释。
         let snapshot = computeNotesSnapshot()
+        let bridgeSnapshot = SidebarSnapshot(
+            groups: Array(groups),
+            notesByGroup: snapshot.byGroup,
+            ungroupedNotes: snapshot.ungrouped,
+            flatNotes: groups.isEmpty ? snapshot.all : nil
+        )
         return VStack(spacing: 0) {
-            List(selection: $selection) {
-                // 没有任何 group 时,直接平铺所有笔记,不要画"Ungrouped"那种空头。
-                // 拖拽改 group 已下线 —— SwiftUI 在 macOS 上的 List + onDrag/
-                // onDrop 路径有几个互相耦合的卡点(onDrag 与 selection 互锁、
-                // 跨段 drop 触发的 list diff 卡顿、per-row drop target 在
-                // FetchRequest 重发后大量 setup/teardown),试过多轮还是不流畅。
-                // 改组完全走右键 → "Move to group" 菜单,该路径调用
-                // moveNotes(ids:to:) 会顺手 bump updatedAt,sidebar 会立刻刷新。
-                if groups.isEmpty {
-                    ForEach(snapshot.all, id: \.id) { note in
-                        NoteSidebarRow(note: note)
-                            .tag(note.id)
-                            .contextMenu { noteContextMenu(note) }
-                    }
-                } else {
-                    ForEach(groups, id: \.id) { group in
-                        Section {
-                            ForEach(snapshot.byGroup[group.objectID] ?? [], id: \.id) { note in
-                                NoteSidebarRow(note: note)
-                                    .tag(note.id)
-                                    .contextMenu { noteContextMenu(note) }
-                            }
-                        } header: {
-                            Text(group.name.isEmpty ? L.t(.untitled) : group.name)
-                                .contextMenu { groupContextMenu(group) }
-                        }
-                    }
-                    // Ungrouped section:即便没有 ungrouped notes 也保留一个空
-                    // header,样式上跟其它分组对齐。
-                    Section {
-                        ForEach(snapshot.ungrouped, id: \.id) { note in
-                            NoteSidebarRow(note: note)
-                                .tag(note.id)
-                                .contextMenu { noteContextMenu(note) }
-                        }
-                    } header: {
-                        Text(L.t(.managerUngrouped))
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            // 选中任何 note 时立刻退出 Trash 视图。这是单向耦合 —— 选 Trash 时
-            // 我们手动清掉 selection;选 note 时这里把 viewingTrash 关掉。
+            // 笔记 + 分组 sidebar 走 NSOutlineView 桥(SidebarOutlineView)
+            // 实现拖拽 —— SwiftUI List 在 macOS 上对 onDrag/onDrop 的处理
+            // 跟 Finder/Notes 风格不兼容,详见 SidebarOutlineView 顶部注释。
+            // selection / search / sort / 右键菜单 都从这里下发。
+            SidebarOutlineView(
+                snapshot: bridgeSnapshot,
+                selection: $selection,
+                onMove: { ids, group in moveNotes(ids: ids, to: group) },
+                noteMenu: { note in noteContextNSMenu(note) },
+                groupMenu: { group in groupContextNSMenu(group) }
+            )
+            // NSScrollView 没有 intrinsic content size,在 SwiftUI VStack 里
+            // 会塌成 0,显式撑满。
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: selection) { _, new in
+                // 选中任何 note 时立刻退出 Trash 视图。
                 if !new.isEmpty { viewingTrash = false }
             }
 
@@ -390,6 +368,121 @@ struct ManagerView: View {
                 floating.delete(note: n)
             }
         }
+    }
+
+    // MARK: NSMenu builders for the AppKit sidebar -------------------------------
+    //
+    // Mirrors the SwiftUI `noteContextMenu`/`groupContextMenu` View builders
+    // above but emits NSMenu trees, because SidebarOutlineView (NSOutlineView
+    // bridge) drives right-click via `menu(for:)`, not `.contextMenu`. Two
+    // copies feels redundant but is unavoidable until SwiftUI exposes a way to
+    // host SwiftUI menus inside an NSView's `menu(for:)` callback.
+    //
+    // Closures capture the SwiftUI struct value at menu-construction time —
+    // which is exactly when the user right-clicks, so the snapshot of
+    // `selection` / `groups` / `floating` etc. is current. Writes to @State
+    // (selection, renamingGroup, …) inside closures go through the property
+    // wrapper just like in body, so they update view state correctly.
+
+    private func noteContextNSMenu(_ note: Note) -> NSMenu {
+        let targets = contextTargets(for: note)
+        let multi = targets.count > 1
+        let menu = NSMenu()
+
+        if multi {
+            if targets.count <= 8 {
+                menu.addItem(ClosureMenuItem(title: L.t(.managerOpenCount, targets.count)) {
+                    for n in targets { floating.show(note: n) }
+                })
+            }
+        } else {
+            menu.addItem(ClosureMenuItem(title: L.t(.managerOpenAsSticky)) {
+                floating.show(note: note)
+            })
+        }
+
+        let pinMenu = NSMenu(title: L.t(.managerPinMenu))
+        pinMenu.addItem(ClosureMenuItem(title: L.t(.managerPinAll)) {
+            for n in targets where !n.isPinned { n.isPinned = true }
+            try? context.save()
+        })
+        pinMenu.addItem(ClosureMenuItem(title: L.t(.managerUnpinAll)) {
+            for n in targets where n.isPinned { n.isPinned = false }
+            try? context.save()
+        })
+        let pinItem = NSMenuItem(title: L.t(.managerPinMenu), action: nil, keyEquivalent: "")
+        pinItem.submenu = pinMenu
+        menu.addItem(pinItem)
+
+        let colorMenu = NSMenu(title: L.t(.managerColorMenu))
+        for palette in StickyPalette.allCases {
+            let item = ClosureMenuItem(title: L.t(palette.locKey)) {
+                for n in targets where n.colorIndex != palette.rawValue {
+                    n.colorIndex = palette.rawValue
+                }
+                try? context.save()
+            }
+            // Color swatch as menu icon — a 12pt filled circle in the palette tint.
+            let swatch = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
+                palette.nsColor.setFill()
+                NSBezierPath(ovalIn: rect).fill()
+                return true
+            }
+            item.image = swatch
+            colorMenu.addItem(item)
+        }
+        let colorItem = NSMenuItem(title: L.t(.managerColorMenu), action: nil, keyEquivalent: "")
+        colorItem.submenu = colorMenu
+        menu.addItem(colorItem)
+
+        let moveTitle = multi ? L.t(.managerMoveNotesToGroup, targets.count) : L.t(.managerMoveToGroup)
+        let moveMenu = NSMenu(title: moveTitle)
+        moveMenu.addItem(ClosureMenuItem(title: L.t(.managerUngrouped)) {
+            moveNotes(ids: targets.map { $0.id }, to: nil)
+        })
+        for g in groups {
+            moveMenu.addItem(ClosureMenuItem(title: g.name.isEmpty ? L.t(.untitled) : g.name) {
+                moveNotes(ids: targets.map { $0.id }, to: g)
+            })
+        }
+        let moveItem = NSMenuItem(title: moveTitle, action: nil, keyEquivalent: "")
+        moveItem.submenu = moveMenu
+        menu.addItem(moveItem)
+
+        menu.addItem(ClosureMenuItem(title: multi ? L.t(.managerExportCount, targets.count) : L.t(.managerExport)) {
+            if multi {
+                guard let folder = NoteIOPanels.chooseExportFolder() else { return }
+                _ = NoteIO.exportNotes(targets, toFolder: folder)
+            } else {
+                guard let url = NoteIOPanels.chooseExportSingleNote(suggestedTitle: note.displayTitle) else { return }
+                _ = NoteIO.exportNote(note, to: url)
+            }
+        })
+
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: multi ? L.t(.managerDeleteCount, targets.count) : L.t(.managerDeleteNote)) {
+            for n in targets {
+                selection.remove(n.id)
+                floating.delete(note: n)
+            }
+        })
+
+        return menu
+    }
+
+    private func groupContextNSMenu(_ group: NoteGroup) -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(ClosureMenuItem(title: L.t(.managerRename)) {
+            renameText = group.name
+            renamingGroup = group
+        })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: L.t(.managerDeleteGroup)) {
+            // 关系是 nullify:删 group 后,组里的 note 自动 ungrouped。
+            context.delete(group)
+            try? context.save()
+        })
+        return menu
     }
 
     @ViewBuilder
