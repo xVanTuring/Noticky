@@ -318,12 +318,12 @@ final class FloatingNotesRegistry {
     /// 用 batch delete 也行,但要手动 merge changes 进 viewContext —— 量级小,
     /// 走 context.delete 简单稳妥。
     ///
-    /// **必须 main.async 推一拍**:点 Empty Trash 的 alert 还在收起动画里,这时
-    /// SwiftUI TrashDetailView 的 ForEach 仍订阅着即将 delete 的 Note,同 tick 内
-    /// 删 + save → @FetchRequest 触发 view 重渲染 → ForEach 读 `note.id`(非可选
-    /// UUID),Note 已 fault → `UUID._unconditionallyBridgeFromObjectiveC` 拿到
-    /// nil → SIGTRAP 崩溃。
-    /// 同样的坑 trash/restore/deletePermanently 已经踩过(见上面),保持一致。
+    /// `main.async` 推一拍是为了让 alert 收起动画与删除分到不同 runloop tick,
+    /// 与 trash/restore/deletePermanently 保持一致。**真正防 SIGTRAP 的是
+    /// TrashDetailView 把 ForEach 的 id 改成 `\.objectID`** —— 删 N 条 + save 同
+    /// tick 时,SwiftUI 的 List diff 会用旧列表里每个 Note 的 id keypath,
+    /// `\.id` 读非可选 UUID 在已 fault 的对象上会 bridging 崩溃,`objectID`
+    /// 是 NSManagedObject 自身的 Swift 属性所以一直可读。
     func emptyTrash(in context: NSManagedObjectContext) {
         let request = Note.trashedFetchRequest()
         guard let trashed = try? context.fetch(request) else { return }

@@ -600,7 +600,14 @@ private struct TrashDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(trashed, id: \.id) { note in
+                    // 用 objectID 而不是 \.id 做身份:Empty Trash 一次删 N 条 + save,
+                    // FetchedResults 通知与 SwiftUI List 的 OutlineListCoordinator
+                    // diff 同 tick 发生,diff 会读旧列表里每个 Note 的 keypath
+                    // \.id —— 此时 Note 已 fault/invalidated,@NSManaged 的
+                    // `id: UUID` ObjC accessor 返回 nil,bridging 到非可选 UUID
+                    // 直接 SIGTRAP(见 crash 2026-05-07)。`objectID` 是
+                    // NSManagedObject 自身的 Swift 属性,对象作废后仍可读。
+                    ForEach(trashed, id: \.objectID) { note in
                         TrashRow(
                             note: note,
                             onRestore: { floating.restore(note: note) },
