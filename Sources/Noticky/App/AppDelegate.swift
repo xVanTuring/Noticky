@@ -33,6 +33,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let context = PersistenceController.shared.container.viewContext
 
+        // 通知点击 → 按 UUID 找笔记 → 弹浮窗。**在干别的之前先注册**:
+        // ReminderScheduler 第一次 .shared 访问时会把自己设成
+        // UNUserNotificationCenter.delegate;若用户是从「点通知」启动的 App,
+        // 系统会在 applicationDidFinishLaunching 之后第一拍主线程把 didReceive
+        // 投递过来,所以 delegate + tapHandler 必须在 return 之前装好。
+        ReminderScheduler.shared.tapHandler = { [weak self] uuid in
+            guard let self else { return }
+            let ctx = PersistenceController.shared.container.viewContext
+            let request = NSFetchRequest<Note>(entityName: "Note")
+            request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+            request.fetchLimit = 1
+            // 通知点击的笔记可能在用户其它 device 上已经删了 —— CloudKit 同步
+            // 还没拉到本机时这里 fetch 不到,静默跳过。
+            guard let note = (try? ctx.fetch(request))?.first, !note.isTrashed else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            self.floating.show(note: note)
+        }
+
         // 启动头一件事:把进回收站超过 30 天的笔记真删。放在 manager/menu
         // 构造和 restorePinnedNotes 之前,这样后续视图初始化看到的就是"已清"
         // 的状态,FetchRequest 不会瞬间显示又消失。

@@ -279,6 +279,9 @@ final class FloatingNotesRegistry {
             displayOrder.removeAll { $0 == id }
         }
         let context = note.managedObjectContext
+        // 进回收站时撤掉提醒。reminderDate 字段保留,用户从回收站恢复时 UI
+        // 仍能显示原本设的时间;若那时已过则按"过期"处理。
+        ReminderScheduler.shared.cancel(noteID: note.id)
         // 同样推到下一个 runloop tick —— 跟 hard-delete 一样,@ObservedObject
         // 在同 tick 内 mutate isTrashed 也会触发 SwiftUI 重渲染访问 fault 对象;
         // 推一拍让 orderOut 先生效,SwiftUI 树释放后再写库。
@@ -304,6 +307,7 @@ final class FloatingNotesRegistry {
     /// 浮窗已经在 trash 时关掉了,这里不需要再处理。
     func deletePermanently(note: Note) {
         let context = note.managedObjectContext
+        ReminderScheduler.shared.cancel(noteID: note.id)
         DispatchQueue.main.async {
             context?.delete(note)
             try? context?.save()
@@ -323,6 +327,11 @@ final class FloatingNotesRegistry {
     func emptyTrash(in context: NSManagedObjectContext) {
         let request = Note.trashedFetchRequest()
         guard let trashed = try? context.fetch(request) else { return }
+        // delete(note:) 在进回收站时已经 cancel 过了,但用户跨设备同步 / 旧库
+        // 残留的提醒可能还挂着,这里再扫一遍兜底。
+        for note in trashed {
+            ReminderScheduler.shared.cancel(noteID: note.id)
+        }
         DispatchQueue.main.async {
             for note in trashed {
                 context.delete(note)
@@ -346,6 +355,7 @@ final class FloatingNotesRegistry {
         )
         guard let expired = try? context.fetch(request), !expired.isEmpty else { return }
         for note in expired {
+            ReminderScheduler.shared.cancel(noteID: note.id)
             context.delete(note)
         }
         try? context.save()
@@ -868,6 +878,7 @@ private struct FloatingNoteView: View {
             HoverToolbar(
                 palette: palette,
                 isCollapsed: note.isCollapsed,
+                reminderDate: note.reminderDate,
                 onClose: onClose,
                 onPickColor: { picked in
                     note.colorIndex = picked.rawValue
@@ -875,10 +886,78 @@ private struct FloatingNoteView: View {
                     try? context.save()
                 },
                 onToggleCollapse: onToggleCollapse,
-                onDelete: onDelete
+                onDelete: onDelete,
+                onSetReminder: { date in setReminder(date) },
+                onClearReminder: { clearReminder() }
             )
         }
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// 设/改提醒:先 async 申请权限,授权后写库 + 调度 UN。被拒弹引导对话框。
+    /// 早于当前时间的 date 也兜一层 alert(理论上 DatePicker 限制了,保险起见)。
+    private func setReminder(_ date: Date) {
+        guard date > Date() else {
+            showAlert(title: L.t(.reminderInvalidTimeTitle), body: L.t(.reminderInvalidTimeBody))
+            return
+        }
+        Task {
+            let granted = await ReminderScheduler.shared.requestAuthorizationIfNeeded()
+            await MainActor.run {
+                guard !note.isDeleted, note.managedObjectContext != nil else { return }
+                if !granted {
+                    showPermissionDeniedAlert()
+                    return
+                }
+                note.reminderDate = date
+                try? context.save()
+                ReminderScheduler.shared.schedule(
+                    noteID: note.id,
+                    title: note.cleanTitle.isEmpty ? L.t(.appName) : note.cleanTitle,
+                    body: previewBody(note.content),
+                    fireAt: date
+                )
+            }
+        }
+    }
+
+    private func clearReminder() {
+        ReminderScheduler.shared.cancel(noteID: note.id)
+        note.reminderDate = nil
+        try? context.save()
+    }
+
+    /// 通知 body 取笔记前 N 字符,去掉首行(已经是 title)。空内容用占位符。
+    private func previewBody(_ content: String) -> String {
+        let lines = content.components(separatedBy: .newlines).filter {
+            !$0.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+        // 跳过首行(给 title 用了),取剩下的拼成一段,截到 200 字符以内,
+        // 系统通知本身也会再截一次。
+        let body = lines.dropFirst().joined(separator: " ")
+        if body.isEmpty { return "" }
+        return String(body.prefix(200))
+    }
+
+    private func showPermissionDeniedAlert() {
+        let alert = NSAlert()
+        alert.messageText = L.t(.reminderPermissionDeniedTitle)
+        alert.informativeText = L.t(.reminderPermissionDeniedBody)
+        alert.addButton(withTitle: L.t(.permissionOpenSettings))
+        alert.addButton(withTitle: L.t(.cancel))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            ReminderScheduler.openNotificationSettings()
+        }
+    }
+
+    private func showAlert(title: String, body: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.addButton(withTitle: L.t(.ok))
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 }
 
@@ -977,12 +1056,22 @@ private struct TitleDoubleClickHit: NSViewRepresentable {
 private struct HoverToolbar: View {
     let palette: StickyPalette
     let isCollapsed: Bool
+    /// 当前 note 的 reminderDate(可能 nil / 过去 / 未来)。决定铃铛是 outline
+    /// 还是 fill,以及是否「无 hover 也常驻显示」(已设提醒时铃铛是状态标记)。
+    let reminderDate: Date?
     let onClose: () -> Void
     let onPickColor: (StickyPalette) -> Void
     let onToggleCollapse: () -> Void
     let onDelete: () -> Void
+    let onSetReminder: (Date) -> Void
+    let onClearReminder: () -> Void
     @State private var hovering = false
     @State private var showColorPicker = false
+    @State private var showReminderPicker = false
+
+    /// 是否有「已设」提醒(过去/未来都算 —— 用户至少要看到铃铛常驻才能知道
+    /// 还有遗留提醒可以清掉)。
+    private var hasReminder: Bool { reminderDate != nil }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -993,7 +1082,7 @@ private struct HoverToolbar: View {
             HoverTracker(hovering: $hovering)
                 .allowsHitTesting(false)
 
-            HStack {
+            HStack(spacing: 6) {
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
@@ -1002,8 +1091,41 @@ private struct HoverToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
+                .opacity(hovering ? 1 : 0)
 
                 Spacer()
+
+                // 铃铛:hover 时和「已设提醒」时都显示。fill 图标 + 强调色 = 设了。
+                // outline + 默认色 = 没设(只在 hover 期间出现)。
+                Button {
+                    showReminderPicker.toggle()
+                } label: {
+                    Image(systemName: hasReminder ? "bell.fill" : "bell")
+                        .font(.system(size: 14))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(hasReminder ? Color.accentColor : Color.primary.opacity(0.65))
+                        .contentShape(Rectangle())
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.plain)
+                .background(NonDraggable())
+                .opacity(hovering || hasReminder ? 1 : 0)
+                .popover(isPresented: $showReminderPicker, arrowEdge: .top) {
+                    ReminderPicker(
+                        currentReminder: reminderDate,
+                        onSet: { date in
+                            showReminderPicker = false
+                            onSetReminder(date)
+                        },
+                        onClear: {
+                            showReminderPicker = false
+                            onClearReminder()
+                        },
+                        onCancel: {
+                            showReminderPicker = false
+                        }
+                    )
+                }
 
                 Button {
                     showColorPicker.toggle()
@@ -1015,6 +1137,7 @@ private struct HoverToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
+                .opacity(hovering ? 1 : 0)
                 .popover(isPresented: $showColorPicker, arrowEdge: .top) {
                     NoteActionsBubble(
                         selected: palette,
@@ -1037,9 +1160,70 @@ private struct HoverToolbar: View {
             .padding(.horizontal, 8)
             .padding(.top, 6)
             .foregroundStyle(.primary.opacity(0.65))
-            .opacity(hovering ? 1 : 0)
             .animation(.easeOut(duration: 0.12), value: hovering)
         }
+    }
+}
+
+/// 铃铛 popover 内容:DatePicker + Set / Clear / Cancel。`currentReminder` 决定
+/// 默认显示时间(已设过用上次的,没设过用 1 小时后),以及是否显示 Clear 按钮。
+private struct ReminderPicker: View {
+    let currentReminder: Date?
+    let onSet: (Date) -> Void
+    let onClear: () -> Void
+    let onCancel: () -> Void
+    @State private var date: Date
+
+    init(
+        currentReminder: Date?,
+        onSet: @escaping (Date) -> Void,
+        onClear: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.currentReminder = currentReminder
+        self.onSet = onSet
+        self.onClear = onClear
+        self.onCancel = onCancel
+        // 默认值:有现成值且在未来 → 用它;否则 1 小时后整点附近。
+        // DatePicker 的 `in: Date()...` 范围会拒绝过去时间,所以这里
+        // 必须 max(suggested, now + 60s) 确保初值合法。
+        let suggested = currentReminder ?? Date().addingTimeInterval(3600)
+        let floor = Date().addingTimeInterval(60)
+        _date = State(initialValue: max(suggested, floor))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L.t(.reminderSetTitle))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            DatePicker(
+                "",
+                selection: $date,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+
+            HStack(spacing: 8) {
+                if currentReminder != nil {
+                    Button(role: .destructive) {
+                        onClear()
+                    } label: {
+                        Text(L.t(.reminderClear))
+                    }
+                }
+                Spacer()
+                Button(L.t(.cancel)) { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+                Button(L.t(.reminderSet)) { onSet(date) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .frame(width: 280)
     }
 }
 

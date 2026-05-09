@@ -125,6 +125,12 @@ enum LocKey: String {
     // Floating note popover
     case floatCollapse, floatExpand, floatDelete
 
+    // Reminder
+    case reminderSetTitle, reminderSet, reminderClear
+    case reminderActiveLabel, reminderPastLabel
+    case reminderPermissionDeniedTitle, reminderPermissionDeniedBody
+    case reminderInvalidTimeTitle, reminderInvalidTimeBody
+
     // Manager toolbar / sidebar
     case managerSearch, managerNewGroup, managerNewNote
     case managerOpenAsSticky, managerMoveToGroup, managerMoveNotesToGroup
@@ -281,6 +287,16 @@ enum L {
         .quickSave: "Save", .quickNewLine: "New line", .quickCancel: "Cancel",
 
         .floatCollapse: "Collapse", .floatExpand: "Expand", .floatDelete: "Delete note",
+
+        .reminderSetTitle: "Remind me at",
+        .reminderSet: "Set Reminder",
+        .reminderClear: "Clear",
+        .reminderActiveLabel: "Reminder set for %@",
+        .reminderPastLabel: "Reminder passed (%@)",
+        .reminderPermissionDeniedTitle: "Notifications are disabled",
+        .reminderPermissionDeniedBody: "To deliver reminders, allow notifications for Noticky in System Settings → Notifications.",
+        .reminderInvalidTimeTitle: "Pick a future time",
+        .reminderInvalidTimeBody: "The reminder time has to be later than now.",
 
         .managerSearch: "Search all notes",
         .managerNewGroup: "New Group",
@@ -452,6 +468,16 @@ enum L {
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",
 
         .floatCollapse: "折叠", .floatExpand: "展开", .floatDelete: "删除便签",
+
+        .reminderSetTitle: "提醒时间",
+        .reminderSet: "设置提醒",
+        .reminderClear: "清除",
+        .reminderActiveLabel: "已设提醒:%@",
+        .reminderPastLabel: "提醒已过(%@)",
+        .reminderPermissionDeniedTitle: "通知已关闭",
+        .reminderPermissionDeniedBody: "请到「系统设置 → 通知」里允许 Noticky 显示通知,否则无法发送提醒。",
+        .reminderInvalidTimeTitle: "请选一个未来时间",
+        .reminderInvalidTimeBody: "提醒时间必须晚于当前时间。",
 
         .managerSearch: "搜索所有便签",
         .managerNewGroup: "新建分组",

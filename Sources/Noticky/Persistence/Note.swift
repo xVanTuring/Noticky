@@ -17,6 +17,10 @@ public final class Note: NSManagedObject, Identifiable {
     @NSManaged public var isTrashed: Bool
     @NSManaged public var trashedAt: Date?
     @NSManaged public var isCollapsed: Bool
+    /// V2 起:一次性提醒时间。nil = 未设。
+    /// 设/清值后,代码层调 `ReminderScheduler` 同步 UN 调度;
+    /// 这个字段只是做持久化记忆(用于 UI 显示和跨设备 CloudKit 同步)。
+    @NSManaged public var reminderDate: Date?
     @NSManaged public var group: NoteGroup?
 }
 

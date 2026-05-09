@@ -8,13 +8,15 @@ import CoreData
 /// 缓存,只能靠代码重建)。
 enum SchemaVersion: String, CaseIterable {
     case v1
+    case v2
 
     /// 当前发布版本。改这个之前先把 SchemaV{N+1}.swift 写好。
-    static let current: SchemaVersion = .v1
+    static let current: SchemaVersion = .v2
 
     func makeModel() -> NSManagedObjectModel {
         switch self {
         case .v1: return SchemaV1.makeModel()
+        case .v2: return SchemaV2.makeModel()
         }
     }
 }
