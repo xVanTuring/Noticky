@@ -80,8 +80,8 @@ targets:
       properties:
         CFBundleName: Noticky
         CFBundleDisplayName: Noticky
-        CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.1.0"
+        CFBundleVersion: "2"
         CFBundlePackageType: APPL
         LSMinimumSystemVersion: "15.0"
         LSUIElement: true
