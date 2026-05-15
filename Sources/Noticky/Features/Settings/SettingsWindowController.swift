@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// 设置窗口。AppKit 原生 `NSTabViewController` + SwiftUI 内容,**手动驱动窗口动画 resize**,
@@ -19,6 +20,12 @@ import SwiftUI
 ///    能从 vc 取目标尺寸。
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var tabVC: AnimatedSettingsTabController?
+    // 跟踪每个 tab 背后的 LocKey,语言切换时按 key 重读 L.t(...) 刷标签。
+    // NSTabViewItem.label / NSHostingController.title 都是缓存字段,
+    // 不像 SwiftUI 那样会跟随 LocalizationManager publish 自动更新。
+    private var tabBindings: [(item: NSTabViewItem, key: LocKey)] = []
+    private var langObserver: AnyCancellable?
 
     func showWindow() {
         if let w = window {
@@ -31,6 +38,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let w = NSWindow(contentViewController: tabVC)
         w.styleMask = [.titled, .closable]
+        // 仅作首帧 fallback —— NSTabViewController 会在窗口可见前用
+        // 选中 tab 的 title 覆盖它。
         w.title = "Settings"
         w.center()
         w.delegate = self
@@ -41,22 +50,31 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.window = w
     }
 
-    private func makeTabController() -> NSTabViewController {
+    private func makeTabController() -> AnimatedSettingsTabController {
         let tabVC = AnimatedSettingsTabController()
         tabVC.tabStyle = .toolbar
         // 不要 crossfade —— 我们要的是「窗口高度动画」,内容直接切换。crossfade 让
         // content 模糊一下,反而不像系统 Settings。
         tabVC.transitionOptions = []
 
-        tabVC.addTabViewItem(makeTab(GeneralTab(),     label: "General",     icon: "gearshape"))
-        tabVC.addTabViewItem(makeTab(CaptureTab(),     label: "Capture",     icon: "doc.on.clipboard"))
-        tabVC.addTabViewItem(makeTab(ShortcutsTab(),   label: "Shortcuts",   icon: "keyboard"))
-        tabVC.addTabViewItem(makeTab(PermissionsTab(), label: "Permissions", icon: "lock.shield"))
-        tabVC.addTabViewItem(makeTab(NotesTab(),       label: "Notes",       icon: "note.text"))
-        tabVC.addTabViewItem(makeTab(ICloudTab(),      label: "iCloud Sync", icon: "icloud"))
-        tabVC.addTabViewItem(makeTab(UpdatesTab(),     label: "Updates",     icon: "arrow.down.circle"))
+        addTab(to: tabVC, GeneralTab(),     key: .tabGeneral,     icon: "gearshape")
+        addTab(to: tabVC, CaptureTab(),     key: .tabCapture,     icon: "doc.on.clipboard")
+        addTab(to: tabVC, ShortcutsTab(),   key: .tabShortcuts,   icon: "keyboard")
+        addTab(to: tabVC, PermissionsTab(), key: .tabPermissions, icon: "lock.shield")
+        addTab(to: tabVC, NotesTab(),       key: .tabNotes,       icon: "note.text")
+        addTab(to: tabVC, ICloudTab(),      key: .tabICloud,      icon: "icloud")
+        addTab(to: tabVC, UpdatesTab(),     key: .tabUpdates,     icon: "arrow.down.circle")
 
+        self.tabVC = tabVC
+        observeLanguageChanges()
         return tabVC
+    }
+
+    private func addTab<V: View>(to tabVC: AnimatedSettingsTabController,
+                                 _ view: V, key: LocKey, icon: String) {
+        let item = makeTab(view, label: L.t(key), icon: icon)
+        tabVC.addTabViewItem(item)
+        tabBindings.append((item, key))
     }
 
     private func makeTab<V: View>(_ view: V, label: String, icon: String) -> NSTabViewItem {
@@ -64,7 +82,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         host.sizingOptions = .preferredContentSize
         // NSTabViewController 会把 selected child VC 的 title 同步到 window.title。
         // NSHostingController 默认 title 为 nil → 显示 "untitled"。设上 label 后,
-        // 窗口标题会跟着 tab 切换显示 "General"/"Shortcuts"/... ——  跟 macOS
+        // 窗口标题会跟着 tab 切换显示「通用」/「快捷键」/... —— 跟 macOS
         // System Settings.app 一致。
         host.title = label
         let item = NSTabViewItem(viewController: host)
@@ -73,10 +91,34 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return item
     }
 
+    private func observeLanguageChanges() {
+        // 语言选择器就在本窗口的 General tab 里,切换瞬间得让 tab 工具栏
+        // + 窗口标题跟着更新,否则用户看到 SwiftUI 内容变了但工具栏没变。
+        langObserver = LocalizationManager.shared.$current
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshLocalizedLabels() }
+    }
+
+    private func refreshLocalizedLabels() {
+        for binding in tabBindings {
+            let title = L.t(binding.key)
+            binding.item.label = title
+            binding.item.viewController?.title = title
+        }
+        // NSTabViewController 只在切 tab 时同步 window.title,这里手动刷一次。
+        if let selected = tabVC?.tabView.selectedTabViewItem,
+           let title = selected.viewController?.title {
+            window?.title = title
+        }
+    }
+
     func windowWillClose(_ notification: Notification) {
         // 释放 SwiftUI 视图树 + 各 NSHostingController,避免无主窗时还订阅 UserDefaults。
         window?.contentViewController = nil
         window = nil
+        tabVC = nil
+        tabBindings.removeAll()
+        langObserver = nil
     }
 }
 
