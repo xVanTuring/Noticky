@@ -65,7 +65,7 @@ enum LocKey: String {
     case sortDateEdited, sortDateCreated, sortTitle
 
     // Settings tabs
-    case tabGeneral, tabCapture, tabShortcuts, tabPermissions, tabNotes, tabICloud, tabUpdates
+    case tabGeneral, tabCapture, tabShortcuts, tabNotes, tabICloud, tabUpdates
 
     // Settings Updates (Sparkle)
     case updatesAutoCheck, updatesIncludePrereleases, updatesFooter
@@ -200,8 +200,7 @@ enum L {
         .sortDateEdited: "Date Edited", .sortDateCreated: "Date Created", .sortTitle: "Title",
 
         .tabGeneral: "General", .tabCapture: "Capture", .tabShortcuts: "Shortcuts",
-        .tabPermissions: "Permissions", .tabNotes: "Notes", .tabICloud: "iCloud Sync",
-        .tabUpdates: "Updates",
+        .tabNotes: "Notes", .tabICloud: "iCloud Sync", .tabUpdates: "Updates",
 
         .updatesAutoCheck: "Automatically check for updates on launch",
         .updatesIncludePrereleases: "Include pre-release builds (beta channel)",
@@ -391,8 +390,7 @@ enum L {
         .sortDateEdited: "编辑时间", .sortDateCreated: "创建时间", .sortTitle: "标题",
 
         .tabGeneral: "通用", .tabCapture: "抓取", .tabShortcuts: "快捷键",
-        .tabPermissions: "权限", .tabNotes: "便签", .tabICloud: "iCloud 同步",
-        .tabUpdates: "更新",
+        .tabNotes: "便签", .tabICloud: "iCloud 同步", .tabUpdates: "更新",
 
         .updatesAutoCheck: "启动时自动检查更新",
         .updatesIncludePrereleases: "包含预发布版本(beta 通道)",

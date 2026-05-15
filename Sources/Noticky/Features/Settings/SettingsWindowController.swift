@@ -57,13 +57,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         // content 模糊一下,反而不像系统 Settings。
         tabVC.transitionOptions = []
 
-        addTab(to: tabVC, GeneralTab(),     key: .tabGeneral,     icon: "gearshape")
-        addTab(to: tabVC, CaptureTab(),     key: .tabCapture,     icon: "doc.on.clipboard")
-        addTab(to: tabVC, ShortcutsTab(),   key: .tabShortcuts,   icon: "keyboard")
-        addTab(to: tabVC, PermissionsTab(), key: .tabPermissions, icon: "lock.shield")
-        addTab(to: tabVC, NotesTab(),       key: .tabNotes,       icon: "note.text")
-        addTab(to: tabVC, ICloudTab(),      key: .tabICloud,      icon: "icloud")
-        addTab(to: tabVC, UpdatesTab(),     key: .tabUpdates,     icon: "arrow.down.circle")
+        addTab(to: tabVC, GeneralTab(),   key: .tabGeneral,   icon: "gearshape")
+        addTab(to: tabVC, CaptureTab(),   key: .tabCapture,   icon: "doc.on.clipboard")
+        addTab(to: tabVC, ShortcutsTab(), key: .tabShortcuts, icon: "keyboard")
+        addTab(to: tabVC, NotesTab(),     key: .tabNotes,     icon: "note.text")
+        addTab(to: tabVC, ICloudTab(),    key: .tabICloud,    icon: "icloud")
+        addTab(to: tabVC, UpdatesTab(),   key: .tabUpdates,   icon: "arrow.down.circle")
 
         self.tabVC = tabVC
         observeLanguageChanges()

@@ -94,7 +94,9 @@ enum CaptureMode: String, CaseIterable, Identifiable {
     }
 
     static func from(_ raw: String) -> CaptureMode {
-        CaptureMode(rawValue: raw) ?? .axWithWhitelist
+        // 默认 .disabled —— 新用户不会被静默触发 AX 提示;要自动抓选区
+        // 得在 Settings → Capture 里主动选 AX / 剪贴板模式。
+        CaptureMode(rawValue: raw) ?? .disabled
     }
 }
 
@@ -132,34 +134,6 @@ enum NoteSort: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Root ----------------------------------------------------------------
-
-/// 设置窗口根视图。SwiftUI Settings scene + TabView,系统会渲染成 macOS 原生
-/// 「图标 toolbar + 切 tab 时窗口高度动画」样式 —— 跟 System Settings.app 一致。
-/// 每个 tab 视图自己 `.frame(width:480, height:X)`,SwiftUI 用这个驱动窗口尺寸。
-struct SettingsView: View {
-    @ObservedObject private var loc = LocalizationManager.shared
-
-    var body: some View {
-        TabView {
-            GeneralTab()
-                .tabItem { Label(L.t(.tabGeneral), systemImage: "gearshape") }
-            CaptureTab()
-                .tabItem { Label(L.t(.tabCapture), systemImage: "doc.on.clipboard") }
-            ShortcutsTab()
-                .tabItem { Label(L.t(.tabShortcuts), systemImage: "keyboard") }
-            PermissionsTab()
-                .tabItem { Label(L.t(.tabPermissions), systemImage: "lock.shield") }
-            NotesTab()
-                .tabItem { Label(L.t(.tabNotes), systemImage: "note.text") }
-            ICloudTab()
-                .tabItem { Label(L.t(.tabICloud), systemImage: "icloud") }
-            UpdatesTab()
-                .tabItem { Label(L.t(.tabUpdates), systemImage: "arrow.down.circle") }
-        }
-    }
-}
-
 // MARK: - General -------------------------------------------------------------
 
 struct GeneralTab: View {
@@ -183,6 +157,10 @@ struct GeneralTab: View {
                 }
             }
             .pickerStyle(.menu)
+            // ForEach 的 id 是 enum rawValue,不会随语言变;SwiftUI 因此跳过
+            // Text(sort.label) 的内容更新,菜单项和选中显示都停留在首次语言。
+            // 绑到 loc.current 上,语言切换瞬间整个 Picker 重建。
+            .id(loc.current)
 
             // 语言:跟随系统 / English / 简体中文。setLanguage 是 @Published,
             // 切换瞬间所有订阅 LocalizationManager 的 view 重渲染,无需重启。
@@ -252,14 +230,17 @@ struct GeneralTab: View {
 
 // MARK: - Capture -------------------------------------------------------------
 
-/// ⌘⇧N 抓取策略 + 剪贴板白名单编辑。三选一模式 + 一个换行分隔的 bundle ID 列表
-/// (列表只在「AX + 白名单」模式下展示,纯剪贴板/关闭模式下白名单无意义)。
+/// ⌘⇧N 抓取策略 + 剪贴板白名单 + AX 权限卡片。默认 `.disabled`,用户选其他模式才
+/// 显示对应配置;`.axWithWhitelist` 还会展示 Accessibility 授权状态(原 Permissions
+/// tab 已合并进来 —— 这是目前唯一需要的系统权限,放抓取页里语境最贴)。
 struct CaptureTab: View {
-    @AppStorage(SettingsKey.captureMode) private var captureModeRaw: String = CaptureMode.axWithWhitelist.rawValue
+    @AppStorage(SettingsKey.captureMode) private var captureModeRaw: String = CaptureMode.disabled.rawValue
     @AppStorage(SettingsKey.clipboardWhitelist) private var whitelistRaw: String = ""
     @ObservedObject private var loc = LocalizationManager.shared
+    @State private var accessibilityGranted: Bool = SelectionFetcher.isTrusted
 
     private var mode: CaptureMode { CaptureMode.from(captureModeRaw) }
+    private var needsAccessibility: Bool { mode == .axWithWhitelist }
 
     var body: some View {
         Form {
@@ -270,6 +251,7 @@ struct CaptureTab: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .id(loc.current)  // 见 GeneralTab 的 sort picker 同样原因
             } footer: {
                 Text(modeFooter)
                     .font(.caption)
@@ -277,7 +259,20 @@ struct CaptureTab: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if mode == .axWithWhitelist {
+            if needsAccessibility {
+                Section {
+                    permissionRow(
+                        title: L.t(.permissionAccessibilityTitle),
+                        description: L.t(.permissionAccessibilityDesc),
+                        granted: accessibilityGranted,
+                        openSettings: SelectionFetcher.requestAndOpenAccessibilitySettings
+                    )
+                } footer: {
+                    Text(L.t(.permissionFooter))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L.t(.captureWhitelistTitle))
@@ -298,7 +293,25 @@ struct CaptureTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: mode == .axWithWhitelist ? 380 : 180)
+        .frame(width: 480, height: needsAccessibility ? 540 : 180)
+        // 用户切到 AX 模式且尚未授权 —— 跑一次 requestTrust 触发系统原生 prompt,
+        // 把 Noticky 注册进 TCC 让它出现在「辅助功能」列表里。之后用户可以
+        // 通过下面的卡片按钮自行去打开 System Settings 勾选。已授权时是 no-op。
+        .onChange(of: captureModeRaw) { _, newValue in
+            if CaptureMode.from(newValue) == .axWithWhitelist && !SelectionFetcher.isTrusted {
+                SelectionFetcher.requestTrust()
+            }
+        }
+        // 用户去系统设置勾完授权切回 Noticky 时刷新一次。AX 状态进程内是
+        // 实时生效的,只是 SwiftUI 的 @State 不会自动复算 —— 必须显式 poke。
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification
+        )) { _ in
+            accessibilityGranted = SelectionFetcher.isTrusted
+        }
+        .onAppear {
+            accessibilityGranted = SelectionFetcher.isTrusted
+        }
     }
 
     private var modeFooter: String {
@@ -307,6 +320,42 @@ struct CaptureTab: View {
         case .clipboardOnly:   return L.t(.captureFooterClipboardOnly)
         case .disabled:        return L.t(.captureFooterDisabled)
         }
+    }
+
+    @ViewBuilder
+    private func permissionRow(
+        title: String,
+        description: String,
+        granted: Bool,
+        openSettings: @escaping () -> Void
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(granted ? .green : .orange)
+                .font(.title2)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(granted ? L.t(.permissionGranted) : L.t(.permissionNotGranted))
+                    .font(.caption)
+                    .foregroundStyle(granted ? .green : .orange)
+                    .padding(.top, 2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(granted ? L.t(.permissionOpen) : L.t(.permissionOpenSettings)) {
+                openSettings()
+            }
+            .controlSize(.regular)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -351,82 +400,6 @@ struct ShortcutsTab: View {
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-// MARK: - Permissions ---------------------------------------------------------
-
-/// 系统授权管理。目前只有 Accessibility(决定 ⌘⇧N 能否抓选中文字)。
-/// 状态用 `AXIsProcessTrusted()` 实时取,**不缓存** —— 用户去系统设置勾掉,
-/// 切回这窗口立刻能看到红色未授权状态。`didBecomeActive` 通知触发重读。
-struct PermissionsTab: View {
-    @State private var accessibilityGranted: Bool = SelectionFetcher.isTrusted
-    @ObservedObject private var loc = LocalizationManager.shared
-
-    var body: some View {
-        Form {
-            Section {
-                permissionRow(
-                    title: L.t(.permissionAccessibilityTitle),
-                    description: L.t(.permissionAccessibilityDesc),
-                    granted: accessibilityGranted,
-                    openSettings: SelectionFetcher.requestAndOpenAccessibilitySettings
-                )
-            } footer: {
-                Text(L.t(.permissionFooter))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-        .scrollDisabled(true)
-        .frame(width: 480, height: 240)
-        // 用户去系统设置勾完授权切回 Noticky 时刷新一次。AX 状态进程内是
-        // 实时生效的,只是 SwiftUI 的 @State 不会自动复算 —— 必须显式 poke。
-        .onReceive(NotificationCenter.default.publisher(
-            for: NSApplication.didBecomeActiveNotification
-        )) { _ in
-            accessibilityGranted = SelectionFetcher.isTrusted
-        }
-        .onAppear {
-            accessibilityGranted = SelectionFetcher.isTrusted
-        }
-    }
-
-    @ViewBuilder
-    private func permissionRow(
-        title: String,
-        description: String,
-        granted: Bool,
-        openSettings: @escaping () -> Void
-    ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(granted ? .green : .orange)
-                .font(.title2)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.body.weight(.medium))
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(granted ? L.t(.permissionGranted) : L.t(.permissionNotGranted))
-                    .font(.caption)
-                    .foregroundStyle(granted ? .green : .orange)
-                    .padding(.top, 2)
-            }
-
-            Spacer(minLength: 8)
-
-            Button(granted ? L.t(.permissionOpen) : L.t(.permissionOpenSettings)) {
-                openSettings()
-            }
-            .controlSize(.regular)
-        }
-        .padding(.vertical, 4)
     }
 }
 
@@ -481,6 +454,7 @@ struct NotesTab: View {
                 }
             }
             .pickerStyle(.menu)
+            .id(loc.current)  // 见 GeneralTab 的 sort picker 同样原因
 
             Toggle(isOn: $startInEditMode) {
                 VStack(alignment: .leading, spacing: 2) {
