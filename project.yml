@@ -94,8 +94,8 @@ targets:
       properties:
         CFBundleName: Noticky
         CFBundleDisplayName: Noticky
-        CFBundleShortVersionString: "1.2.1"
-        CFBundleVersion: "4"
+        CFBundleShortVersionString: "1.2.2"
+        CFBundleVersion: "5"
         CFBundlePackageType: APPL
         LSMinimumSystemVersion: "15.0"
         LSUIElement: true
