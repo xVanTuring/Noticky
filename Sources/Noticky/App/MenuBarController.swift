@@ -145,6 +145,35 @@ final class MenuBarController: NSObject {
         layoutItem.submenu = layoutSub
         menu.addItem(layoutItem)
 
+        // 「把所有便签集中到某台显示器」:仅多屏时显示,无浮窗打开时整项 disable
+        // (浮窗都没开,没东西可挪)。一次性动作,不持久化,跟便签自身的钉显示器
+        // 设置正交。
+        let displays = DisplayCatalog.current()
+        if displays.count > 1 {
+            let moveAllItem = NSMenuItem(
+                title: L.t(.menuMoveAllToDisplay),
+                action: nil,
+                keyEquivalent: ""
+            )
+            moveAllItem.image = NSImage(systemSymbolName: "rectangle.on.rectangle", accessibilityDescription: nil)
+            let moveSub = NSMenu(title: "Move To Display")
+            for display in displays {
+                let item = NSMenuItem(
+                    title: display.name,
+                    action: #selector(moveAllToDisplay(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = display.uuid
+                item.image = NSImage(systemSymbolName: "display", accessibilityDescription: nil)
+                item.isEnabled = floating.hasOpenWindows
+                moveSub.addItem(item)
+            }
+            moveAllItem.submenu = moveSub
+            moveAllItem.isEnabled = floating.hasOpenWindows
+            menu.addItem(moveAllItem)
+        }
+
         menu.addItem(.separator())
         let quit = NSMenuItem(
             title: L.t(.menuQuit),
@@ -173,6 +202,11 @@ final class MenuBarController: NSObject {
         guard let raw = sender.representedObject as? String,
               let mode = LayoutMode(rawValue: raw) else { return }
         floating.setLayoutMode(mode)
+    }
+
+    @objc private func moveAllToDisplay(_ sender: NSMenuItem) {
+        guard let uuid = sender.representedObject as? String else { return }
+        floating.moveAllToDisplay(uuid: uuid)
     }
 
     @objc private func showManager() {

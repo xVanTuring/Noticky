@@ -56,6 +56,7 @@ enum LocKey: String {
     // MenuBar
     case menuNewNote, menuShowAllStickies, menuHideAllStickies
     case menuManageAllNotes, menuSettings, menuFloatOnTop, menuLayout, menuQuit
+    case menuMoveAllToDisplay
 
     // Layout modes
     case layoutFree, layoutStack, layoutTile
@@ -130,13 +131,6 @@ enum LocKey: String {
     // Floating note popover
     case floatCollapse, floatExpand, floatDelete
 
-    // Display picker (multi-monitor pin / move)
-    case displaySectionTitle
-    case displayPinHere
-    case displayUnpin
-    case displayUnpinFrom
-    case displayUnpinOffline
-
     // Reminder
     case reminderSetTitle, reminderSet, reminderClear
     case reminderActiveLabel, reminderPastLabel
@@ -199,6 +193,7 @@ enum L {
         .menuHideAllStickies: "Hide All Stickies", .menuManageAllNotes: "Manage All Notes",
         .menuSettings: "Settings…", .menuFloatOnTop: "Float on Top",
         .menuLayout: "Layout", .menuQuit: "Quit Noticky",
+        .menuMoveAllToDisplay: "Move All Stickies to Display",
 
         .layoutFree: "Free Layout", .layoutStack: "Stack", .layoutTile: "Tile",
 
@@ -309,12 +304,6 @@ enum L {
 
         .floatCollapse: "Collapse", .floatExpand: "Expand", .floatDelete: "Delete note",
 
-        .displaySectionTitle: "Display",
-        .displayPinHere: "Pin to current display",
-        .displayUnpin: "Unpin from this display",
-        .displayUnpinFrom: "Pinned to %@ — unpin",
-        .displayUnpinOffline: "Pinned (offline) — unpin",
-
         .reminderSetTitle: "Remind me at",
         .reminderSet: "Set Reminder",
         .reminderClear: "Clear",
@@ -395,6 +384,7 @@ enum L {
         .menuHideAllStickies: "隐藏所有便签", .menuManageAllNotes: "管理所有便签",
         .menuSettings: "设置…", .menuFloatOnTop: "悬浮置顶",
         .menuLayout: "布局", .menuQuit: "退出 Noticky",
+        .menuMoveAllToDisplay: "将所有便签移到显示器",
 
         .layoutFree: "自由布局", .layoutStack: "堆叠", .layoutTile: "平铺",
 
@@ -504,12 +494,6 @@ enum L {
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",
 
         .floatCollapse: "折叠", .floatExpand: "展开", .floatDelete: "删除便签",
-
-        .displaySectionTitle: "显示器",
-        .displayPinHere: "钉到当前显示器",
-        .displayUnpin: "取消钉",
-        .displayUnpinFrom: "已钉到 %@ — 取消",
-        .displayUnpinOffline: "已钉(离线) — 取消",
 
         .reminderSetTitle: "提醒时间",
         .reminderSet: "设置提醒",
