@@ -64,7 +64,12 @@ enum LocKey: String {
     case sortDateEdited, sortDateCreated, sortTitle
 
     // Settings tabs
-    case tabGeneral, tabCapture, tabShortcuts, tabPermissions, tabNotes, tabICloud
+    case tabGeneral, tabCapture, tabShortcuts, tabPermissions, tabNotes, tabICloud, tabUpdates
+
+    // Settings Updates (Sparkle)
+    case updatesAutoCheck, updatesIncludePrereleases, updatesFooter
+    case updatesCurrentVersion, updatesLastChecked, updatesNeverChecked
+    case updatesCheckNow
 
     // Settings General
     case generalLaunchAtLogin, generalSortBy
@@ -194,6 +199,15 @@ enum L {
 
         .tabGeneral: "General", .tabCapture: "Capture", .tabShortcuts: "Shortcuts",
         .tabPermissions: "Permissions", .tabNotes: "Notes", .tabICloud: "iCloud Sync",
+        .tabUpdates: "Updates",
+
+        .updatesAutoCheck: "Automatically check for updates on launch",
+        .updatesIncludePrereleases: "Include pre-release builds (beta channel)",
+        .updatesFooter: "Updates are signed with EdDSA, downloaded over HTTPS, and installed by Sparkle's helper. Pre-release builds come from the `beta` channel of the appcast.",
+        .updatesCurrentVersion: "Current version",
+        .updatesLastChecked: "Last checked",
+        .updatesNeverChecked: "Never",
+        .updatesCheckNow: "Check Now…",
 
         .generalLaunchAtLogin: "Launch at login",
         .generalSortBy: "Sort by:",
@@ -375,6 +389,15 @@ enum L {
 
         .tabGeneral: "通用", .tabCapture: "抓取", .tabShortcuts: "快捷键",
         .tabPermissions: "权限", .tabNotes: "便签", .tabICloud: "iCloud 同步",
+        .tabUpdates: "更新",
+
+        .updatesAutoCheck: "启动时自动检查更新",
+        .updatesIncludePrereleases: "包含预发布版本(beta 通道)",
+        .updatesFooter: "更新通过 EdDSA 签名校验、HTTPS 下载,由 Sparkle 的辅助进程完成安装。预发布版本来自 appcast 的 `beta` 通道。",
+        .updatesCurrentVersion: "当前版本",
+        .updatesLastChecked: "上次检查",
+        .updatesNeverChecked: "从未",
+        .updatesCheckNow: "立即检查…",
 
         .generalLaunchAtLogin: "开机自动启动",
         .generalSortBy: "排序方式:",

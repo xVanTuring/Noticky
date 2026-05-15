@@ -154,6 +154,8 @@ struct SettingsView: View {
                 .tabItem { Label(L.t(.tabNotes), systemImage: "note.text") }
             ICloudTab()
                 .tabItem { Label(L.t(.tabICloud), systemImage: "icloud") }
+            UpdatesTab()
+                .tabItem { Label(L.t(.tabUpdates), systemImage: "arrow.down.circle") }
         }
     }
 }
@@ -492,6 +494,70 @@ struct NotesTab: View {
         .formStyle(.grouped)
         .scrollDisabled(true)
         .frame(width: 480, height: 320)
+    }
+}
+
+// MARK: - Updates (Sparkle) ---------------------------------------------------
+
+/// Sparkle 自动更新偏好。Sparkle 的 controller 是 main-thread 单例
+/// (`UpdaterService.shared`),@ObservedObject 订阅 canCheck / lastChecked
+/// 的 @Published 镜像,改了立即重渲染。
+///
+/// `autoCheck` 在两处持有:Sparkle 自己的 defaults domain(它内部读)+ 我们
+/// 的 `@AppStorage("Noticky.updater.autoCheck")` 镜像(AppDelegate 启动时读,
+/// 用户首次安装默认 true 不需要 Sparkle 第一次初始化才设)。toggle 时两边同写。
+struct UpdatesTab: View {
+    @ObservedObject private var updater = UpdaterService.shared
+    @ObservedObject private var loc = LocalizationManager.shared
+    @AppStorage("Noticky.updater.autoCheck") private var autoCheckMirror: Bool = true
+    @AppStorage("Noticky.updater.includePrereleases") private var includePrereleases: Bool = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(L.t(.updatesAutoCheck), isOn: Binding(
+                    get: { autoCheckMirror },
+                    set: { newValue in
+                        autoCheckMirror = newValue
+                        updater.autoCheck = newValue
+                    }
+                ))
+                Toggle(L.t(.updatesIncludePrereleases), isOn: $includePrereleases)
+            } footer: {
+                Text(L.t(.updatesFooter))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                LabeledContent(L.t(.updatesCurrentVersion)) {
+                    Text("\(updater.currentVersion) (\(updater.currentBuild))")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                LabeledContent(L.t(.updatesLastChecked)) {
+                    Text(lastCheckedLabel)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Spacer()
+                    Button(L.t(.updatesCheckNow)) {
+                        updater.checkForUpdates()
+                    }
+                    .disabled(!updater.canCheck)
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .frame(width: 480, height: 320)
+    }
+
+    private var lastCheckedLabel: String {
+        guard let date = updater.lastChecked else { return L.t(.updatesNeverChecked) }
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 }
 

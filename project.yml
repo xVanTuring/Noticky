@@ -13,6 +13,18 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.0.0"
+  # Sparkle 2 自动更新框架。装好后:
+  #   - `Sources/Noticky/Features/Updater/UpdaterService.swift` 用
+  #     `SPUStandardUpdaterController` 驱动整条更新流程(拉 appcast、
+  #     EdDSA 校验、下载、out-of-process 安装、重启)。
+  #   - `scripts/release.sh` 用 SPM artifact 里的 `sign_update` 工具
+  #     给每个 release 的 zip 签 EdDSA,把 `<item>` 插进 appcast.xml。
+  #   - Noticky **不在 sandbox**,所以省掉了 Installer XPC service +
+  #     `-spks`/`-spki` mach-lookup entitlements,集成比 sandboxed App
+  #     简单不少。
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    from: "2.9.1"
 
 settings:
   base:
@@ -64,6 +76,8 @@ targets:
     dependencies:
       - package: Textual
       - package: KeyboardShortcuts
+      - package: Sparkle
+        product: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Noticky
@@ -85,6 +99,17 @@ targets:
         CFBundlePackageType: APPL
         LSMinimumSystemVersion: "15.0"
         LSUIElement: true
-        NSHumanReadableCopyright: "© 2026 Noticky"
+        NSHumanReadableCopyright: "© 2026 xVanTuring"
         NSPrincipalClass: NSApplication
         CFBundleIconName: AppIcon
+        # ── Sparkle 2 自动更新 ──────────────────────────────────────
+        # Appcast feed 托管在 GitHub repo 的 main 分支:每次 release.sh
+        # 跑完会 commit + push 更新后的 appcast.xml。Sparkle 默认从
+        # raw.githubusercontent.com 这个 URL 拉取。
+        SUFeedURL: "https://raw.githubusercontent.com/xVanTuring/Noticky/main/appcast.xml"
+        # EdDSA 公钥 —— Sparkle 用它校验下载的 zip 签名;私钥由发布机的
+        # login keychain(`https://sparkle-project.org` item)持有,由
+        # release.sh 调 `sign_update` 时读取。生成步骤见 docs/release.md。
+        # ⚠️ 首次发布前必须填上,否则 release.sh preflight 会拒绝运行。
+        # 一旦发布后**严禁**更换公钥,否则已装版本会拒绝所有未来更新。
+        SUPublicEDKey: ""

@@ -72,6 +72,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)
         // 在启动时一气呵成,而不是一边 spawn 一边 reflow 一边再 reflow。
         floating.applyLayout()
+
+        // Sparkle 静默检查:第一次访问 `.shared` 触发 controller init,
+        // 后续整个进程生命周期里都活着。`checkInBackground` 只有真有
+        // 新版本时才弹 UI,"已是最新" 不打扰用户。
+        //
+        // 用户在 Settings → Updates 关掉 auto-check 时,这次 call 仍然会
+        // 走一遍 Sparkle 内部的 schedule 逻辑 —— Sparkle 自己看到偏好
+        // 是关的会跳过实际网络请求。我们这里不做额外判断,免得跟 Sparkle
+        // 的状态机两边不一致。
+        if UserDefaults.standard.object(forKey: "Noticky.updater.autoCheck") as? Bool ?? true {
+            UpdaterService.shared.checkInBackground()
+        }
     }
 
     /// 整体覆盖 SwiftUI 自动生成的 main menu。LSUIElement App 的 menu bar
