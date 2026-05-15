@@ -64,9 +64,22 @@ final class FloatingNotesRegistry {
         floatOnTop = value
         UserDefaults.standard.set(value, forKey: Self.floatOnTopKey)
         let level: NSWindow.Level = value ? .floating : .normal
+        let behavior = Self.collectionBehavior(floatOnTop: value)
         for wc in windows.values {
             wc.setLevel(level)
+            wc.setCollectionBehavior(behavior)
         }
+    }
+
+    /// 浮窗的 collectionBehavior 跟随 `floatOnTop`:
+    /// - on:`[.canJoinAllSpaces, .fullScreenAuxiliary]` —— 跨所有 Space 显示,
+    ///   并在其它 App 的全屏空间里也浮在上面。
+    /// - off:`[]`(默认)—— 留在创建时所在的 Space,其它 App 进入全屏时
+    ///   不会跑到全屏内容上面。
+    /// 单独动 `window.level` 不够 —— `.fullScreenAuxiliary` 会让任何 level 的
+    /// 窗都浮到全屏 Space 上,所以关置顶必须同时摘掉 collectionBehavior。
+    static func collectionBehavior(floatOnTop: Bool) -> NSWindow.CollectionBehavior {
+        floatOnTop ? [.canJoinAllSpaces, .fullScreenAuxiliary] : []
     }
 
     /// 切换布局模式,持久化并立刻生效。设到 `.normal` 不会动当前位置,只是停止
@@ -369,6 +382,7 @@ final class FloatingNotesRegistry {
         let wc = FloatingNoteWindowController(
             note: note,
             initialLevel: floatOnTop ? .floating : .normal,
+            initialCollectionBehavior: Self.collectionBehavior(floatOnTop: floatOnTop),
             onClose: { [weak self] in
                 guard let self else { return }
                 self.windows[id] = nil
@@ -456,6 +470,7 @@ private struct NonDraggable: NSViewRepresentable {
 final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     private let note: Note
     private let initialLevel: NSWindow.Level
+    private let initialCollectionBehavior: NSWindow.CollectionBehavior
     private let onClose: () -> Void
     private let onRequestDelete: () -> Void
     private let onBecameKey: () -> Void
@@ -476,6 +491,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     init(
         note: Note,
         initialLevel: NSWindow.Level = .floating,
+        initialCollectionBehavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary],
         onClose: @escaping () -> Void,
         onRequestDelete: @escaping () -> Void,
         onBecameKey: @escaping () -> Void = {},
@@ -483,6 +499,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     ) {
         self.note = note
         self.initialLevel = initialLevel
+        self.initialCollectionBehavior = initialCollectionBehavior
         self.onClose = onClose
         self.onRequestDelete = onRequestDelete
         self.onBecameKey = onBecameKey
@@ -492,6 +509,10 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
 
     func setLevel(_ level: NSWindow.Level) {
         window?.level = level
+    }
+
+    func setCollectionBehavior(_ behavior: NSWindow.CollectionBehavior) {
+        window?.collectionBehavior = behavior
     }
 
     /// 给 registry 用来匹配 NSApp.keyWindow 是不是这个 controller 持有的窗。
@@ -570,7 +591,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         )
         w.onDeleteShortcut = { [weak self] in self?.onRequestDelete() }
         w.level = initialLevel
-        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        w.collectionBehavior = initialCollectionBehavior
         w.isMovableByWindowBackground = true
         w.isOpaque = false
         w.backgroundColor = .clear
