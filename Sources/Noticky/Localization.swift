@@ -130,6 +130,13 @@ enum LocKey: String {
     // Floating note popover
     case floatCollapse, floatExpand, floatDelete
 
+    // Display picker (multi-monitor pin / move)
+    case displaySectionTitle
+    case displayPinHere
+    case displayUnpin
+    case displayUnpinFrom
+    case displayUnpinOffline
+
     // Reminder
     case reminderSetTitle, reminderSet, reminderClear
     case reminderActiveLabel, reminderPastLabel
@@ -301,6 +308,12 @@ enum L {
         .quickSave: "Save", .quickNewLine: "New line", .quickCancel: "Cancel",
 
         .floatCollapse: "Collapse", .floatExpand: "Expand", .floatDelete: "Delete note",
+
+        .displaySectionTitle: "Display",
+        .displayPinHere: "Pin to current display",
+        .displayUnpin: "Unpin from this display",
+        .displayUnpinFrom: "Pinned to %@ — unpin",
+        .displayUnpinOffline: "Pinned (offline) — unpin",
 
         .reminderSetTitle: "Remind me at",
         .reminderSet: "Set Reminder",
@@ -491,6 +504,12 @@ enum L {
         .quickSave: "保存", .quickNewLine: "换行", .quickCancel: "取消",
 
         .floatCollapse: "折叠", .floatExpand: "展开", .floatDelete: "删除便签",
+
+        .displaySectionTitle: "显示器",
+        .displayPinHere: "钉到当前显示器",
+        .displayUnpin: "取消钉",
+        .displayUnpinFrom: "已钉到 %@ — 取消",
+        .displayUnpinOffline: "已钉(离线) — 取消",
 
         .reminderSetTitle: "提醒时间",
         .reminderSet: "设置提醒",

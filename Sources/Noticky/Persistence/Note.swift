@@ -21,6 +21,12 @@ public final class Note: NSManagedObject, Identifiable {
     /// 设/清值后,代码层调 `ReminderScheduler` 同步 UN 调度;
     /// 这个字段只是做持久化记忆(用于 UI 显示和跨设备 CloudKit 同步)。
     @NSManaged public var reminderDate: Date?
+    /// V3 起:钉住的显示器。值是 `CGDisplayCreateUUIDFromDisplayID` 给出的
+    /// UUID 字符串(`DisplayInfo.uuid(for:)`)。nil = 不钉,按 savedFrame 摆。
+    /// 设了之后,只要那台显示器还在线,浮窗每次 spawn 都会被强制放到它上面;
+    /// 显示器拔掉时,代码层退化成"按上次保存的 frame 摆"(若 frame 已不在
+    /// 任何可见屏上则 cascade)。
+    @NSManaged public var pinnedDisplayUUID: String?
     @NSManaged public var group: NoteGroup?
 }
 

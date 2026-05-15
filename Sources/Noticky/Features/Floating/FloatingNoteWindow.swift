@@ -28,9 +28,16 @@ enum LayoutMode: String, CaseIterable {
     }
 }
 
+/// NSRect 面积。用于决定"窗当前主要落在哪块屏"。
+private extension NSRect {
+    var area: CGFloat { max(0, width) * max(0, height) }
+}
+
 /// 跟踪所有当前打开的悬浮便签,保证一条笔记最多一个浮窗。
 final class FloatingNotesRegistry {
     private var windows: [NSManagedObjectID: FloatingNoteWindowController] = [:]
+    /// 屏拓扑变化通知。NotificationCenter 的弱引用,registry 释放时自动断。
+    private var screenChangeObserver: NSObjectProtocol?
     /// 当前显示顺序。stack 模式下:[0] = cascade 最上方(最老/最旧选中的),
     /// 末尾 = cascade 最下方(最近选中的,最完整可见)。tile 模式下用作行序优先。
     /// 新窗 spawn 时 append;关闭时 remove;stack 模式下 windowDidBecomeKey
@@ -58,6 +65,61 @@ final class FloatingNotesRegistry {
         let raw = UserDefaults.standard.string(forKey: FloatingNotesRegistry.layoutModeKey) ?? ""
         return LayoutMode(rawValue: raw) ?? .normal
     }()
+
+    init() {
+        // 屏拓扑变化:接线/拔线、分辨率切换、屏排序改变都触发。pinned 的窗
+        // 若它钉的屏刚回来 → 拉回去;若当前所在屏没了 → 也拉到钉的屏(若在)。
+        screenChangeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleScreensChanged()
+        }
+    }
+
+    deinit {
+        if let obs = screenChangeObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+    }
+
+    /// 屏发生变化:遍历每个浮窗,若 note 钉了显示器且那屏当前在线,而窗口
+    /// 当前不在那屏上 → 拉回去。没钉 / 钉的屏不在 → 不动。普通拖出屏外的
+    /// 已经由 windowDidMove 走 savedFrame 持久化,不归这里管。
+    private func handleScreensChanged() {
+        for wc in windows.values {
+            guard let uuid = wc.note.pinnedDisplayUUID,
+                  let target = DisplayCatalog.screen(forUUID: uuid) else { continue }
+            if wc.currentScreen !== target {
+                wc.moveToScreen(target)
+            }
+        }
+        // 拓扑变后重新按布局摆一遍(对 stack/tile 模式有意义)。
+        applyLayout()
+    }
+
+    /// 把指定笔记的浮窗移到给定 UUID 对应的显示器。屏不存在 → no-op(调用方
+    /// 应先用 DisplayCatalog 过滤掉离线项)。不修改 pinnedDisplayUUID,这只是
+    /// 一次性切换显示器。
+    func moveNote(_ note: Note, toDisplayUUID uuid: String) {
+        guard let wc = windows[note.objectID] else { return }
+        guard let target = DisplayCatalog.screen(forUUID: uuid) else { return }
+        wc.moveToScreen(target)
+        // savedFrame 跟着会被 windowDidMove 的 250ms debounce flush;不需要这里写。
+    }
+
+    /// 设/清「钉显示器」。`uuid == nil` 表示取消钉。会立刻把窗(如果在开着的话)
+    /// 移到目标屏上,语义上是「钉就是当前就要去那」。
+    func setPinnedDisplay(for note: Note, uuid: String?) {
+        guard !note.isDeleted else { return }
+        note.pinnedDisplayUUID = uuid
+        try? note.managedObjectContext?.save()
+        if let uuid, let target = DisplayCatalog.screen(forUUID: uuid),
+           let wc = windows[note.objectID], wc.currentScreen !== target {
+            wc.moveToScreen(target)
+        }
+    }
 
     func setFloatOnTop(_ value: Bool) {
         guard value != floatOnTop else { return }
@@ -400,6 +462,12 @@ final class FloatingNotesRegistry {
             },
             onUserMoveEnded: { [weak self] in
                 self?.notifyUserMoveEnded(id: id)
+            },
+            onMoveToDisplay: { [weak self] uuid in
+                self?.moveNote(note, toDisplayUUID: uuid)
+            },
+            onSetPinnedDisplay: { [weak self] uuid in
+                self?.setPinnedDisplay(for: note, uuid: uuid)
             }
         )
         wc.show(cascadeIndex: cascade)
@@ -468,13 +536,19 @@ private struct NonDraggable: NSViewRepresentable {
 }
 
 final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
-    private let note: Note
+    /// 浮窗对应的笔记。registry 在屏拓扑变化等场景下需要按 controller 读
+    /// `pinnedDisplayUUID`,所以暴露为只读。
+    let note: Note
     private let initialLevel: NSWindow.Level
     private let initialCollectionBehavior: NSWindow.CollectionBehavior
     private let onClose: () -> Void
     private let onRequestDelete: () -> Void
     private let onBecameKey: () -> Void
     private let onUserMoveEnded: () -> Void
+    /// 用户在 ⋯ 菜单选某台屏 → 把窗移过去(不改 pinnedDisplayUUID)。
+    private let onMoveToDisplay: (String) -> Void
+    /// 用户在 ⋯ 菜单点「钉到当前屏」/「取消钉」→ 设/清 pinnedDisplayUUID。
+    private let onSetPinnedDisplay: (String?) -> Void
     private var window: NSWindow?
     /// 拖动/缩放期间会高频回调,debounce 250ms 避免每像素一次 SQL 写。
     private var pendingFrameSave: DispatchWorkItem?
@@ -495,7 +569,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         onClose: @escaping () -> Void,
         onRequestDelete: @escaping () -> Void,
         onBecameKey: @escaping () -> Void = {},
-        onUserMoveEnded: @escaping () -> Void = {}
+        onUserMoveEnded: @escaping () -> Void = {},
+        onMoveToDisplay: @escaping (String) -> Void = { _ in },
+        onSetPinnedDisplay: @escaping (String?) -> Void = { _ in }
     ) {
         self.note = note
         self.initialLevel = initialLevel
@@ -504,6 +580,8 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         self.onRequestDelete = onRequestDelete
         self.onBecameKey = onBecameKey
         self.onUserMoveEnded = onUserMoveEnded
+        self.onMoveToDisplay = onMoveToDisplay
+        self.onSetPinnedDisplay = onSetPinnedDisplay
         super.init()
     }
 
@@ -535,6 +613,33 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         w.orderFront(nil)
     }
 
+    /// 把窗口移到指定显示器:保留尺寸,落在该屏 visibleFrame 居中。带动画。
+    /// 用于"切换显示器"操作 + 屏拓扑变化时把钉住的窗拉回来。
+    func moveToScreen(_ screen: NSScreen) {
+        guard let w = window else { return }
+        let visible = screen.visibleFrame
+        // 钉过来的目标尺寸:沿用当前窗口 frame 的尺寸,不动用户的 resize 结果。
+        let size = w.frame.size
+        // 钳到目标屏可见区内,避免万一窗本身就比屏大时还往外飞。
+        let width = min(size.width, visible.width)
+        let height = min(size.height, visible.height)
+        let origin = NSPoint(
+            x: visible.midX - width / 2,
+            y: visible.midY - height / 2
+        )
+        animateFrame(NSRect(origin: origin, size: NSSize(width: width, height: height)))
+    }
+
+    /// 当前窗口所在的 NSScreen(取交集面积最大的那块,避免横跨两屏时归错)。
+    /// 没窗 / 算不出来 → nil。
+    var currentScreen: NSScreen? {
+        guard let w = window else { return nil }
+        let frame = w.frame
+        return NSScreen.screens.max { a, b in
+            a.frame.intersection(frame).area < b.frame.intersection(frame).area
+        }
+    }
+
     /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡。
     /// 期间 `isAnimating = true`,windowDidMove/Resize 跳过 onUserMoveEnded
     /// 调度,避免自动 reflow 自己触发自己。
@@ -563,6 +668,10 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
             UserDefaults.standard.string(forKey: SettingsKey.defaultNoteSize) ?? ""
         )
         let defaultSize = defaultSizePref.size
+
+        // 钉显示器:若设了 pinnedDisplayUUID 且那台屏当前在线,后续的位置选择
+        // 都以这块屏为基准。屏被拔掉时回退到普通逻辑(savedFrame → cascade)。
+        let pinnedScreen: NSScreen? = note.pinnedDisplayUUID.flatMap { DisplayCatalog.screen(forUUID: $0) }
         let host = NSHostingController(
             rootView: FloatingNoteView(
                 note: note,
@@ -576,6 +685,16 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
                 },
                 onToggleCollapse: { [weak self] in
                     self?.toggleCollapse()
+                },
+                onMoveToDisplay: { [weak self] uuid in
+                    self?.onMoveToDisplay(uuid)
+                },
+                onSetPinnedDisplay: { [weak self] uuid in
+                    self?.onSetPinnedDisplay(uuid)
+                },
+                currentDisplayUUID: { [weak self] in
+                    guard let screen = self?.currentScreen else { return nil }
+                    return DisplayCatalog.uuid(for: screen)
                 }
             )
             .environment(\.managedObjectContext, context)
@@ -603,8 +722,23 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         w.delegate = self
         w.isReleasedWhenClosed = false
 
-        // 优先恢复用户上次的位置/尺寸;saved frame 越界(显示器拔了)就退回 cascade。
-        if let saved = note.savedFrame, Self.frameIsOnVisibleScreen(saved) {
+        // 位置选择优先级:
+        //   1. 钉了屏 + 那屏在线:savedFrame 若已在该屏可见区内则用,否则居中到该屏。
+        //   2. 没钉(或钉的屏掉了):走旧逻辑 —— savedFrame 命中任意屏就用,否则
+        //      cascade 在 main 屏中心。
+        if let target = pinnedScreen {
+            let visible = target.visibleFrame
+            if let saved = note.savedFrame, visible.intersects(saved) {
+                w.setFrame(saved, display: false)
+            } else {
+                let size = note.savedFrame?.size ?? defaultSize
+                let origin = NSPoint(
+                    x: visible.midX - size.width / 2,
+                    y: visible.midY - size.height / 2
+                )
+                w.setFrame(NSRect(origin: origin, size: size), display: false)
+            }
+        } else if let saved = note.savedFrame, Self.frameIsOnVisibleScreen(saved) {
             w.setFrame(saved, display: false)
         } else if let screenFrame = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame {
             let cascade = CGFloat(cascadeIndex) * 28
@@ -814,6 +948,13 @@ private struct FloatingNoteView: View {
     let onClose: () -> Void
     let onDelete: () -> Void
     let onToggleCollapse: () -> Void
+    /// 用户在 ⋯ 菜单选某台屏 → 把窗移过去(不改 pinnedDisplayUUID)。
+    let onMoveToDisplay: (String) -> Void
+    /// 用户在 ⋯ 菜单点「钉到当前屏」/「取消钉」→ 设/清 pinnedDisplayUUID。
+    let onSetPinnedDisplay: (String?) -> Void
+    /// 浮窗当前所在显示器的 UUID(实时计算,popover 打开时调)。`nil` = 算不出来
+    /// 或没窗,这种情况下"钉到当前屏"按钮 disabled。
+    let currentDisplayUUID: () -> String?
 
     private var palette: StickyPalette {
         guard !note.isDeleted, note.managedObjectContext != nil else { return .yellow }
@@ -900,6 +1041,7 @@ private struct FloatingNoteView: View {
                 palette: palette,
                 isCollapsed: note.isCollapsed,
                 reminderDate: note.reminderDate,
+                pinnedDisplayUUID: note.pinnedDisplayUUID,
                 onClose: onClose,
                 onPickColor: { picked in
                     note.colorIndex = picked.rawValue
@@ -909,7 +1051,10 @@ private struct FloatingNoteView: View {
                 onToggleCollapse: onToggleCollapse,
                 onDelete: onDelete,
                 onSetReminder: { date in setReminder(date) },
-                onClearReminder: { clearReminder() }
+                onClearReminder: { clearReminder() },
+                onMoveToDisplay: onMoveToDisplay,
+                onSetPinnedDisplay: onSetPinnedDisplay,
+                currentDisplayUUID: currentDisplayUUID
             )
         }
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -1080,12 +1225,17 @@ private struct HoverToolbar: View {
     /// 当前 note 的 reminderDate(可能 nil / 过去 / 未来)。决定铃铛是 outline
     /// 还是 fill,以及是否「无 hover 也常驻显示」(已设提醒时铃铛是状态标记)。
     let reminderDate: Date?
+    /// 当前钉住的显示器 UUID(nil = 没钉)。给 ⋯ 菜单算"是否已钉"用。
+    let pinnedDisplayUUID: String?
     let onClose: () -> Void
     let onPickColor: (StickyPalette) -> Void
     let onToggleCollapse: () -> Void
     let onDelete: () -> Void
     let onSetReminder: (Date) -> Void
     let onClearReminder: () -> Void
+    let onMoveToDisplay: (String) -> Void
+    let onSetPinnedDisplay: (String?) -> Void
+    let currentDisplayUUID: () -> String?
     @State private var hovering = false
     @State private var showColorPicker = false
     @State private var showReminderPicker = false
@@ -1163,6 +1313,8 @@ private struct HoverToolbar: View {
                     NoteActionsBubble(
                         selected: palette,
                         isCollapsed: isCollapsed,
+                        pinnedDisplayUUID: pinnedDisplayUUID,
+                        currentDisplayUUID: currentDisplayUUID(),
                         onPickColor: { picked in
                             onPickColor(picked)
                             showColorPicker = false
@@ -1174,6 +1326,14 @@ private struct HoverToolbar: View {
                         onDelete: {
                             showColorPicker = false
                             onDelete()
+                        },
+                        onMoveToDisplay: { uuid in
+                            showColorPicker = false
+                            onMoveToDisplay(uuid)
+                        },
+                        onSetPinnedDisplay: { uuid in
+                            showColorPicker = false
+                            onSetPinnedDisplay(uuid)
                         }
                     )
                 }
@@ -1298,9 +1458,22 @@ private struct HoverTracker: NSViewRepresentable {
 private struct NoteActionsBubble: View {
     let selected: StickyPalette
     let isCollapsed: Bool
+    /// 当前钉住的屏 UUID(nil = 没钉)。
+    let pinnedDisplayUUID: String?
+    /// 浮窗当前真正落在哪台屏上(popover 打开瞬间快照,不会随后续拖动更新)。
+    /// nil = 算不出/没窗,此时"钉到当前屏"按钮 disabled。
+    let currentDisplayUUID: String?
     let onPickColor: (StickyPalette) -> Void
     let onToggleCollapse: () -> Void
     let onDelete: () -> Void
+    let onMoveToDisplay: (String) -> Void
+    let onSetPinnedDisplay: (String?) -> Void
+
+    /// 仅在多屏时才显示显示器区。单屏的 Mac 看到这一节没意义,免得菜单变长。
+    private var displays: [DisplayInfo] {
+        let all = DisplayCatalog.current()
+        return all.count > 1 ? all : []
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -1334,6 +1507,14 @@ private struct NoteActionsBubble: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            // 多屏区:`Move to ▸ <name>` + `Pin to current display` toggle。
+            // 单屏时整段不渲染,菜单跟旧版本一致。
+            if !displays.isEmpty {
+                Divider()
+                displaySection
+            }
+
             Button(role: .destructive, action: onDelete) {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
@@ -1346,6 +1527,87 @@ private struct NoteActionsBubble: View {
             .foregroundStyle(.red)
         }
         .padding(10)
-        .frame(minWidth: 180)
+        .frame(minWidth: 200)
+    }
+
+    @ViewBuilder
+    private var displaySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L.t(.displaySectionTitle))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            ForEach(displays) { display in
+                Button {
+                    onMoveToDisplay(display.uuid)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: display.uuid == currentDisplayUUID
+                              ? "display.fill" : "display")
+                            .foregroundStyle(.primary.opacity(0.7))
+                        Text(display.name)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 4)
+                        if display.uuid == pinnedDisplayUUID {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            pinToggleRow
+        }
+    }
+
+    /// "钉到当前屏" / "取消钉到 X" 切换。三种 state:
+    /// - 没钉 + 当前屏可识别 → "钉到当前屏",点击 → 写 currentDisplayUUID
+    /// - 已钉 + 当前是钉那台 → "取消钉",点击 → 清空
+    /// - 已钉但当前不是那台(或 currentUUID nil) → "已钉到 <name>",点击 → 取消
+    @ViewBuilder
+    private var pinToggleRow: some View {
+        let pinnedDisplay = pinnedDisplayUUID.flatMap { uuid in
+            DisplayCatalog.current().first { $0.uuid == uuid }
+        }
+        let isPinnedHere = pinnedDisplayUUID != nil && pinnedDisplayUUID == currentDisplayUUID
+
+        Button {
+            if pinnedDisplayUUID != nil {
+                onSetPinnedDisplay(nil)
+            } else if let here = currentDisplayUUID {
+                onSetPinnedDisplay(here)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: pinnedDisplayUUID != nil ? "pin.fill" : "pin")
+                    .foregroundStyle(pinnedDisplayUUID != nil ? Color.accentColor : .primary.opacity(0.7))
+                Text(pinLabelText(pinnedDisplay: pinnedDisplay, isPinnedHere: isPinnedHere))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // 没钉过 + 当前屏识别不出来 → 没东西可钉,disable。
+        .disabled(pinnedDisplayUUID == nil && currentDisplayUUID == nil)
+    }
+
+    private func pinLabelText(pinnedDisplay: DisplayInfo?, isPinnedHere: Bool) -> String {
+        if let pinnedDisplay {
+            if isPinnedHere {
+                return L.t(.displayUnpin)
+            }
+            return L.t(.displayUnpinFrom, pinnedDisplay.name)
+        }
+        // 钉了但屏离线 → 名称看不见,但还是允许"清掉"。
+        if pinnedDisplayUUID != nil {
+            return L.t(.displayUnpinOffline)
+        }
+        return L.t(.displayPinHere)
     }
 }
