@@ -5,8 +5,11 @@ import Carbon.HIToolbox
 /// (微信、各种 Electron / 自绘 UI 应用)走这条 —— 任何能 ⌘C 的输入框都吃。
 ///
 /// 与 `SelectionFetcher` 的差异:
-/// - **不需要** 辅助功能权限。`CGEvent.post(tap: .cghidEventTap)` 把按键注入到
-///   HID 层,等同物理按键,接收方 App 不知道是合成的。
+/// - 不读 AX 选区属性,改用 `CGEvent.postToPid` 合成 ⌘C 让接收方自己把
+///   选区写进剪贴板。但 **仍然需要辅助功能权限** —— macOS 10.14+ 起合成
+///   按键统一走 TCC,没权限事件被静默丢弃(没报错、没回调、剪贴板不会变),
+///   失败模式比 AX 模式更难诊断。Settings → Capture 在切到非 disabled 模式
+///   时会主动 `requestTrust()` 提前申请。
 /// - 会污染剪贴板 —— 我们读完之后立刻 **恢复用户原本的剪贴板内容**。
 /// - 异步:⌘C 派发后接收方处理需要一两个 runloop tick,我们短轮询 `changeCount`
 ///   ~150ms;没动就当抓不到。

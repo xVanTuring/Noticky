@@ -75,10 +75,12 @@ enum DefaultNoteSize: String, CaseIterable, Identifiable {
     }
 }
 
-/// ⌘⇧N 抓选中文本的策略。
+/// ⌘⇧N 抓选中文本的策略。两种自动模式都依赖辅助功能权限:
+/// AX 模式直接 read selected text;剪贴板模式合成 ⌘C —— macOS 10.14+
+/// 起合成按键同样走 TCC,没 AX 权限事件被静默丢弃,只是失败方式更隐蔽。
 /// - `axWithWhitelist`:默认走 Accessibility;白名单里的 bundle ID 改走剪贴板合成。
-/// - `clipboardOnly`:统统合成 ⌘C,不碰 AX(也不需要辅助功能权限)。
-/// - `disabled`:不抓,⌘⇧N 直接开空 capture。
+/// - `clipboardOnly`:统统合成 ⌘C,适合微信等不暴露 AX 选区的 App。
+/// - `disabled`:不抓,⌘⇧N 直接开空 capture(不需要任何权限)。
 enum CaptureMode: String, CaseIterable, Identifiable {
     case axWithWhitelist
     case clipboardOnly
@@ -240,7 +242,10 @@ struct CaptureTab: View {
     @State private var accessibilityGranted: Bool = SelectionFetcher.isTrusted
 
     private var mode: CaptureMode { CaptureMode.from(captureModeRaw) }
-    private var needsAccessibility: Bool { mode == .axWithWhitelist }
+    // 两种自动模式都需要 AX:.axWithWhitelist 读 selected text、
+    // .clipboardOnly 合成 ⌘C —— 两者在 macOS 10.14+ 都受 TCC 管。
+    private var needsAccessibility: Bool { mode != .disabled }
+    private var showsWhitelist: Bool { mode == .axWithWhitelist }
 
     var body: some View {
         Form {
@@ -272,7 +277,9 @@ struct CaptureTab: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
 
+            if showsWhitelist {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L.t(.captureWhitelistTitle))
@@ -293,12 +300,13 @@ struct CaptureTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: needsAccessibility ? 540 : 180)
-        // 用户切到 AX 模式且尚未授权 —— 跑一次 requestTrust 触发系统原生 prompt,
-        // 把 Noticky 注册进 TCC 让它出现在「辅助功能」列表里。之后用户可以
-        // 通过下面的卡片按钮自行去打开 System Settings 勾选。已授权时是 no-op。
+        .frame(width: 480, height: heightForMode)
+        // 用户切到任意自动模式且尚未授权 —— 跑一次 requestTrust 触发系统原生
+        // prompt,把 Noticky 注册进 TCC 让它出现在「辅助功能」列表里。
+        // .clipboardOnly 同样要 AX:合成的 ⌘C 走 CGEvent,macOS 10.14+ 起没
+        // 权限就被静默丢弃。已授权时是 no-op。
         .onChange(of: captureModeRaw) { _, newValue in
-            if CaptureMode.from(newValue) == .axWithWhitelist && !SelectionFetcher.isTrusted {
+            if CaptureMode.from(newValue) != .disabled && !SelectionFetcher.isTrusted {
                 SelectionFetcher.requestTrust()
             }
         }
@@ -319,6 +327,14 @@ struct CaptureTab: View {
         case .axWithWhitelist: return L.t(.captureFooterAxWhitelist)
         case .clipboardOnly:   return L.t(.captureFooterClipboardOnly)
         case .disabled:        return L.t(.captureFooterDisabled)
+        }
+    }
+
+    private var heightForMode: CGFloat {
+        switch mode {
+        case .axWithWhitelist: return 540  // mode + permission + whitelist
+        case .clipboardOnly:   return 320  // mode + permission
+        case .disabled:        return 180  // mode only
         }
     }
 
