@@ -112,4 +112,4 @@ targets:
         # release.sh 调 `sign_update` 时读取。生成步骤见 docs/release.md。
         # ⚠️ 首次发布前必须填上,否则 release.sh preflight 会拒绝运行。
         # 一旦发布后**严禁**更换公钥,否则已装版本会拒绝所有未来更新。
-        SUPublicEDKey: ""
+        SUPublicEDKey: "g3SCjADYsXhMN5/4hnQZ7eOawvtVoGJJsS5CFew15WQ="
