@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Graphite: deep slate → near-black -->
+    <linearGradient id="v8d-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"   stop-color="#3A3F4A"/>
+      <stop offset="0.5" stop-color="#1E2128"/>
+      <stop offset="1"   stop-color="#0C0E14"/>
+    </linearGradient>
+
+    <!-- Back two cards: still translucent glass, slightly stronger now that the front is opaque -->
+    <linearGradient id="v8d-glass1" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="v8d-glass2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.07"/>
+    </linearGradient>
+
+    <!-- Front: opaque yellow sticky -->
+    <linearGradient id="v8d-paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFEC8E"/>
+      <stop offset="1" stop-color="#FFC83A"/>
+    </linearGradient>
+
+    <linearGradient id="v8d-edge" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"   stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="1"   stop-color="#FFFFFF" stop-opacity="0.5"/>
+    </linearGradient>
+    <!-- Paper's own subtle inner edge highlight -->
+    <linearGradient id="v8d-paper-edge" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="v8d-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"    stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="v8d-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
+      <feOffset dx="0" dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Front card gets a softer but more grounded shadow -->
+    <filter id="v8d-paper-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
+      <feOffset dx="0" dy="16"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.62"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v8d-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v8d-shine)"/>
+
+  <!-- Back glass card -->
+  <g filter="url(#v8d-shadow)" transform="translate(512 560) rotate(-10)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8d-glass1)"/>
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8d-edge)" stroke-width="3"/>
+  </g>
+  <!-- Middle glass card -->
+  <g filter="url(#v8d-shadow)" transform="translate(512 512) rotate(4)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8d-glass2)"/>
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8d-edge)" stroke-width="3"/>
+  </g>
+  <!-- Front opaque yellow sticky -->
+  <g filter="url(#v8d-paper-shadow)" transform="translate(512 478) rotate(-3)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8d-paper)"/>
+    <!-- subtle bright top-edge highlight on the paper -->
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8d-paper-edge)" stroke-width="3"/>
+    <!-- content lines: dark warm brown on yellow -->
+    <rect x="-200" y="-150" width="380" height="32" rx="16" fill="#6A3E0A" opacity="0.7"/>
+    <rect x="-200" y="-70"  width="300" height="32" rx="16" fill="#6A3E0A" opacity="0.7"/>
+    <rect x="-200" y="10"   width="360" height="32" rx="16" fill="#6A3E0A" opacity="0.7"/>
+    <rect x="-200" y="90"   width="220" height="32" rx="16" fill="#6A3E0A" opacity="0.7"/>
+  </g>
+</svg>

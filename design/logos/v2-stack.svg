@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Soft sky background -->
+    <linearGradient id="v2-bg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#E8F1FF"/>
+      <stop offset="1" stop-color="#B7CDEF"/>
+    </linearGradient>
+    <linearGradient id="v2-pink" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFC8D5"/>
+      <stop offset="1" stop-color="#FF8FA8"/>
+    </linearGradient>
+    <linearGradient id="v2-yellow" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFF1A8"/>
+      <stop offset="1" stop-color="#FFD250"/>
+    </linearGradient>
+    <linearGradient id="v2-mint" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#C8F3DC"/>
+      <stop offset="1" stop-color="#7CD9A8"/>
+    </linearGradient>
+    <linearGradient id="v2-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="0.6" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="v2-drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="10"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v2-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v2-shine)"/>
+
+  <!-- Bottom note (mint) -->
+  <g transform="translate(512 540) rotate(-12)" filter="url(#v2-drop)">
+    <rect x="-280" y="-280" width="560" height="560" rx="28" fill="url(#v2-mint)"/>
+    <rect x="-200" y="-150" width="350" height="28" rx="14" fill="#3E946A" opacity="0.45"/>
+    <rect x="-200" y="-80"  width="280" height="28" rx="14" fill="#3E946A" opacity="0.45"/>
+    <rect x="-200" y="-10"  width="320" height="28" rx="14" fill="#3E946A" opacity="0.45"/>
+  </g>
+
+  <!-- Middle note (pink) -->
+  <g transform="translate(512 512) rotate(4)" filter="url(#v2-drop)">
+    <rect x="-280" y="-280" width="560" height="560" rx="28" fill="url(#v2-pink)"/>
+    <rect x="-200" y="-150" width="380" height="28" rx="14" fill="#B43E5E" opacity="0.45"/>
+    <rect x="-200" y="-80"  width="320" height="28" rx="14" fill="#B43E5E" opacity="0.45"/>
+    <rect x="-200" y="-10"  width="260" height="28" rx="14" fill="#B43E5E" opacity="0.45"/>
+  </g>
+
+  <!-- Top note (yellow) -->
+  <g transform="translate(512 484) rotate(-5)" filter="url(#v2-drop)">
+    <rect x="-280" y="-280" width="560" height="560" rx="28" fill="url(#v2-yellow)"/>
+    <rect x="-200" y="-150" width="400" height="32" rx="16" fill="#A87410" opacity="0.55"/>
+    <rect x="-200" y="-70"  width="300" height="32" rx="16" fill="#A87410" opacity="0.55"/>
+    <rect x="-200" y="10"   width="360" height="32" rx="16" fill="#A87410" opacity="0.55"/>
+    <rect x="-200" y="90"   width="220" height="32" rx="16" fill="#A87410" opacity="0.55"/>
+  </g>
+</svg>

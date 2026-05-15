@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep amber to coral background -->
+    <linearGradient id="v4-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFB347"/>
+      <stop offset="1" stop-color="#FF7A45"/>
+    </linearGradient>
+    <linearGradient id="v4-paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFEF6"/>
+      <stop offset="1" stop-color="#FFEFB3"/>
+    </linearGradient>
+    <linearGradient id="v4-n" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#C84520"/>
+      <stop offset="1" stop-color="#8E2A10"/>
+    </linearGradient>
+    <linearGradient id="v4-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="v4-drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
+      <feOffset dx="0" dy="14"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v4-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v4-shine)"/>
+
+  <!-- Centered sticky note (no rotation, very macOS Big-Sur centered-subject) -->
+  <g transform="translate(512 512)" filter="url(#v4-drop)">
+    <g transform="translate(-300 -300)">
+      <!-- paper -->
+      <path d="M 0 0
+               L 600 0
+               L 600 510
+               L 510 600
+               L 0 600 Z"
+            fill="url(#v4-paper)"/>
+      <!-- corner fold -->
+      <path d="M 600 510 L 510 600 L 510 510 Z" fill="#E6C04E"/>
+      <path d="M 510 510 L 510 600 L 600 510 Z" fill="#000" opacity="0.05"/>
+
+      <!-- Bold "N" monogram: left bar + right bar + diagonal stroke -->
+      <g fill="url(#v4-n)">
+        <rect x="130" y="130" width="80" height="340"/>
+        <rect x="390" y="130" width="80" height="340"/>
+        <polygon points="210,130 290,130 470,470 390,470"/>
+      </g>
+    </g>
+  </g>
+</svg>

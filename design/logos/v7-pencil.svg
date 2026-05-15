@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="v7-bg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#9BD6FF"/>
+      <stop offset="1" stop-color="#4DA3E8"/>
+    </linearGradient>
+    <linearGradient id="v7-paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFEF2"/>
+      <stop offset="1" stop-color="#FFEEB0"/>
+    </linearGradient>
+    <linearGradient id="v7-pencil" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0" stop-color="#FFD24A"/>
+      <stop offset="0.5" stop-color="#FFB200"/>
+      <stop offset="1" stop-color="#D88B00"/>
+    </linearGradient>
+    <linearGradient id="v7-ferrule" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0" stop-color="#E6E6E6"/>
+      <stop offset="0.5" stop-color="#B8B8B8"/>
+      <stop offset="1" stop-color="#8A8A8A"/>
+    </linearGradient>
+    <linearGradient id="v7-eraser" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0" stop-color="#FF92A4"/>
+      <stop offset="1" stop-color="#D43A56"/>
+    </linearGradient>
+    <linearGradient id="v7-tip" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0" stop-color="#F1D8A0"/>
+      <stop offset="1" stop-color="#C99A52"/>
+    </linearGradient>
+    <linearGradient id="v7-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.4"/>
+      <stop offset="0.6" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="v7-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.32"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v7-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v7-shine)"/>
+
+  <!-- paper note (no rotation, centered, with corner fold) -->
+  <g filter="url(#v7-shadow)" transform="translate(512 512)">
+    <g transform="translate(-300 -300)">
+      <path d="M 0 0 L 600 0 L 600 510 L 510 600 L 0 600 Z" fill="url(#v7-paper)"/>
+      <path d="M 600 510 L 510 600 L 510 510 Z" fill="#E0B838"/>
+      <!-- a few subtle lines hinting at content (kept short, pencil will overlay) -->
+      <rect x="80"  y="120" width="340" height="28" rx="14" fill="#A87410" opacity="0.4"/>
+      <rect x="80"  y="200" width="260" height="28" rx="14" fill="#A87410" opacity="0.4"/>
+    </g>
+  </g>
+
+  <!-- pencil, diagonal across the note from top-right to bottom-left -->
+  <g transform="translate(512 512) rotate(-35)" filter="url(#v7-shadow)">
+    <!-- order along x: eraser | ferrule | body | tip -->
+    <!-- eraser -->
+    <rect x="-380" y="-44" width="90"  height="88" rx="18" fill="url(#v7-eraser)"/>
+    <!-- ferrule (silver band) -->
+    <rect x="-290" y="-44" width="40"  height="88" fill="url(#v7-ferrule)"/>
+    <!-- ferrule ridges -->
+    <rect x="-282" y="-44" width="3" height="88" fill="#000" opacity="0.18"/>
+    <rect x="-268" y="-44" width="3" height="88" fill="#000" opacity="0.18"/>
+    <rect x="-254" y="-44" width="3" height="88" fill="#000" opacity="0.18"/>
+    <!-- yellow body -->
+    <rect x="-250" y="-44" width="500" height="88" fill="url(#v7-pencil)"/>
+    <!-- top highlight strip on body -->
+    <rect x="-250" y="-40" width="500" height="14" fill="#FFFFFF" opacity="0.25"/>
+    <!-- wooden tip -->
+    <polygon points="250,-44 360,0 250,44" fill="url(#v7-tip)"/>
+    <!-- graphite point -->
+    <polygon points="340,-12 360,0 340,12" fill="#2A2A2E"/>
+  </g>
+</svg>

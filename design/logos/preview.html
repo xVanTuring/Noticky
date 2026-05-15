@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Noticky logo — drafts</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f4f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: rgba(0,0,0,0.08);
+    --chip: #efeff2;
+    --chip-dark: #1d1d1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1c;
+      --card: #2a2a2d;
+      --text: #f5f5f7;
+      --muted: #a1a1a6;
+      --border: rgba(255,255,255,0.08);
+      --chip: #1d1d1f;
+      --chip-dark: #f5f5f7;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 32px 96px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--muted);
+    margin: 0 0 40px;
+    font-size: 14px;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 16px;
+  }
+
+  /* ===== Lineup: all variants at a single size ===== */
+  .lineup {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 32px;
+    margin-bottom: 40px;
+  }
+  .lineup-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 880px) {
+    .lineup-row { grid-template-columns: repeat(4, 1fr); }
+  }
+  .chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip img { width: 96px; height: 96px; display: block; }
+  .chip .name { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  /* ===== Detail cards ===== */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .hero {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 8px;
+  }
+  .hero img { width: 224px; height: 224px; display: block; }
+
+  .sizes {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 28px;
+    padding: 14px 16px;
+    background: var(--chip);
+    border-radius: 14px;
+  }
+  .size-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .size-block img { display: block; }
+  .size-block .label-sm {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .s64 { width: 64px; height: 64px; }
+  .s32 { width: 32px; height: 32px; }
+  .s16 { width: 16px; height: 16px; }
+
+  .meta { display: flex; flex-direction: column; gap: 6px; }
+  .meta .name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .meta .desc {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Noticky — logo 草稿</h1>
+  <p class="sub">8 个方向 · 顶部 96px 一字排开对比，下方每个方向带 hero + 64 / 32 / 16 三档小尺寸</p>
+
+  <!-- ===== v8d 焦点：前层改为不透明便签 ===== -->
+  <section class="lineup">
+    <h2>v8d · 前层不透明便签</h2>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+      <div class="card" style="background: transparent; border: 1px solid var(--border);">
+        <div class="hero"><img src="v8d-graphite.svg"></div>
+        <div class="sizes">
+          <div class="size-block"><img src="v8d-graphite.svg" class="s64"><span class="label-sm">64</span></div>
+          <div class="size-block"><img src="v8d-graphite.svg" class="s32"><span class="label-sm">32</span></div>
+          <div class="size-block"><img src="v8d-graphite.svg" class="s16"><span class="label-sm">16</span></div>
+        </div>
+        <div class="meta">
+          <div class="name">v8d · 石墨 + 黄便签</div>
+          <p class="desc">后两层保持半透明玻璃，前层换成不透明黄便签 + 深棕文字。最贴 "便签 app" 的识别。</p>
+        </div>
+      </div>
+      <div class="card" style="background: transparent; border: 1px solid var(--border);">
+        <div class="hero"><img src="v8d2-graphite-cream.svg"></div>
+        <div class="sizes">
+          <div class="size-block"><img src="v8d2-graphite-cream.svg" class="s64"><span class="label-sm">64</span></div>
+          <div class="size-block"><img src="v8d2-graphite-cream.svg" class="s32"><span class="label-sm">32</span></div>
+          <div class="size-block"><img src="v8d2-graphite-cream.svg" class="s16"><span class="label-sm">16</span></div>
+        </div>
+        <div class="meta">
+          <div class="name">v8d2 · 石墨 + 冷白纸</div>
+          <p class="desc">同样配方但前层是冷白米色纸 + 深石板文字。更克制 / pro，少了便签的暖色记忆。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== v8 Liquid Glass 变体 ===== -->
+  <section class="lineup">
+    <h2>v8 · Liquid Glass 变体 · 96 px</h2>
+    <div class="lineup-row" style="grid-template-columns: repeat(6, 1fr);">
+      <div class="chip"><img src="v8-glass.svg"     alt="v8"><span class="name">v8 原版</span></div>
+      <div class="chip"><img src="v8a-sunset.svg"   alt="v8a"><span class="name">v8a 日落</span></div>
+      <div class="chip"><img src="v8b-ocean.svg"    alt="v8b"><span class="name">v8b 海洋</span></div>
+      <div class="chip"><img src="v8c-aurora.svg"   alt="v8c"><span class="name">v8c 极光</span></div>
+      <div class="chip"><img src="v8d-graphite.svg" alt="v8d"><span class="name">v8d 石墨</span></div>
+      <div class="chip"><img src="v8e-butter.svg"   alt="v8e"><span class="name">v8e 奶油</span></div>
+    </div>
+  </section>
+
+  <h2>v8 变体 · Detail</h2>
+  <div class="grid" style="margin-bottom: 40px;">
+
+    <div class="card">
+      <div class="hero"><img src="v8-glass.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8-glass.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8-glass.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8-glass.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8 · 原版（粉紫蓝）</div>
+        <p class="desc">最初的配色：粉 → 紫 → 蓝对角渐变，中性白玻璃。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8a-sunset.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8a-sunset.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8a-sunset.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8a-sunset.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8a · 日落 Sunset</div>
+        <p class="desc">珊瑚 → 桃粉 → 琥珀，前层玻璃带暖色调，文字暗棕色。温暖，适合 light mode。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8b-ocean.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8b-ocean.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8b-ocean.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8b-ocean.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8b · 海洋 Ocean</div>
+        <p class="desc">青绿 → 天蓝 → 靛蓝，冷色调玻璃。最接近 macOS Tahoe 默认壁纸的氛围。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8c-aurora.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8c-aurora.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8c-aurora.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8c-aurora.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8c · 极光 Aurora</div>
+        <p class="desc">高饱和品红 → 紫 → 青绿，最跳的一版，扎眼但年轻。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8d-graphite.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8d-graphite.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8d-graphite.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8d-graphite.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8d · 石墨 Graphite</div>
+        <p class="desc">深石板黑底 + 浅白玻璃 + 浅色文字。最 pro / 沉稳，dark mode 下也最贴。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8e-butter.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8e-butter.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8e-butter.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8e-butter.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8e · 奶油 Butter</div>
+        <p class="desc">奶黄 → 琥珀，前层玻璃带强黄色调，最贴"便签纸"的色彩记忆。</p>
+      </div>
+    </div>
+
+  </div>
+
+  <section class="lineup">
+    <h2>全部方向 · 96 px</h2>
+    <div class="lineup-row">
+      <div class="chip"><img src="v1-classic.svg"  alt="v1"><span class="name">v1 经典</span></div>
+      <div class="chip"><img src="v2-stack.svg"    alt="v2"><span class="name">v2 堆叠</span></div>
+      <div class="chip"><img src="v3-pinned.svg"   alt="v3"><span class="name">v3 图钉</span></div>
+      <div class="chip"><img src="v4-monogram.svg" alt="v4"><span class="name">v4 字母</span></div>
+      <div class="chip"><img src="v5-window.svg"   alt="v5"><span class="name">v5 窗口</span></div>
+      <div class="chip"><img src="v6-tab.svg"      alt="v6"><span class="name">v6 标签</span></div>
+      <div class="chip"><img src="v7-pencil.svg"   alt="v7"><span class="name">v7 铅笔</span></div>
+      <div class="chip"><img src="v8-glass.svg"    alt="v8"><span class="name">v8 玻璃</span></div>
+    </div>
+  </section>
+
+  <h2>Detail</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="hero"><img src="v1-classic.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v1-classic.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v1-classic.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v1-classic.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v1 · 经典斜置便签</div>
+        <p class="desc">暖琥珀 squircle 上斜放一张奶黄便签，带翻角和文字行。最直接的便签 app 形象。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v2-stack.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v2-stack.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v2-stack.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v2-stack.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v2 · 多色便签堆叠</div>
+        <p class="desc">浅蓝底,粉 / 黄 / 薄荷三张错位堆叠,强调"多张便签 + 集中管理"。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v3-pinned.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v3-pinned.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v3-pinned.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v3-pinned.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v3 · 翻角 + 图钉</div>
+        <p class="desc">弧形卷角的便签 + 红色图钉,略拟物,带桌面贴纸的氛围。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v4-monogram.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v4-monogram.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v4-monogram.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v4-monogram.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v4 · N 字母标</div>
+        <p class="desc">正放居中便签 + 粗体 N。Big-Sur 风格,小尺寸辨识度最高。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v5-window.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v5-window.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v5-window.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v5-window.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v5 · 浮窗 + 便签</div>
+        <p class="desc">缩小版 macOS 窗口(带红黄绿三灯)里嵌一张便签,呼应"浮动窗口"这条产品主线。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v6-tab.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v6-tab.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v6-tab.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v6-tab.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v6 · 标签纸(文件夹 tab)</div>
+        <p class="desc">蓝色底 + 橙色 tab 标签 + 米黄便签,办公文具感强,色彩对比鲜明。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v7-pencil.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v7-pencil.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v7-pencil.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v7-pencil.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v7 · 铅笔 + 便签</div>
+        <p class="desc">便签上斜搭一支黄铅笔,强调"写 / 记录"的动作感,经典文具组合。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hero"><img src="v8-glass.svg"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="v8-glass.svg" class="s64"><span class="label-sm">64</span></div>
+        <div class="size-block"><img src="v8-glass.svg" class="s32"><span class="label-sm">32</span></div>
+        <div class="size-block"><img src="v8-glass.svg" class="s16"><span class="label-sm">16</span></div>
+      </div>
+      <div class="meta">
+        <div class="name">v8 · Liquid Glass</div>
+        <p class="desc">三层半透明卡片堆叠,粉 / 紫 / 蓝渐变,呼应 macOS 26 Tahoe 的 Liquid Glass 语言。</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

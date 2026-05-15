@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Ocean: aqua → sky → indigo -->
+    <linearGradient id="v8b-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"   stop-color="#7BE0E0"/>
+      <stop offset="0.5" stop-color="#5DA8F0"/>
+      <stop offset="1"   stop-color="#5B6EE8"/>
+    </linearGradient>
+
+    <linearGradient id="v8b-glass1" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#D8ECFF" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="v8b-glass2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#CFE2FF" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="v8b-glass3" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#E0F0FF" stop-opacity="0.72"/>
+    </linearGradient>
+
+    <linearGradient id="v8b-edge" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"   stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1"   stop-color="#FFFFFF" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="v8b-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"    stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="v8b-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12"/>
+      <feOffset dx="0" dy="10"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v8b-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v8b-shine)"/>
+
+  <g filter="url(#v8b-shadow)" transform="translate(512 560) rotate(-10)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8b-glass1)"/>
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8b-edge)" stroke-width="3"/>
+  </g>
+  <g filter="url(#v8b-shadow)" transform="translate(512 512) rotate(4)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8b-glass2)"/>
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8b-edge)" stroke-width="3"/>
+  </g>
+  <g filter="url(#v8b-shadow)" transform="translate(512 478) rotate(-3)">
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="url(#v8b-glass3)"/>
+    <rect x="-280" y="-280" width="560" height="560" rx="56" fill="none" stroke="url(#v8b-edge)" stroke-width="3"/>
+    <rect x="-200" y="-150" width="380" height="30" rx="15" fill="#1E3A6B" opacity="0.55"/>
+    <rect x="-200" y="-70"  width="300" height="30" rx="15" fill="#1E3A6B" opacity="0.55"/>
+    <rect x="-200" y="10"   width="360" height="30" rx="15" fill="#1E3A6B" opacity="0.55"/>
+    <rect x="-200" y="90"   width="220" height="30" rx="15" fill="#1E3A6B" opacity="0.55"/>
+  </g>
+</svg>

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="v6-bg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#7BCFFF"/>
+      <stop offset="1" stop-color="#3A8CD6"/>
+    </linearGradient>
+    <linearGradient id="v6-paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFEF6"/>
+      <stop offset="1" stop-color="#FFEEB0"/>
+    </linearGradient>
+    <linearGradient id="v6-tab" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FF9F45"/>
+      <stop offset="1" stop-color="#E16E12"/>
+    </linearGradient>
+    <linearGradient id="v6-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.4"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="v6-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v6-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v6-shine)"/>
+
+  <g filter="url(#v6-shadow)" transform="translate(512 540)">
+    <!-- folder tab on top -->
+    <path d="M -180 -340
+             Q -180 -380, -140 -380
+             L 140 -380
+             Q 180 -380, 180 -340
+             L 180 -280
+             L -180 -280 Z"
+          fill="url(#v6-tab)"/>
+    <!-- main paper card -->
+    <rect x="-320" y="-280" width="640" height="600" rx="36" fill="url(#v6-paper)"/>
+
+    <!-- content lines on paper -->
+    <rect x="-240" y="-160" width="480" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+    <rect x="-240" y="-70"  width="380" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+    <rect x="-240" y="20"   width="460" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+    <rect x="-240" y="110"  width="280" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+    <rect x="-240" y="200"  width="340" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+  </g>
+</svg>

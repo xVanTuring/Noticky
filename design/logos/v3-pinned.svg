@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Cork-board warm background -->
+    <radialGradient id="v3-bg" cx="0.5" cy="0.35" r="0.85">
+      <stop offset="0" stop-color="#FFE6B5"/>
+      <stop offset="1" stop-color="#E08A2A"/>
+    </radialGradient>
+    <linearGradient id="v3-paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFEF2"/>
+      <stop offset="1" stop-color="#FFEE9A"/>
+    </linearGradient>
+    <linearGradient id="v3-pin" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FF6B7A"/>
+      <stop offset="1" stop-color="#C8273B"/>
+    </linearGradient>
+    <radialGradient id="v3-pin-shine" cx="0.35" cy="0.3" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="v3-shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="v3-paper-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
+      <feOffset dx="0" dy="20"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="v3-pin-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v3-bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#v3-shine)"/>
+
+  <!-- Paper note with curled bottom-right corner, slight rotation -->
+  <g transform="translate(512 540) rotate(-4)" filter="url(#v3-paper-shadow)">
+    <g transform="translate(-330 -340)">
+      <!-- main body with curled corner -->
+      <path d="M 0 0
+               L 660 0
+               L 660 540
+               C 660 540, 600 600, 540 640
+               C 480 680, 420 680, 380 680
+               L 0 680 Z"
+            fill="url(#v3-paper)"/>
+      <!-- the underside of the curl -->
+      <path d="M 660 540
+               C 660 540, 600 600, 540 640
+               C 540 580, 580 540, 660 540 Z"
+            fill="#D4A325"/>
+      <!-- text lines -->
+      <rect x="80" y="180" width="500" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+      <rect x="80" y="280" width="420" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+      <rect x="80" y="380" width="470" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+      <rect x="80" y="480" width="280" height="36" rx="18" fill="#A87410" opacity="0.55"/>
+    </g>
+  </g>
+
+  <!-- Thumbtack / pin at the top center of the note -->
+  <g transform="translate(490 240)" filter="url(#v3-pin-shadow)">
+    <circle cx="0" cy="0" r="58" fill="url(#v3-pin)"/>
+    <circle cx="-18" cy="-22" r="22" fill="url(#v3-pin-shine)"/>
+  </g>
+</svg>
