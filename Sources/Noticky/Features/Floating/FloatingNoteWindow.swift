@@ -61,12 +61,53 @@ final class FloatingNotesRegistry {
 
     /// menubar 入口:把所有当前打开的浮窗都移到给定 UUID 的显示器。屏不存在
     /// 直接 no-op。一次性动作 —— 不持久化,关掉浮窗再开仍按 savedFrame 摆。
-    /// `floatOnTop=on` 时浮窗跨 Space,但跨屏要主动 setFrame,所以逐 controller 调。
+    /// `floatOnTop=on` 时浮窗跨 Space,但跨屏要主动 setFrame。
+    ///
+    /// 尊重当前 layout 模式:
+    /// - stack / tile:直接在目标屏上重新摆 layout(原模式的视觉规则保留)。
+    /// - normal:每窗按其相对源屏 visibleFrame 的偏移映射到目标屏,避免全部
+    ///   挤到同一点;源屏推不出来就退化为目标屏居中。
     func moveAllToDisplay(uuid: String) {
         guard let target = DisplayCatalog.screen(forUUID: uuid) else { return }
-        for wc in windows.values {
-            wc.moveToScreen(target)
+        switch layoutMode {
+        case .stack, .tile:
+            applyLayout(onScreen: target)
+        case .normal:
+            for wc in windows.values {
+                translateToScreen(wc, target: target)
+            }
         }
+    }
+
+    /// normal 模式下的"搬家":保留每窗在源屏 visibleFrame 内的相对位置,等比
+    /// 映射到目标屏。源屏识别失败 → 居中兜底。**保留尺寸**,目标屏装不下时
+    /// 钳到可见区。
+    private func translateToScreen(_ wc: FloatingNoteWindowController, target: NSScreen) {
+        guard let frame = wc.currentFrame else { return }
+        let source = Self.dominantScreen(for: frame)
+        let tv = target.visibleFrame
+        // 没源屏 / 源屏就是目标屏 → 不动。后者重要:用户已经在目标屏的窗别瞎搬。
+        guard let source, source !== target else { return }
+        let sv = source.visibleFrame
+
+        let relX = (frame.minX - sv.minX) / max(sv.width, 1)
+        let relY = (frame.minY - sv.minY) / max(sv.height, 1)
+        var newOrigin = NSPoint(
+            x: tv.minX + relX * tv.width,
+            y: tv.minY + relY * tv.height
+        )
+        // 钳到目标屏可见区:窗顶不能跑到屏外,左边不能贴出屏。
+        let maxX = tv.maxX - min(frame.width, tv.width)
+        let maxY = tv.maxY - min(frame.height, tv.height)
+        newOrigin.x = min(max(newOrigin.x, tv.minX), maxX)
+        newOrigin.y = min(max(newOrigin.y, tv.minY), maxY)
+        wc.animateFrame(NSRect(origin: newOrigin, size: frame.size))
+    }
+
+    /// NSRect 交集面积,用来挑"窗主要落在哪块屏"。
+    private static func intersectionArea(_ a: NSRect, _ b: NSRect) -> CGFloat {
+        let r = a.intersection(b)
+        return max(0, r.width) * max(0, r.height)
     }
 
     func setFloatOnTop(_ value: Bool) {
@@ -103,11 +144,13 @@ final class FloatingNotesRegistry {
 
     /// 按当前模式重排所有浮窗。`.normal` 是 no-op。
     /// AppDelegate 在启动 restore 完毕也会调一次,保证启动时回到上次的模式。
-    func applyLayout() {
+    /// `onScreen` 显式给定时(menubar「移到屏 X」),layout 锚到这块屏;
+    /// 否则按 activeScreen() 推断(key 窗 → 鼠标 → main)。
+    func applyLayout(onScreen: NSScreen? = nil) {
         switch layoutMode {
         case .normal: return
-        case .stack:  applyStackLayout()
-        case .tile:   applyTileLayout()
+        case .stack:  applyStackLayout(onScreen: onScreen)
+        case .tile:   applyTileLayout(onScreen: onScreen)
         }
     }
 
@@ -115,8 +158,8 @@ final class FloatingNotesRegistry {
     /// 顶部低 `stepY`,按 displayOrder 排,index 0 在 cascade 最上方,末尾(最近
     /// 选中的)在最下方完整可见。z-order 按 displayOrder 依次 orderFront,最终
     /// 末尾那张在最前。
-    private func applyStackLayout() {
-        guard let screen = activeScreen() else { return }
+    private func applyStackLayout(onScreen: NSScreen? = nil) {
+        guard let screen = onScreen ?? activeScreen() else { return }
         let visible = screen.visibleFrame
         let margin: CGFloat = 16
         let stepY: CGFloat = 36
@@ -143,8 +186,8 @@ final class FloatingNotesRegistry {
     /// 但**用户拖动一张后会先把 displayOrder 按当前可视位置重排**,然后再 tile。
     /// 这样拖到哪儿,松手 reflow 后那张就在哪个 slot,其它顺移补位。
     /// shelf packing:左→右一行,装不下换行,行高 = 该行最高的那张。
-    private func applyTileLayout() {
-        guard let screen = activeScreen() else { return }
+    private func applyTileLayout(onScreen: NSScreen? = nil) {
+        guard let screen = onScreen ?? activeScreen() else { return }
         let visible = screen.visibleFrame
         guard !windows.isEmpty else { return }
 
@@ -180,12 +223,29 @@ final class FloatingNotesRegistry {
         }
     }
 
-    /// 找操作目标屏:有 key 浮窗就用 key 所在屏,否则鼠标所在屏,再否则 main。
+    /// 找操作目标屏:**已经有浮窗的话,锁定在"最老浮窗所在屏"** —— 用户用
+    /// menubar "Move All to Display X" 之后,最老那张也在 X,后续 spawn (New Note)
+    /// 触发的 applyLayout 会继续锚在 X,不会因为鼠标当时在 Y 屏菜单上又把所有窗
+    /// 拉到 Y。没浮窗时退化回旧 heuristic:key → 鼠标 → main。
     private func activeScreen() -> NSScreen? {
+        if let oldestID = displayOrder.first,
+           let wc = windows[oldestID],
+           let frame = wc.currentFrame,
+           let screen = Self.dominantScreen(for: frame) {
+            return screen
+        }
         if let keyScreen = NSApp.keyWindow?.screen { return keyScreen }
         let mouse = NSEvent.mouseLocation
         if let s = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) { return s }
         return NSScreen.main ?? NSScreen.screens.first
+    }
+
+    /// 给定一个 NSWindow 的 frame,推断它主要落在哪块屏(取交集面积最大的那块)。
+    /// 跨屏窗用面积选主屏,避免归错。
+    private static func dominantScreen(for frame: NSRect) -> NSScreen? {
+        NSScreen.screens.max { a, b in
+            intersectionArea(a.frame, frame) < intersectionArea(b.frame, frame)
+        }
     }
 
     /// 当前是否有任何浮窗(供菜单 enabled 状态用)。
@@ -229,22 +289,35 @@ final class FloatingNotesRegistry {
         guard displayOrder.contains(id) else { return }
         displayOrder.removeAll { $0 == id }
         displayOrder.append(id)
-        applyStackLayout()
+        // 用户在哪屏点的窗,cascade 就锚到哪屏 —— 不让 activeScreen 的 oldest 偏好
+        // 把刚拖到新屏的窗弹回去。
+        applyStackLayout(onScreen: screenForWindow(id: id))
     }
 
     /// 用户结束拖动/缩放浮窗(非 animateFrame 触发的位移)。tile 模式下按当前
     /// 可视位置重排 displayOrder,再 reflow,实现「拖到哪儿就停在哪儿」。stack
     /// 模式下不重排,直接 reflow 把它弹回 cascade 位置。
+    ///
+    /// **关键**:layout 锚到"被拖窗当前所在屏",而不是 activeScreen 默认的
+    /// "最老窗所在屏" —— 用户拖到新屏就是想让整组跟过去,锁回去等于撤销操作。
     fileprivate func notifyUserMoveEnded(id: NSManagedObjectID) {
+        let draggedScreen = screenForWindow(id: id)
         switch layoutMode {
         case .normal:
             return
         case .stack:
-            applyStackLayout()
+            applyStackLayout(onScreen: draggedScreen)
         case .tile:
             sortDisplayOrderByCurrentPosition()
-            applyTileLayout()
+            applyTileLayout(onScreen: draggedScreen)
         }
+    }
+
+    /// 给定 objectID 查浮窗当前所在屏。窗已关 / 算不出来都返回 nil,layout
+    /// 会回退到 activeScreen 默认逻辑。
+    private func screenForWindow(id: NSManagedObjectID) -> NSScreen? {
+        guard let frame = windows[id]?.currentFrame else { return nil }
+        return Self.dominantScreen(for: frame)
     }
 
     /// 按浮窗当前 frame 的视觉位置(reading order:上→下,左→右)重排 displayOrder。
