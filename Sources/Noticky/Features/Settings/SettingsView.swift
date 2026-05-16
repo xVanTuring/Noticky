@@ -190,8 +190,10 @@ struct GeneralTab: View {
             .pickerStyle(.menu)
             // ForEach 的 id 是 enum rawValue,不会随语言变;SwiftUI 因此跳过
             // Text(sort.label) 的内容更新,菜单项和选中显示都停留在首次语言。
-            // 绑到 loc.current 上,语言切换瞬间整个 Picker 重建。
-            .id(loc.current)
+            // id 绑到 loc.current 上,语言切换瞬间整个 Picker 重建。
+            // **必须带各自前缀**:同一容器里多个兄弟 Picker 若 .id() 值相同,
+            // SwiftUI 身份冲突会把后者渲染成前者。
+            .id("sortPicker.\(loc.current.rawValue)")
 
             // 菜单栏图标右侧数字徽标。改这个值后 @AppStorage 落 UserDefaults,
             // MenuBarController 监听 UserDefaults.didChangeNotification 立即刷新。
@@ -201,7 +203,7 @@ struct GeneralTab: View {
                 }
             }
             .pickerStyle(.menu)
-            .id(loc.current)  // 同 sort picker:语言切换时整体重建
+            .id("menuBarCountPicker.\(loc.current.rawValue)")  // 同 sort picker:唯一前缀 + 语言后缀
 
             // 语言:跟随系统 / English / 简体中文。setLanguage 是 @Published,
             // 切换瞬间所有订阅 LocalizationManager 的 view 重渲染,无需重启。
