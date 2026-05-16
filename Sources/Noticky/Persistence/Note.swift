@@ -16,6 +16,12 @@ public final class Note: NSManagedObject, Identifiable {
     @NSManaged public var hasSavedFrame: Bool
     @NSManaged public var isTrashed: Bool
     @NSManaged public var trashedAt: Date?
+    /// V3 起:归档状态。与 isTrashed 互斥(三态:活跃 / 归档 / 回收站)。
+    /// 归档笔记不进菜单栏列表、不开机自动恢复、不进主列表,但永不自动删除。
+    @NSManaged public var isArchived: Bool
+    /// V3 起:归档时间。nil = 未归档。仅做展示/排序与跨设备同步,不驱动任何
+    /// 自动清理(归档没有过期一说)。
+    @NSManaged public var archivedAt: Date?
     @NSManaged public var isCollapsed: Bool
     /// V2 起:一次性提醒时间。nil = 未设。
     /// 设/清值后,代码层调 `ReminderScheduler` 同步 UN 调度;
@@ -40,11 +46,15 @@ extension Note {
 }
 
 extension Note {
-    /// 默认 fetch:**只取未进回收站的笔记**。所有列表/管理/菜单都用这个。
-    /// 想看回收站走 `trashedFetchRequest`。
+    /// 默认 fetch:**只取活跃笔记**(未进回收站 **且** 未归档)。所有
+    /// 列表/管理/菜单都用这个。想看回收站走 `trashedFetchRequest`,
+    /// 想看归档走 `archivedFetchRequest`。
     static func sortedFetchRequest() -> NSFetchRequest<Note> {
         let request = NSFetchRequest<Note>(entityName: "Note")
-        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+        request.predicate = NSPredicate(
+            format: "isTrashed == %@ AND isArchived == %@",
+            NSNumber(value: false), NSNumber(value: false)
+        )
         request.sortDescriptors = [
             NSSortDescriptor(key: "isPinned", ascending: false),
             NSSortDescriptor(key: "updatedAt", ascending: false)
@@ -58,6 +68,21 @@ extension Note {
         request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: true))
         request.sortDescriptors = [
             NSSortDescriptor(key: "trashedAt", ascending: false)
+        ]
+        return request
+    }
+
+    /// 归档列表用。`isArchived == true` 且不在回收站(回收站优先级更高:
+    /// 把归档笔记移入回收站时会清掉 isArchived)。最近归档的排在最前;
+    /// archivedAt 缺失的(理论上不该出现)排到末尾。
+    static func archivedFetchRequest() -> NSFetchRequest<Note> {
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(
+            format: "isArchived == %@ AND isTrashed == %@",
+            NSNumber(value: true), NSNumber(value: false)
+        )
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "archivedAt", ascending: false)
         ]
         return request
     }

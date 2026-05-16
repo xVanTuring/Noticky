@@ -269,7 +269,11 @@ final class FloatingNotesRegistry {
     /// menubar "Show All Stickies" 的入口,语义是"把库里所有便签都显示出来"。
     func showAll(in context: NSManagedObjectContext) {
         let request = NSFetchRequest<Note>(entityName: "Note")
-        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+        // 不显示归档笔记 —— "显示所有便签" 只针对活跃笔记。
+        request.predicate = NSPredicate(
+            format: "isTrashed == %@ AND isArchived == %@",
+            NSNumber(value: false), NSNumber(value: false)
+        )
         request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         guard let notes = try? context.fetch(request) else { return }
         for note in notes {
@@ -385,6 +389,10 @@ final class FloatingNotesRegistry {
             note.isPinned = false
             note.isTrashed = true
             note.trashedAt = Date()
+            // 回收站优先级高于归档:把归档笔记移入回收站时清掉归档态,
+            // 保证三态(活跃 / 归档 / 回收站)始终互斥。
+            note.isArchived = false
+            note.archivedAt = nil
             try? context?.save()
         }
         applyLayout()
@@ -395,6 +403,42 @@ final class FloatingNotesRegistry {
         DispatchQueue.main.async {
             note.isTrashed = false
             note.trashedAt = nil
+            try? note.managedObjectContext?.save()
+        }
+    }
+
+    /// 归档:把笔记移出活跃列表但保留(不删除、永不过期自动清)。有浮窗先
+    /// 无痕关掉,清 isPinned(归档的不再算开机自动恢复),撤掉提醒(跟进
+    /// 回收站一致 —— 收起来就别再弹;reminderDate 字段保留,取消归档后 UI
+    /// 仍能看到原设时间)。写 isArchived = true + archivedAt = now。
+    /// 入口:浮窗 ⋯ 菜单、Manager 侧边栏右键。
+    func archive(note: Note) {
+        let id = note.objectID
+        if let wc = windows[id] {
+            wc.close()
+            windows[id] = nil
+            displayOrder.removeAll { $0 == id }
+        }
+        let context = note.managedObjectContext
+        ReminderScheduler.shared.cancel(noteID: note.id)
+        // 推到下一个 runloop tick —— 跟 delete 同理:@ObservedObject 在同
+        // tick 内 mutate isArchived 也会触发 SwiftUI 重渲染访问 fault 对象;
+        // 推一拍让 orderOut 先生效,SwiftUI 树释放后再写库。
+        DispatchQueue.main.async {
+            note.isPinned = false
+            note.isArchived = true
+            note.archivedAt = Date()
+            try? context?.save()
+        }
+        applyLayout()
+    }
+
+    /// 取消归档:回到活跃列表。不重新打开浮窗 —— 用户想看自己点 Open
+    /// (跟从回收站 restore 行为一致)。
+    func unarchive(note: Note) {
+        DispatchQueue.main.async {
+            note.isArchived = false
+            note.archivedAt = nil
             try? note.managedObjectContext?.save()
         }
     }
@@ -478,6 +522,9 @@ final class FloatingNotesRegistry {
             onRequestDelete: { [weak self] in
                 self?.delete(note: note)
             },
+            onRequestArchive: { [weak self] in
+                self?.archive(note: note)
+            },
             onBecameKey: { [weak self] in
                 self?.notifyWindowBecameKey(id: id)
             },
@@ -556,6 +603,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     private let initialCollectionBehavior: NSWindow.CollectionBehavior
     private let onClose: () -> Void
     private let onRequestDelete: () -> Void
+    private let onRequestArchive: () -> Void
     private let onBecameKey: () -> Void
     private let onUserMoveEnded: () -> Void
     private var window: NSWindow?
@@ -577,6 +625,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         initialCollectionBehavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary],
         onClose: @escaping () -> Void,
         onRequestDelete: @escaping () -> Void,
+        onRequestArchive: @escaping () -> Void = {},
         onBecameKey: @escaping () -> Void = {},
         onUserMoveEnded: @escaping () -> Void = {}
     ) {
@@ -585,6 +634,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         self.initialCollectionBehavior = initialCollectionBehavior
         self.onClose = onClose
         self.onRequestDelete = onRequestDelete
+        self.onRequestArchive = onRequestArchive
         self.onBecameKey = onBecameKey
         self.onUserMoveEnded = onUserMoveEnded
         super.init()
@@ -673,6 +723,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
                 },
                 onDelete: { [weak self] in
                     self?.onRequestDelete()
+                },
+                onArchive: { [weak self] in
+                    self?.onRequestArchive()
                 },
                 onToggleCollapse: { [weak self] in
                     self?.toggleCollapse()
@@ -913,6 +966,7 @@ private struct FloatingNoteView: View {
     @ObservedObject private var loc = LocalizationManager.shared
     let onClose: () -> Void
     let onDelete: () -> Void
+    let onArchive: () -> Void
     let onToggleCollapse: () -> Void
 
     private var palette: StickyPalette {
@@ -1008,6 +1062,7 @@ private struct FloatingNoteView: View {
                 },
                 onToggleCollapse: onToggleCollapse,
                 onDelete: onDelete,
+                onArchive: onArchive,
                 onSetReminder: { date in setReminder(date) },
                 onClearReminder: { clearReminder() }
             )
@@ -1184,6 +1239,7 @@ private struct HoverToolbar: View {
     let onPickColor: (StickyPalette) -> Void
     let onToggleCollapse: () -> Void
     let onDelete: () -> Void
+    let onArchive: () -> Void
     let onSetReminder: (Date) -> Void
     let onClearReminder: () -> Void
     @State private var hovering = false
@@ -1270,6 +1326,10 @@ private struct HoverToolbar: View {
                         onToggleCollapse: {
                             showColorPicker = false
                             onToggleCollapse()
+                        },
+                        onArchive: {
+                            showColorPicker = false
+                            onArchive()
                         },
                         onDelete: {
                             showColorPicker = false
@@ -1400,6 +1460,7 @@ private struct NoteActionsBubble: View {
     let isCollapsed: Bool
     let onPickColor: (StickyPalette) -> Void
     let onToggleCollapse: () -> Void
+    let onArchive: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -1429,6 +1490,17 @@ private struct NoteActionsBubble: View {
                 HStack(spacing: 6) {
                     Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
                     Text(isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse))
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            // 归档:收起但保留(不进回收站、永不自动删)。放在折叠和删除之间 ——
+            // 比删除"轻",是日常整理动作。
+            Button(action: onArchive) {
+                HStack(spacing: 6) {
+                    Image(systemName: "archivebox")
+                    Text(L.t(.floatArchive))
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())

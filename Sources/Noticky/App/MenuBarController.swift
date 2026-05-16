@@ -84,12 +84,17 @@ final class MenuBarController: NSObject {
         let request = NSFetchRequest<Note>(entityName: "Note")
         switch mode {
         case .total:
-            request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+            // 全部活跃笔记 = 未删除且未归档(归档不计入,跟它不进列表一致)。
+            request.predicate = NSPredicate(
+                format: "isTrashed == %@ AND isArchived == %@",
+                NSNumber(value: false), NSNumber(value: false)
+            )
         case .active:
             // isPinned == 浮窗打开中 / 开机自动恢复(见 CLAUDE.md & MenuBarCountMode)。
+            // 归档会清 isPinned,这里再显式排除一层防御。
             request.predicate = NSPredicate(
-                format: "isPinned == %@ AND isTrashed == %@",
-                NSNumber(value: true), NSNumber(value: false)
+                format: "isPinned == %@ AND isTrashed == %@ AND isArchived == %@",
+                NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
             )
         case .none:
             return  // 上面已 guard,这分支只为穷尽 switch
@@ -120,8 +125,11 @@ final class MenuBarController: NSObject {
         menu.addItem(newItem)
 
         let request = NSFetchRequest<Note>(entityName: "Note")
-        // 拿全量(回收站除外),按当前 NoteSort 设置在内存里排;pinned 永远在前。
-        request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+        // 拿全量(回收站 + 归档除外),按当前 NoteSort 设置在内存里排;pinned 永远在前。
+        request.predicate = NSPredicate(
+            format: "isTrashed == %@ AND isArchived == %@",
+            NSNumber(value: false), NSNumber(value: false)
+        )
         let allNotes = (try? context.fetch(request)) ?? []
         let sort = NoteSort.from(UserDefaults.standard.string(forKey: SettingsKey.noteSort) ?? "")
         let notes = allNotes.sorted { lhs, rhs in

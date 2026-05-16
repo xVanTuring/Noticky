@@ -166,6 +166,12 @@ enum LocKey: String {
     case trashEmptyAlert, trashEmptyAlertMsg
     case trashDeleteAlert, trashDeleteAlertMsg, trashCannotUndo
     case trashDeletePermanentlyHelp, trashedRelative
+
+    // Archive
+    case archiveTitle, archiveEmpty, archiveEmptyDesc, archivedRelative
+    case archiveMoveToTrash
+    case managerArchive, managerArchiveCount, managerUnarchive
+    case floatArchive
 }
 
 /// 字符串查找器。`L.t(.foo)` 取无参数版本;`L.t(.foo, args)` 取 `String(format:)` 版本。
@@ -376,7 +382,17 @@ enum L {
         .trashDeleteAlertMsg: "This can't be undone.",
         .trashCannotUndo: "This can't be undone.",
         .trashDeletePermanentlyHelp: "Delete permanently",
-        .trashedRelative: "Trashed %@"
+        .trashedRelative: "Trashed %@",
+
+        .archiveTitle: "Archive",
+        .archiveEmpty: "Archive is empty",
+        .archiveEmptyDesc: "Archived notes are kept here indefinitely and never auto-deleted. Unarchive to bring one back.",
+        .archivedRelative: "Archived %@",
+        .archiveMoveToTrash: "Move to Trash",
+        .managerArchive: "Archive",
+        .managerArchiveCount: "Archive %d Notes",
+        .managerUnarchive: "Unarchive",
+        .floatArchive: "Archive note"
     ]
 
     private static let zh: [LocKey: String] = [
@@ -570,6 +586,16 @@ enum L {
         .trashDeleteAlertMsg: "操作无法撤销。",
         .trashCannotUndo: "操作无法撤销。",
         .trashDeletePermanentlyHelp: "彻底删除",
-        .trashedRelative: "%@删除"
+        .trashedRelative: "%@删除",
+
+        .archiveTitle: "归档",
+        .archiveEmpty: "归档为空",
+        .archiveEmptyDesc: "归档的便签会一直保留在这里,永不自动删除。点「取消归档」可放回。",
+        .archivedRelative: "%@归档",
+        .archiveMoveToTrash: "移入回收站",
+        .managerArchive: "归档",
+        .managerArchiveCount: "归档 %d 条便签",
+        .managerUnarchive: "取消归档",
+        .floatArchive: "归档便签"
     ]
 }

@@ -22,6 +22,10 @@ struct ManagerView: View {
     /// 同一个 store —— 同一个 viewContext 改动后两边都会自动刷新。
     @FetchRequest(fetchRequest: Note.trashedFetchRequest())
     private var trashedNotes: FetchedResults<Note>
+    /// 归档项数。展示在 sidebar 底部的徽章,跟 ArchiveDetailView 共享同一个
+    /// store —— 同一 viewContext 改动后两边自动刷新。
+    @FetchRequest(fetchRequest: Note.archivedFetchRequest())
+    private var archivedNotes: FetchedResults<Note>
 
     /// **多选**:`List(selection:)` 给 `Binding<Set<Hashable>>` 时,系统自动支持
     /// Cmd-click(切换单条入/出选区)和 Shift-click(范围选)—— 跟 Finder/Notes
@@ -30,6 +34,9 @@ struct ManagerView: View {
     /// 进 Trash 视图。Trash 不在 List selection 里(不跟 note 混选),用一个独立
     /// state 切。点击其它任何 note 会把这个清回 false(由 onChange 处理)。
     @State private var viewingTrash: Bool = false
+    /// 进 Archive 视图。跟 viewingTrash 一样独立于 List selection,且与
+    /// viewingTrash 互斥(三个视图状态:选中笔记 / 回收站 / 归档)。
+    @State private var viewingArchive: Bool = false
     @State private var search: String = ""
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     /// 重命名分组用的状态:点 "Rename" 后存住目标 group + 当前名,alert 用 TextField
@@ -134,16 +141,34 @@ struct ManagerView: View {
             // 会塌成 0,显式撑满。
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: selection) { _, new in
-                // 选中任何 note 时立刻退出 Trash 视图。
-                if !new.isEmpty { viewingTrash = false }
+                // 选中任何 note 时立刻退出 Trash / Archive 视图。
+                if !new.isEmpty {
+                    viewingTrash = false
+                    viewingArchive = false
+                }
             }
 
             Divider()
-            TrashSidebarRow(
+            // 归档入口 —— 跟回收站并列在底部。两个视图状态互斥。
+            BottomSidebarRow(
+                icon: "archivebox",
+                title: L.t(.archiveTitle),
+                count: archivedNotes.count,
+                active: viewingArchive,
+                onTap: {
+                    viewingArchive = true
+                    viewingTrash = false
+                    selection = []
+                }
+            )
+            BottomSidebarRow(
+                icon: "trash",
+                title: L.t(.trashTitle),
                 count: trashedNotes.count,
                 active: viewingTrash,
                 onTap: {
                     viewingTrash = true
+                    viewingArchive = false
                     selection = []
                 }
             )
@@ -157,6 +182,8 @@ struct ManagerView: View {
         Group {
             if viewingTrash {
                 TrashDetailView(floating: floating)
+            } else if viewingArchive {
+                ArchiveDetailView(floating: floating)
             } else if selection.count == 1,
                let id = selection.first,
                let note = allNotes.first(where: { $0.id == id && !$0.isDeleted }) {
@@ -362,6 +389,12 @@ struct ManagerView: View {
         }
 
         Divider()
+        Button(multi ? L.t(.managerArchiveCount, targets.count) : L.t(.managerArchive)) {
+            for n in targets {
+                selection.remove(n.id)
+                floating.archive(note: n)
+            }
+        }
         Button(multi ? L.t(.managerDeleteCount, targets.count) : L.t(.managerDeleteNote), role: .destructive) {
             for n in targets {
                 selection.remove(n.id)
@@ -460,6 +493,12 @@ struct ManagerView: View {
         })
 
         menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: multi ? L.t(.managerArchiveCount, targets.count) : L.t(.managerArchive)) {
+            for n in targets {
+                selection.remove(n.id)
+                floating.archive(note: n)
+            }
+        })
         menu.addItem(ClosureMenuItem(title: multi ? L.t(.managerDeleteCount, targets.count) : L.t(.managerDeleteNote)) {
             for n in targets {
                 selection.remove(n.id)
@@ -533,9 +572,11 @@ private struct NoteSidebarRow: View {
 
 // MARK: Trash sidebar row -----------------------------------------------------
 
-/// Sidebar 底部的 Trash 入口。手动绘制成"高亮态/默认态"两种,不进 List
-/// selection 队列,这样不和 note 多选混在一起。徽章显示 trash 笔记数量。
-private struct TrashSidebarRow: View {
+/// Sidebar 底部的固定入口(Archive / Trash 共用)。手动绘制成"高亮态/默认态"
+/// 两种,不进 List selection 队列,这样不和 note 多选混在一起。徽章显示数量。
+private struct BottomSidebarRow: View {
+    let icon: String
+    let title: String
     let count: Int
     let active: Bool
     let onTap: () -> Void
@@ -543,9 +584,9 @@ private struct TrashSidebarRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 8) {
-                Image(systemName: "trash")
+                Image(systemName: icon)
                     .frame(width: 16)
-                Text(L.t(.trashTitle))
+                Text(title)
                 Spacer()
                 if count > 0 {
                     Text("\(count)")
@@ -722,6 +763,117 @@ private struct TrashRow: View {
         }
         formatter.unitsStyle = .full
         return L.t(.trashedRelative, formatter.localizedString(for: when, relativeTo: Date()) as NSString)
+    }
+}
+
+// MARK: Archive detail -------------------------------------------------------
+
+/// 归档列表。仿回收站,但**没有**「清空」/「彻底删除」—— 归档永不自动过期、
+/// 也不在这里真删;每行只给「取消归档」(回到活跃列表)和「移入回收站」
+/// (走 floating.delete,会清掉归档态并进回收站的 N 天过期流程)。
+private struct ArchiveDetailView: View {
+    let floating: FloatingNotesRegistry
+    @Environment(\.managedObjectContext) private var context
+    @FetchRequest(fetchRequest: Note.archivedFetchRequest(), animation: .default)
+    private var archived: FetchedResults<Note>
+    @ObservedObject private var loc = LocalizationManager.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            if archived.isEmpty {
+                ContentUnavailableView(
+                    L.t(.archiveEmpty),
+                    systemImage: "archivebox",
+                    description: Text(L.t(.archiveEmptyDesc))
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    // 同 TrashDetailView:用 objectID 而不是 \.id 做身份,避免
+                    // 批量状态变更 + save 同 tick 时 SwiftUI diff 读到已 fault
+                    // 对象的非可选 UUID 触发 SIGTRAP。
+                    ForEach(archived, id: \.objectID) { note in
+                        ArchiveRow(
+                            note: note,
+                            onUnarchive: { floating.unarchive(note: note) },
+                            onTrash: { floating.delete(note: note) }
+                        )
+                    }
+                }
+                .listStyle(.inset)
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            Image(systemName: "archivebox")
+            Text(L.t(.archiveTitle))
+                .font(.title3.weight(.semibold))
+            Text("(\(archived.count))")
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct ArchiveRow: View {
+    @ObservedObject var note: Note
+    @ObservedObject private var loc = LocalizationManager.shared
+    let onUnarchive: () -> Void
+    let onTrash: () -> Void
+
+    var body: some View {
+        if note.isDeleted || note.managedObjectContext == nil {
+            EmptyView()
+        } else {
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(StickyPalette.from(index: note.colorIndex).color)
+                    .frame(width: 3)
+                    .frame(maxHeight: .infinity)
+                    .cornerRadius(1.5)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Text(isEmpty ? L.t(.emptyNote) : note.displayTitle)
+                        .lineLimit(1)
+                        .italic(isEmpty)
+                        .foregroundStyle(isEmpty ? .secondary : .primary)
+                    Text(archivedAtLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(L.t(.managerUnarchive), action: onUnarchive)
+                    .buttonStyle(.bordered)
+                Button(role: .destructive, action: onTrash) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.bordered)
+                .help(L.t(.archiveMoveToTrash))
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// "归档于 X 之前"。归档没有过期一说,可能是很久以前。
+    private var archivedAtLabel: String {
+        guard let when = note.archivedAt else { return L.t(.archiveTitle) }
+        let formatter = RelativeDateTimeFormatter()
+        switch LocalizationManager.shared.effective {
+        case .english: formatter.locale = Locale(identifier: "en")
+        case .chinese: formatter.locale = Locale(identifier: "zh-Hans")
+        case .system:  break
+        }
+        formatter.unitsStyle = .full
+        return L.t(.archivedRelative, formatter.localizedString(for: when, relativeTo: Date()) as NSString)
     }
 }
 

@@ -46,7 +46,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             request.fetchLimit = 1
             // 通知点击的笔记可能在用户其它 device 上已经删了 —— CloudKit 同步
             // 还没拉到本机时这里 fetch 不到,静默跳过。
-            guard let note = (try? ctx.fetch(request))?.first, !note.isTrashed else { return }
+            // 归档/回收站里的笔记点通知不弹浮窗(归档时已 cancel 提醒,这里
+            // 再挡一层防御 —— 跨设备同步残留的提醒可能仍会触发)。
+            guard let note = (try? ctx.fetch(request))?.first,
+                  !note.isTrashed, !note.isArchived else { return }
             NSApp.activate(ignoringOtherApps: true)
             self.floating.show(note: note)
         }
@@ -363,9 +366,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // INTEGER 0/1。用 NSNumber 显式包装最稳。
         // isTrashed 过滤是防御性的:trash 流程已经把 isPinned 清成 false,
         // 但跨版本启动时旧库里可能存在 pinned + trashed 的脏数据,这里挡一下。
+        // 归档会清 isPinned,理论上不会被 fetch 到;显式加 isArchived == false
+        // 兜旧库/跨设备同步残留的脏数据(pinned + archived)。
         request.predicate = NSPredicate(
-            format: "isPinned == %@ AND isTrashed == %@",
-            NSNumber(value: true), NSNumber(value: false)
+            format: "isPinned == %@ AND isTrashed == %@ AND isArchived == %@",
+            NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
         )
         request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         guard let pinned = try? context.fetch(request) else { return }

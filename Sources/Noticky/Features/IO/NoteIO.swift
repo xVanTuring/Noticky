@@ -94,6 +94,10 @@ enum NoteIO {
         let colorIndex: Int16
         let isTrashed: Bool
         let trashedAt: Date?
+        // V3 起的归档状态。optional 让旧 backup(没有这两个 key)仍能解码 ——
+        // 解出来 nil 即 false / 未归档。
+        let isArchived: Bool?
+        let archivedAt: Date?
         let groupId: UUID?
         // 不持久化 frame / isCollapsed —— 这些是 UI 本地状态,不该跨设备 migrate。
     }
@@ -122,6 +126,7 @@ enum NoteIO {
                     createdAt: n.createdAt, updatedAt: n.updatedAt,
                     isPinned: n.isPinned, colorIndex: n.colorIndex,
                     isTrashed: n.isTrashed, trashedAt: n.trashedAt,
+                    isArchived: n.isArchived, archivedAt: n.archivedAt,
                     groupId: n.group?.id
                 )
             }
@@ -181,6 +186,8 @@ enum NoteIO {
             n.colorIndex = row.colorIndex
             n.isTrashed = row.isTrashed
             n.trashedAt = row.trashedAt
+            n.isArchived = row.isArchived ?? false
+            n.archivedAt = row.archivedAt
             n.hasSavedFrame = false
             n.isCollapsed = false
             if let gid = row.groupId, let g = groupMap[gid] {
