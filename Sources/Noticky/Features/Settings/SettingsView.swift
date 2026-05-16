@@ -14,6 +14,9 @@ enum SettingsKey {
     static let doubleClickTitleToCollapse = "Noticky.doubleClickTitleToCollapse"
     static let appLanguage = "Noticky.appLanguage"
 
+    /// 菜单栏图标右侧数字徽标的显示模式(String raw,MenuBarCountMode enum)。
+    static let menuBarCount = "Noticky.menuBarCount"
+
     // 新建便签默认行为
     static let defaultColorIndex = "Noticky.defaultColorIndex"   // Int (0..5,对应 StickyPalette)
     static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
@@ -136,11 +139,37 @@ enum NoteSort: String, CaseIterable, Identifiable {
     }
 }
 
+/// 菜单栏图标右侧数字徽标的显示模式。
+/// - `none`:不显示,状态栏只剩图标(默认)。
+/// - `total`:全部未删除便签的数量。
+/// - `active`:当前显示中的便签数 —— 用 `isPinned`(它同时表达「浮窗打开中 /
+///   下次启动自动恢复」,见 CLAUDE.md),所以纯靠 Core Data 就能算,
+///   开关浮窗时 isPinned 写库会触发 MenuBarController 刷新。
+enum MenuBarCountMode: String, CaseIterable, Identifiable {
+    case none
+    case total
+    case active
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none:   return L.t(.menuBarCountNone)
+        case .total:  return L.t(.menuBarCountTotal)
+        case .active: return L.t(.menuBarCountActive)
+        }
+    }
+
+    static func from(_ raw: String) -> MenuBarCountMode {
+        MenuBarCountMode(rawValue: raw) ?? .none
+    }
+}
+
 // MARK: - General -------------------------------------------------------------
 
 struct GeneralTab: View {
     @State private var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
+    @AppStorage(SettingsKey.menuBarCount) private var menuBarCountRaw: String = MenuBarCountMode.none.rawValue
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
     @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapse: Bool = false
     @AppStorage(SettingsKey.trashRetentionDays) private var trashRetentionDays: Int = TrashRetention.defaultDays
@@ -163,6 +192,16 @@ struct GeneralTab: View {
             // Text(sort.label) 的内容更新,菜单项和选中显示都停留在首次语言。
             // 绑到 loc.current 上,语言切换瞬间整个 Picker 重建。
             .id(loc.current)
+
+            // 菜单栏图标右侧数字徽标。改这个值后 @AppStorage 落 UserDefaults,
+            // MenuBarController 监听 UserDefaults.didChangeNotification 立即刷新。
+            Picker(L.t(.generalMenuBarCount), selection: $menuBarCountRaw) {
+                ForEach(MenuBarCountMode.allCases) { mode in
+                    Text(mode.label).tag(mode.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+            .id(loc.current)  // 同 sort picker:语言切换时整体重建
 
             // 语言:跟随系统 / English / 简体中文。setLanguage 是 @Published,
             // 切换瞬间所有订阅 LocalizationManager 的 view 重渲染,无需重启。
@@ -210,7 +249,7 @@ struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 400)
+        .frame(width: 480, height: 450)
     }
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。

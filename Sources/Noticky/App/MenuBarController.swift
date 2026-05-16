@@ -28,6 +28,76 @@ final class MenuBarController: NSObject {
             // 左右键统一一个出口,弹同一个原生 NSMenu —— 参考 Apple Stickies 的菜单样式。
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
+        // 数字徽标随两类信号刷新:
+        //  1. 笔记增删改 —— viewContext 的 objectsDidChange(新建 / trash / restore /
+        //     开关浮窗都会写 isPinned/isTrashed 并 save,主线程投递)。total 和
+        //     active 两种模式都靠这个,active 用 isPinned(见 MenuBarCountMode)。
+        //  2. 用户在 Settings 改了显示模式 —— @AppStorage 落盘触发 didChange。
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(scheduleBadgeRefresh),
+            name: .NSManagedObjectContextObjectsDidChange,
+            object: context
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(scheduleBadgeRefresh),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+        refreshBadge()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    /// 多个通知(如 showAll 一次性 spawn N 个浮窗)在同一 runloop 周期内合并成
+    /// 一次 refreshBadge。`badgeRefreshScheduled` 只在主线程写,跨线程多刷一次
+    /// 也只是无害的重复计数。
+    private var badgeRefreshScheduled = false
+
+    @objc private func scheduleBadgeRefresh() {
+        guard !badgeRefreshScheduled else { return }
+        badgeRefreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.badgeRefreshScheduled = false
+            self.refreshBadge()
+        }
+    }
+
+    /// 按当前 MenuBarCountMode 把数字写到状态栏图标右侧。`.none` 时清掉 title
+    /// 并切回 imageOnly,variableLength 的 statusItem 会自动缩回只剩图标。
+    private func refreshBadge() {
+        guard let button = statusItem.button else { return }
+        let mode = MenuBarCountMode.from(
+            UserDefaults.standard.string(forKey: SettingsKey.menuBarCount) ?? ""
+        )
+        guard mode != .none else {
+            button.title = ""
+            button.imagePosition = .imageOnly
+            return
+        }
+
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        switch mode {
+        case .total:
+            request.predicate = NSPredicate(format: "isTrashed == %@", NSNumber(value: false))
+        case .active:
+            // isPinned == 浮窗打开中 / 开机自动恢复(见 CLAUDE.md & MenuBarCountMode)。
+            request.predicate = NSPredicate(
+                format: "isPinned == %@ AND isTrashed == %@",
+                NSNumber(value: true), NSNumber(value: false)
+            )
+        case .none:
+            return  // 上面已 guard,这分支只为穷尽 switch
+        }
+        let count = (try? context.count(for: request)) ?? 0
+        // 图标在左、数字在右;前置一个空格跟图标留点缝。
+        button.imagePosition = .imageLeading
+        button.title = " \(count)"
     }
 
     @objc private func showMenu(_ sender: AnyObject?) {
