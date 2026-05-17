@@ -253,6 +253,15 @@ struct GeneralTab: View {
             // 的偏好项视觉分开;真正的二次确认在 clearAllContent 的 NSAlert 里
             //(critical + 回车默认落在「取消」上,防误删)。
             Section {
+                #if DEBUG
+                // 仅 DEBUG:一键造演示数据。additive、dev-only,不弹确认。
+                Button(action: fillDemoData) {
+                    Text(L.t(.generalFillDemo))
+                }
+                Text(L.t(.generalFillDemoDesc))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                #endif
                 Button(role: .destructive, action: clearAllContent) {
                     Text(L.t(.generalClearAll))
                 }
@@ -298,6 +307,19 @@ struct GeneralTab: View {
         done.addButton(withTitle: L.t(.ok))
         done.runModal()
     }
+
+    #if DEBUG
+    /// 仅 DEBUG:填充演示数据。无确认 —— 纯 additive、只有 dev 看得到这个按钮。
+    private func fillDemoData() {
+        let context = PersistenceController.shared.container.viewContext
+        let added = DemoData.fill(into: context)
+        let done = NSAlert()
+        done.messageText = L.t(.appName)
+        done.informativeText = L.t(.generalFillDemoDone, added.notes, added.groups)
+        done.addButton(withTitle: L.t(.ok))
+        done.runModal()
+    }
+    #endif
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。
     /// Debug 构建可能注册失败 —— catch 之后用 service.status 反查真实状态,UI 跟着走。

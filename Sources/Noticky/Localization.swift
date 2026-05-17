@@ -84,6 +84,8 @@ enum LocKey: String {
     case generalDataSection, generalClearAll, generalClearAllDesc
     case generalClearAllConfirmTitle, generalClearAllConfirmMsg, generalClearAllConfirmButton
     case generalClearAllDone
+    // General → 数据(仅 DEBUG:演示数据填充)
+    case generalFillDemo, generalFillDemoDesc, generalFillDemoDone
 
     // Settings Shortcuts
     case shortcutsCustomizable, shortcutsSystem
@@ -248,6 +250,9 @@ enum L {
         .generalClearAllConfirmMsg: "This permanently deletes all %d note(s) and %d group(s), including Archive and Trash. This cannot be undone.\n\nConsider exporting a backup first (Manage All Notes → Data).",
         .generalClearAllConfirmButton: "Clear Everything",
         .generalClearAllDone: "Cleared: deleted %d note(s) and %d group(s).",
+        .generalFillDemo: "Fill Demo Data",
+        .generalFillDemoDesc: "Debug builds only. Inserts a batch of sample notes and groups (English) spanning active, pinned, archived, and trashed states. Press repeatedly to accumulate.",
+        .generalFillDemoDone: "Added %d demo note(s) and %d group(s).",
 
         .shortcutsCustomizable: "Customizable",
         .shortcutsSystem: "System",
@@ -463,6 +468,9 @@ enum L {
         .generalClearAllConfirmMsg: "这将永久删除全部 %d 条便签和 %d 个分组(含归档与回收站),无法撤销。\n\n建议先在「管理所有便签 → 数据」导出备份。",
         .generalClearAllConfirmButton: "清空全部",
         .generalClearAllDone: "已清空:删除了 %d 条便签和 %d 个分组。",
+        .generalFillDemo: "填充演示数据",
+        .generalFillDemoDesc: "仅 Debug 构建。插入一批示例便签和分组(英文),覆盖活跃、置顶、归档、回收站等状态。可多次点击累积。",
+        .generalFillDemoDone: "已添加 %d 条演示便签和 %d 个分组。",
 
         .shortcutsCustomizable: "可自定义",
         .shortcutsSystem: "系统",
