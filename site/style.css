@@ -56,12 +56,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; }
-.brand-mark {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: linear-gradient(160deg, #ffd34d, var(--accent));
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
-  flex: none;
-}
+.brand-mark { width: 22px; height: 22px; flex: none; display: block; }
 .nav-links { display: flex; align-items: center; gap: 26px; font-size: 15px; }
 .nav-links a { color: var(--text-soft); transition: color .15s; }
 .nav-links a:hover { color: var(--text); }
@@ -75,6 +70,11 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* ---------- hero ---------- */
 .hero { padding: 84px 0 40px; text-align: center; }
+.hero-icon {
+  width: clamp(88px, 12vw, 120px); height: auto;
+  margin: 0 auto 26px;
+  filter: drop-shadow(0 14px 30px rgba(0,0,0,.28));
+}
 .eyebrow {
   font-size: 14px; font-weight: 600; letter-spacing: .04em;
   color: var(--accent-ink); text-transform: uppercase;
