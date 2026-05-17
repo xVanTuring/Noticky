@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noticky — Native macOS sticky notes</title>
+<meta name="description" content="Noticky — native macOS 15+ sticky notes: menubar-resident, global hotkey capture, multi-window floats, Markdown, iCloud sync. No Dock icon.">
+<meta property="og:title" content="Noticky — Native macOS sticky notes">
+<meta property="og:description" content="Menubar-resident sticky notes for macOS 15+. Global hotkey capture, floating windows, Markdown, iCloud sync.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="screenshots/manage-all-note.png">
+<meta name="theme-color" content="#f5b400">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23f5b400'/%3E%3Crect x='24' y='30' width='52' height='8' rx='4' fill='%23704d00'/%3E%3Crect x='24' y='48' width='52' height='8' rx='4' fill='%23704d00'/%3E%3Crect x='24' y='66' width='32' height='8' rx='4' fill='%23704d00'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Noticky</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
+      <a href="https://github.com/xVanTuring/Noticky" target="_blank" rel="noopener">GitHub</a>
+      <button id="langToggle" class="lang-toggle" type="button" aria-label="Switch language">中文</button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow" data-i18n="hero.eyebrow">Native · Menubar-resident · macOS 15+</p>
+      <h1 data-i18n="hero.title">Sticky notes that live in your menu bar.</h1>
+      <p class="lede" data-i18n="hero.lede">Native macOS sticky notes and quick capture — global hotkey, multi-window floats, Markdown, and optional iCloud sync. No Dock icon, no clutter.</p>
+      <div class="cta">
+        <a id="downloadBtn" class="btn btn-primary" href="https://github.com/xVanTuring/Noticky/releases/latest">
+          <span data-i18n="hero.download">Download for macOS</span>
+          <span id="dlVersion" class="dl-version"></span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/xVanTuring/Noticky" target="_blank" rel="noopener" data-i18n="hero.github">View on GitHub</a>
+      </div>
+      <p class="req" data-i18n="hero.req">Requires macOS 15.0 or later · Free &amp; open source · Auto-updates via Sparkle</p>
+      <div class="hero-shot">
+        <img src="screenshots/manage-all-note.png" alt="Noticky manager window" width="1520" height="950" loading="eager">
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="features wrap">
+
+    <article class="feature">
+      <div class="feature-text">
+        <h2 data-i18n="f.float.title">Floating sticky notes</h2>
+        <p data-i18n="f.float.body">A 6-color palette and three layout modes. Pin a note and it auto-restores on next launch — quit the app without losing your working set.</p>
+        <ul>
+          <li data-i18n="f.float.li1"><b>Free</b> — place anywhere on screen.</li>
+          <li data-i18n="f.float.li2"><b>Stack</b> — cascade; selecting a note slides it to the bottom for full visibility.</li>
+          <li data-i18n="f.float.li3"><b>Tile</b> — auto-arranged grid; drag a note to reorder.</li>
+          <li data-i18n="f.float.li4">Float-on-top, double-click to collapse, inactive-note fade — all toggleable.</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="screenshots/stack-animation.gif" alt="Stack layout animation" width="600" height="450" loading="lazy">
+      </div>
+    </article>
+
+    <article class="feature reverse">
+      <div class="feature-text">
+        <h2 data-i18n="f.tile.title">Tile, reorder, glance</h2>
+        <p data-i18n="f.tile.body">Tile mode auto-arranges every open note into a grid. Drag one and the rest reflow around it — your whole board at a glance.</p>
+      </div>
+      <div class="feature-media">
+        <img src="screenshots/tile-animation.gif" alt="Tile layout animation" width="600" height="338" loading="lazy">
+      </div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <h2 data-i18n="f.capture.title">Quick Capture, anywhere</h2>
+        <p data-i18n="f.capture.body">A global hotkey (default ⌘⇧N, fully customizable) opens a capture window from any app. Pull in the selected text via the Accessibility API, the clipboard, or start blank.</p>
+        <ul>
+          <li data-i18n="f.capture.li1"><b>AX + whitelist</b> — grab the frontmost app's selected text (per bundle ID).</li>
+          <li data-i18n="f.capture.li2"><b>Clipboard only</b> — pre-fill with clipboard contents, no AX call.</li>
+          <li data-i18n="f.capture.li3"><b>Disabled</b> — a blank window for a fresh thought.</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="screenshots/menutray-open.png" alt="Menu bar tray" width="680" height="640" loading="lazy">
+      </div>
+    </article>
+
+    <article class="feature reverse">
+      <div class="feature-text">
+        <h2 data-i18n="f.editor.title">Plain text or Markdown</h2>
+        <p data-i18n="f.editor.body">A native NSTextView editor for plain text, plus a Markdown mode with one-tap toggle between rendered and edit views. Global font size, applied live to every open window.</p>
+      </div>
+      <div class="feature-media">
+        <img src="screenshots/stack.png" alt="Floating sticky note" width="510" height="510" loading="lazy">
+      </div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <h2 data-i18n="f.manager.title">One window to manage it all</h2>
+        <p data-i18n="f.manager.body">A native sidebar — All Notes, your groups, Ungrouped, Trash. Drag notes into groups, full-text search, right-click to rename or move, and multi-select bulk actions (recolor, pin, open as floats).</p>
+      </div>
+      <div class="feature-media">
+        <img src="screenshots/tile-demo.png" alt="Manager window with tiled notes" width="1490" height="930" loading="lazy">
+      </div>
+    </article>
+
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="g.trash.title">Soft delete &amp; Trash</h3>
+        <p data-i18n="g.trash.body">Deletions go to Trash. Items older than N days (default 30, configurable 7–365) are purged on launch — same as macOS Notes and Mail.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.io.title">Import · Export · Backup</h3>
+        <p data-i18n="g.io.body">Single-note or batch Markdown export, plus whole-library export/import (SQLite or Markdown). Restore is non-destructive — dedupes by UUID.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.icloud.title">Optional iCloud sync</h3>
+        <p data-i18n="g.icloud.body">Off by default. Once enabled, live cross-Mac sync via NSPersistentCloudKitContainer. Verified with China iCloud.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.l10n.title">Bilingual</h3>
+        <p data-i18n="g.l10n.body">Bundled English and Simplified Chinese. Follows the system locale, or force it in Settings → General.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.safety.title">Data safety first</h3>
+        <p data-i18n="g.safety.body">On a store-load failure Noticky never silently wipes — it backs up the sqlite/shm/wal triple to your Desktop and alerts before quitting.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.native.title">Truly native</h3>
+        <p data-i18n="g.native.body">An AppKit shell with SwiftUI content. Lives in the menu bar (LSUIElement) — no Dock icon, no main menu noise.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section id="download" class="download">
+    <div class="wrap">
+      <h2 data-i18n="dl.title">Get Noticky</h2>
+      <p data-i18n="dl.body">Free and open source. Download the signed, notarized build — it auto-updates itself from then on.</p>
+      <div class="cta">
+        <a id="downloadBtn2" class="btn btn-primary" href="https://github.com/xVanTuring/Noticky/releases/latest">
+          <span data-i18n="hero.download">Download for macOS</span>
+          <span id="dlVersion2" class="dl-version"></span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/xVanTuring/Noticky/releases" target="_blank" rel="noopener" data-i18n="dl.all">All releases</a>
+      </div>
+      <p class="req" data-i18n="hero.req">Requires macOS 15.0 or later · Free &amp; open source · Auto-updates via Sparkle</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="footer-name">Noticky</span>
+      <span class="footer-copy">© 2026 xVanTuring</span>
+    </div>
+    <nav class="footer-links">
+      <a href="https://github.com/xVanTuring/Noticky" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/xVanTuring/Noticky/releases" target="_blank" rel="noopener" data-i18n="dl.all">All releases</a>
+      <a href="https://github.com/gonzalezreal/textual" target="_blank" rel="noopener">Textual</a>
+      <a href="https://github.com/sindresorhus/KeyboardShortcuts" target="_blank" rel="noopener">KeyboardShortcuts</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
