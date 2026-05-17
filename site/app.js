@@ -23,17 +23,20 @@
     "f.tile.title": "平铺、重排、一眼全见",
     "f.tile.body": "Tile 模式把所有打开的便签自动排成网格，拖动一个，其余自动让位 —— 整块白板一目了然。",
 
-    "f.capture.title": "随处速记",
-    "f.capture.body": "全局快捷键（默认 ⌘⇧N，可完全自定义）在任何 App 里拉起速记窗口。通过辅助功能 API 抓选中文本、读剪贴板，或直接空白起笔。",
-    "f.capture.li1": "<b>AX + 白名单</b> —— 按 bundle ID 抓 frontmost App 的选中文本。",
-    "f.capture.li2": "<b>仅剪贴板</b> —— 不调 AX，直接用剪贴板内容预填。",
-    "f.capture.li3": "<b>关闭</b> —— 一个空白窗口，记下灵感。",
+    "f.menu.title": "一切，一键之遥",
+    "f.menu.body": "Noticky 常驻菜单栏 —— 无 Dock 图标、无主菜单噪音。一键新建便签、查看最近便签、Show/Hide All、打开管理窗口、切换布局与设置。",
+    "f.menu.li1": "菜单里直接列出最近便签 —— 一点即跳。",
+    "f.menu.li2": "<b>Show / Hide All Stickies</b> 一次性收起或唤回整个工作集。",
+    "f.menu.li3": "100% 原生 AppKit + SwiftUI —— 快、轻，无 Electron。",
 
-    "f.editor.title": "纯文本，或 Markdown",
-    "f.editor.body": "纯文本走原生 NSTextView 编辑器；Markdown 模式支持「渲染态 ↔ 编辑态」一键切换。全局字号实时同步到每一个打开的窗口。",
+    "g.capture.title": "全局速记",
+    "g.capture.body": "全局快捷键（默认 ⌘⇧N，可自定义）在任何 App 里拉起速记窗口 —— 通过辅助功能 API 抓选中文本、读剪贴板，或直接空白起笔。",
 
-    "f.manager.title": "一个窗口管理全部",
-    "f.manager.body": "原生侧栏 —— All Notes、自定义分组、Ungrouped、Trash。拖便签进分组、全文搜索、右键重命名或移动，以及多选批量操作（改色、Pin、打开为浮窗）。",
+    "g.md.title": "纯文本或 Markdown",
+    "g.md.body": "纯文本走原生 NSTextView；Markdown 模式支持「渲染态 ↔ 编辑态」一键切换。全局字号实时同步到每一个打开的窗口。",
+
+    "g.manager.title": "管理窗口",
+    "g.manager.body": "原生侧栏 —— 分组、Ungrouped、Trash。拖便签进分组、全文搜索、右键重命名/移动，以及多选批量操作。",
 
     "g.trash.title": "软删除与回收站",
     "g.trash.body": "删除进 Trash。超过 N 天（默认 30，可调 7–365）的旧条目在启动时清理 —— 与 macOS Notes、Mail 一致。",
@@ -50,8 +53,8 @@
     "g.safety.title": "数据安全优先",
     "g.safety.body": "存储加载失败时 Noticky 绝不静默销毁 —— 会把 sqlite/shm/wal 三件套备份到桌面并弹窗提示后再退出。",
 
-    "g.native.title": "真·原生",
-    "g.native.body": "AppKit 外壳 + SwiftUI 内容。常驻菜单栏（LSUIElement）—— 无 Dock 图标，无主菜单噪音。",
+    "g.oss.title": "免费且开源",
+    "g.oss.body": "已签名、已公证、完全开源。通过 Sparkle 自动更新。macOS 15+。",
 
     "dl.title": "获取 Noticky",
     "dl.body": "免费开源。下载已签名、已公证的构建 —— 之后会自动更新。",

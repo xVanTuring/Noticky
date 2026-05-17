@@ -73,7 +73,7 @@
       </div>
       <p class="req" data-i18n="hero.req">Requires macOS 15.0 or later · Free &amp; open source · Auto-updates via Sparkle</p>
       <div class="hero-shot">
-        <img src="screenshots/manage-all-note.png" alt="Noticky manager window" width="1520" height="950" loading="eager">
+        <img src="screenshots/manage-all-note.png" alt="Noticky manager window — sidebar groups, search, note list" width="2024" height="1424" loading="eager">
       </div>
     </div>
   </section>
@@ -108,40 +108,32 @@
 
     <article class="feature">
       <div class="feature-text">
-        <h2 data-i18n="f.capture.title">Quick Capture, anywhere</h2>
-        <p data-i18n="f.capture.body">A global hotkey (default ⌘⇧N, fully customizable) opens a capture window from any app. Pull in the selected text via the Accessibility API, the clipboard, or start blank.</p>
+        <h2 data-i18n="f.menu.title">Everything, one keystroke away</h2>
+        <p data-i18n="f.menu.body">Noticky lives in your menu bar — no Dock icon, no main-menu noise. One click for a new note, your recent notes, show/hide all stickies, the manager, layout, and settings.</p>
         <ul>
-          <li data-i18n="f.capture.li1"><b>AX + whitelist</b> — grab the frontmost app's selected text (per bundle ID).</li>
-          <li data-i18n="f.capture.li2"><b>Clipboard only</b> — pre-fill with clipboard contents, no AX call.</li>
-          <li data-i18n="f.capture.li3"><b>Disabled</b> — a blank window for a fresh thought.</li>
+          <li data-i18n="f.menu.li1">Recent notes listed right in the menu — jump to any of them instantly.</li>
+          <li data-i18n="f.menu.li2"><b>Show / Hide All Stickies</b> to clear or recall your whole working set at once.</li>
+          <li data-i18n="f.menu.li3">100% native AppKit + SwiftUI — fast, light, no Electron.</li>
         </ul>
       </div>
       <div class="feature-media">
-        <img src="screenshots/menutray-open.png" alt="Menu bar tray" width="680" height="640" loading="lazy">
-      </div>
-    </article>
-
-    <article class="feature reverse">
-      <div class="feature-text">
-        <h2 data-i18n="f.editor.title">Plain text or Markdown</h2>
-        <p data-i18n="f.editor.body">A native NSTextView editor for plain text, plus a Markdown mode with one-tap toggle between rendered and edit views. Global font size, applied live to every open window.</p>
-      </div>
-      <div class="feature-media">
-        <img src="screenshots/stack.png" alt="Floating sticky note" width="510" height="510" loading="lazy">
-      </div>
-    </article>
-
-    <article class="feature">
-      <div class="feature-text">
-        <h2 data-i18n="f.manager.title">One window to manage it all</h2>
-        <p data-i18n="f.manager.body">A native sidebar — All Notes, your groups, Ungrouped, Trash. Drag notes into groups, full-text search, right-click to rename or move, and multi-select bulk actions (recolor, pin, open as floats).</p>
-      </div>
-      <div class="feature-media">
-        <img src="screenshots/tile-demo.png" alt="Manager window with tiled notes" width="1490" height="930" loading="lazy">
+        <img src="screenshots/menutray-open.png" alt="Noticky menu bar dropdown — recent notes, new note, show/hide all, manager, layout, settings" width="958" height="1038" loading="lazy">
       </div>
     </article>
 
     <div class="grid">
+      <div class="card">
+        <h3 data-i18n="g.capture.title">Quick Capture</h3>
+        <p data-i18n="g.capture.body">A global hotkey (default ⌘⇧N, customizable) opens a capture window from any app — pull in the selected text via the Accessibility API, the clipboard, or start blank.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.md.title">Plain text or Markdown</h3>
+        <p data-i18n="g.md.body">Native NSTextView for plain text, plus a Markdown mode with one-tap render/edit toggle. Global font size, applied live to every open window.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.manager.title">Manager window</h3>
+        <p data-i18n="g.manager.body">A native sidebar — groups, Ungrouped, Trash. Drag notes into groups, full-text search, right-click rename/move, and multi-select bulk actions.</p>
+      </div>
       <div class="card">
         <h3 data-i18n="g.trash.title">Soft delete &amp; Trash</h3>
         <p data-i18n="g.trash.body">Deletions go to Trash. Items older than N days (default 30, configurable 7–365) are purged on launch — same as macOS Notes and Mail.</p>
@@ -163,8 +155,8 @@
         <p data-i18n="g.safety.body">On a store-load failure Noticky never silently wipes — it backs up the sqlite/shm/wal triple to your Desktop and alerts before quitting.</p>
       </div>
       <div class="card">
-        <h3 data-i18n="g.native.title">Truly native</h3>
-        <p data-i18n="g.native.body">An AppKit shell with SwiftUI content. Lives in the menu bar (LSUIElement) — no Dock icon, no main menu noise.</p>
+        <h3 data-i18n="g.oss.title">Free &amp; open source</h3>
+        <p data-i18n="g.oss.body">Signed, notarized, and fully open source. Auto-updates itself via Sparkle. macOS 15+.</p>
       </div>
     </div>
 
