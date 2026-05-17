@@ -121,11 +121,22 @@
       </div>
     </article>
 
-    <div class="grid">
-      <div class="card">
-        <h3 data-i18n="g.capture.title">Quick Capture</h3>
-        <p data-i18n="g.capture.body">A global hotkey (default ⌘⇧N, customizable) opens a capture window from any app — pull in the selected text via the Accessibility API, the clipboard, or start blank.</p>
+    <article class="feature reverse">
+      <div class="feature-text">
+        <h2 data-i18n="f.capture.title">Quick Capture, anywhere</h2>
+        <p data-i18n="f.capture.body">A global hotkey (default ⌘⇧N, fully customizable) opens a capture window from any app. Pull in the selected text via the Accessibility API, the clipboard, or start blank.</p>
+        <ul>
+          <li data-i18n="f.capture.li1"><b>AX + whitelist</b> — grab the frontmost app's selected text (per bundle ID).</li>
+          <li data-i18n="f.capture.li2"><b>Clipboard only</b> — pre-fill with clipboard contents, no AX call.</li>
+          <li data-i18n="f.capture.li3"><b>Disabled</b> — a blank window for a fresh thought.</li>
+        </ul>
       </div>
+      <div class="feature-media">
+        <img src="screenshots/quick-capture.png" alt="Noticky quick-capture window opened by global hotkey, with Save / New line / Cancel" width="1344" height="624" loading="lazy">
+      </div>
+    </article>
+
+    <div class="grid">
       <div class="card">
         <h3 data-i18n="g.md.title">Plain text or Markdown</h3>
         <p data-i18n="g.md.body">Native NSTextView for plain text, plus a Markdown mode with one-tap render/edit toggle. Global font size, applied live to every open window.</p>
