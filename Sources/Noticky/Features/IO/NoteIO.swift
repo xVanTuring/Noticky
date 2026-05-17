@@ -1,25 +1,31 @@
 import Foundation
 import AppKit
 import CoreData
+import UniformTypeIdentifiers
 
-/// 便签导入 / 导出 / 整库备份的逻辑核心。每个 entry point 都是「拿一个
-/// `NSManagedObjectContext` + 一个 user-presented panel」的形式,UI 层(File menu /
-/// Manager context menu)只负责弹 panel 和把结果传过来。
+/// 便签导入 / 导出的逻辑核心。每个 entry point 都是「拿一个
+/// `NSManagedObjectContext` + 一个 user-presented panel」的形式,UI 层(Manager
+/// toolbar / 右键菜单)只负责弹 panel 和把结果传过来。
 ///
 /// **格式选择:**
 /// - 单条导出:`.md` 文件,内容直接写 note.content。Markdown 跟我们 Textual 渲染
 ///   一致,任意编辑器都能开。
-/// - 多条导出:一个文件夹,里面每条便签一个 `.md`,文件名用 displayTitle(经过
-///   Markdown 标记剥离 + 文件名安全字符 sanitize)。
-/// - 整库 backup:单个 `.noticky-backup.json` 文件。包含全部 notes + groups
-///   元数据。**不**走 zip(Apple 没好的公开 zip API + 当前没附件,zip 暂无意义)。
-///   等加图片附件后再换 zip 容器。
+/// - 多条 / 整库 Markdown 导出:一个文件夹,里面每条便签一个 `.md`,文件名用
+///   displayTitle(经过 Markdown 标记剥离 + 文件名安全字符 sanitize)。
+/// - 整库导出 / 导入:单个独立 `.sqlite`。用当前 schema **新建一个干净 store**
+///   把全部 notes + groups 拷进去 —— 不带 CloudKit 系统表 / persistent history,
+///   且 `journal_mode=DELETE` 不产生 -wal/-shm 边车,保证是单文件可携带。
+///   导入侧反过来:把选中的 .sqlite 拷到 temp,允许 lightweight migration
+///   兼容旧 schema 版本导出的文件,再按 UUID 去重 merge 进当前库。
 ///
-/// **Restore 去重:** 按 UUID。已有相同 id 的 note/group 跳过(import 不覆盖)。
+/// **导入去重:** 按 UUID。已有相同 id 的 note/group 跳过(导入不覆盖现有数据)。
 /// CloudKit 模式下,即使没跳过,CloudKitDeduplicator 也会兜底合并。
+///
+/// 旧版的 JSON `.noticky-backup.json` 整库备份已移除,改用 sqlite —— 单一机制,
+/// 与本地 store 同构,导入侧直接走 Core Data lightweight migration 兼容旧版本。
 enum NoteIO {
 
-    // MARK: - 单条 / 多条 export ----------------------------------------------
+    // MARK: - 单条 / 多条 / 整库 Markdown 导出 --------------------------------
 
     /// 单条便签导出成 .md 文件。返回写入的 URL,失败 nil。
     @discardableResult
@@ -51,7 +57,17 @@ enum NoteIO {
         return written
     }
 
-    // MARK: - Import 单 / 多文件 ----------------------------------------------
+    /// 整库导出为 Markdown:把库里**全部**便签(含归档 / 回收站,做一次完整快照)
+    /// 写进选定文件夹,每条一个 `.md`。返回写出的文件数。
+    @discardableResult
+    static func exportAllMarkdown(in context: NSManagedObjectContext, toFolder folder: URL) -> Int {
+        let req = NSFetchRequest<Note>(entityName: "Note")
+        req.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        let notes = (try? context.fetch(req)) ?? []
+        return exportNotes(notes, toFolder: folder).count
+    }
+
+    // MARK: - Import 单 / 多文件(md/txt → 新便签)----------------------------
 
     /// 把多个 .md / .txt 文件作为新便签导入,每文件一条。返回成功导入的条数。
     /// **不**触碰 group —— 导入的笔记进 Ungrouped,用户后续手动分组。
@@ -68,135 +84,147 @@ enum NoteIO {
         return count
     }
 
-    // MARK: - 整库 backup / restore ------------------------------------------
+    // MARK: - 整库 SQLite 导出 ------------------------------------------------
 
-    /// Backup 文件的顶层结构。version 用于将来格式演进。
-    private struct Backup: Codable {
-        let version: Int
-        let exportedAt: Date
-        let groups: [GroupRow]
-        let notes: [NoteRow]
-    }
+    /// 把整库导出成一个**独立的、干净的** sqlite 到 `url`。
+    ///
+    /// 实现:用当前 schema(`CoreDataSchema.currentModel()`)新建一个本地
+    /// `NSPersistentContainer`(**非** CloudKit、不开 history tracking、
+    /// `journal_mode=DELETE` 不产生 -wal/-shm),把全部 NoteGroup + Note 按 UUID
+    /// 关系完整拷进去再 save。这样导出的文件:
+    ///   - 不含 CloudKit `Z_*`/导出系统表 与 persistent history,体积小、可携带;
+    ///   - 是单文件(无边车),NSSavePanel 返回的单个 URL 即完整结果;
+    ///   - schema = 当前版本,导入侧无需特殊处理(旧版本文件靠导入侧 migration)。
+    ///
+    /// 回收站 / 归档的便签也包含进去 —— 整库导出是一次完整快照。
+    /// 返回导出的便签数;失败返回 nil。
+    static func exportAllSQLite(from sourceContext: NSManagedObjectContext, to url: URL) -> Int? {
+        // NSSavePanel 已让用户确认覆盖,但它不会真的删旧文件;Core Data 往一个
+        // 已存在的非空 sqlite 路径 addPersistentStore 会失败,先清掉三件套。
+        removeStoreFiles(at: url)
 
-    private struct GroupRow: Codable {
-        let id: UUID
-        let name: String
-        let createdAt: Date
-        let sortOrder: Int32
-    }
+        let container = NSPersistentContainer(
+            name: "NotickyExport",
+            managedObjectModel: CoreDataSchema.currentModel()
+        )
+        guard let desc = container.persistentStoreDescriptions.first else { return nil }
+        desc.url = url
+        desc.type = NSSQLiteStoreType
+        desc.shouldAddStoreAsynchronously = false
+        // 单文件:DELETE 模式不留 -wal/-shm。导出文件就是「最终态」,不需要 WAL。
+        desc.setOption(["journal_mode": "DELETE"] as NSDictionary, forKey: NSSQLitePragmasOption)
+        // 导出文件不需要 history / remote-change(那是同步/多 context 合并用的)。
+        desc.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
 
-    private struct NoteRow: Codable {
-        let id: UUID
-        let content: String
-        let createdAt: Date
-        let updatedAt: Date
-        let isPinned: Bool
-        let colorIndex: Int16
-        let isTrashed: Bool
-        let trashedAt: Date?
-        // V3 起的归档状态。optional 让旧 backup(没有这两个 key)仍能解码 ——
-        // 解出来 nil 即 false / 未归档。
-        let isArchived: Bool?
-        let archivedAt: Date?
-        let groupId: UUID?
-        // 不持久化 frame / isCollapsed —— 这些是 UI 本地状态,不该跨设备 migrate。
-    }
+        var loadError: Error?
+        container.loadPersistentStores { _, error in loadError = error }
+        if let loadError {
+            NSLog("Noticky: exportAllSQLite store load failed: %@", "\(loadError)")
+            return nil
+        }
 
-    /// 把整库写成 JSON 到 `url`。回收站里的笔记也包含进去(用户可能想留作存档),
-    /// restore 时会保留 isTrashed=true 状态。
-    @discardableResult
-    static func backupAll(in context: NSManagedObjectContext, to url: URL) -> Bool {
+        let dest = container.viewContext
+
+        // 源数据:全部 group + 全部 note(不过滤 trashed/archived,完整快照)。
         let groupReq = NoteGroup.sortedFetchRequest()
-        let groups = (try? context.fetch(groupReq)) ?? []
-
-        // 注意不能用 Note.sortedFetchRequest()(它默认过滤 trashed),要全部。
+        let groups = (try? sourceContext.fetch(groupReq)) ?? []
         let noteReq = NSFetchRequest<Note>(entityName: "Note")
         noteReq.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        let notes = (try? context.fetch(noteReq)) ?? []
+        let notes = (try? sourceContext.fetch(noteReq)) ?? []
 
-        let backup = Backup(
-            version: 1,
-            exportedAt: Date(),
-            groups: groups.map { g in
-                GroupRow(id: g.id, name: g.name, createdAt: g.createdAt, sortOrder: g.sortOrder)
-            },
-            notes: notes.map { n in
-                NoteRow(
-                    id: n.id, content: n.content,
-                    createdAt: n.createdAt, updatedAt: n.updatedAt,
-                    isPinned: n.isPinned, colorIndex: n.colorIndex,
-                    isTrashed: n.isTrashed, trashedAt: n.trashedAt,
-                    isArchived: n.isArchived, archivedAt: n.archivedAt,
-                    groupId: n.group?.id
-                )
-            }
-        )
+        var groupMap: [UUID: NoteGroup] = [:]
+        for g in groups {
+            let copy = NoteGroup(context: dest)
+            copy.id = g.id
+            copy.name = g.name
+            copy.createdAt = g.createdAt
+            copy.sortOrder = g.sortOrder
+            groupMap[g.id] = copy
+        }
+        for n in notes {
+            let copy = Note(context: dest)
+            copyNoteFields(from: n, to: copy)
+            if let gid = n.group?.id, let g = groupMap[gid] { copy.group = g }
+        }
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
         do {
-            let data = try encoder.encode(backup)
-            try data.write(to: url, options: .atomic)
-            return true
+            try dest.save()
+            return notes.count
         } catch {
-            NSLog("Noticky: backup failed: %@", "\(error)")
-            return false
+            NSLog("Noticky: exportAllSQLite save failed: %@", "\(error)")
+            return nil
         }
     }
 
-    /// 从 backup JSON 恢复。**已存在相同 UUID 的不导入**,避免覆盖用户当前数据。
-    /// 返回 (importedNotes, importedGroups)。
-    @discardableResult
-    static func restoreFrom(_ url: URL, into context: NSManagedObjectContext) -> (notes: Int, groups: Int) {
-        guard let data = try? Data(contentsOf: url) else { return (0, 0) }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        guard let backup = try? decoder.decode(Backup.self, from: data) else {
-            NSLog("Noticky: restore parse failed for %@", url.path)
-            return (0, 0)
+    // MARK: - 整库 SQLite 导入 ------------------------------------------------
+
+    /// 从一个 Noticky sqlite 导入。**已存在相同 UUID 的不导入**,避免覆盖用户当前
+    /// 数据。返回 (importedNotes, importedGroups);文件无法读取返回 nil。
+    ///
+    /// 鲁棒性:
+    ///   - 先把选中文件(连同可能存在的 -wal/-shm)拷到 temp 再打开 —— 不改动
+    ///     用户的源文件,且可在副本上跑 migration;
+    ///   - 打开时开 `shouldInferMappingModelAutomatically`,旧 schema 版本(V1/V2)
+    ///     导出的 sqlite 会被 lightweight 迁移到当前版本再读;
+    ///   - 这也能容忍用户直接拷一份「活的」Noticky.sqlite(带 CloudKit 系统表 /
+    ///     history)进来:Core Data 用非 CloudKit container 打开时忽略那些表。
+    static func importSQLite(_ url: URL, into context: NSManagedObjectContext) -> (notes: Int, groups: Int)? {
+        guard let temp = copyStoreToTemp(url) else {
+            NSLog("Noticky: importSQLite temp copy failed for %@", url.path)
+            return nil
+        }
+        defer { try? FileManager.default.removeItem(at: temp.deletingLastPathComponent()) }
+
+        let container = NSPersistentContainer(
+            name: "NotickyImport",
+            managedObjectModel: CoreDataSchema.currentModel()
+        )
+        guard let desc = container.persistentStoreDescriptions.first else { return nil }
+        desc.url = temp
+        desc.type = NSSQLiteStoreType
+        desc.shouldAddStoreAsynchronously = false
+        desc.shouldMigrateStoreAutomatically = true
+        desc.shouldInferMappingModelAutomatically = true
+        desc.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+
+        var loadError: Error?
+        container.loadPersistentStores { _, error in loadError = error }
+        if let loadError {
+            NSLog("Noticky: importSQLite store load failed: %@", "\(loadError)")
+            return nil
         }
 
-        // 先建 group。建好的存 [UUID: NoteGroup] 用来给 note.group 接回去。
+        let src = container.viewContext
+        let srcGroups = (try? src.fetch(NoteGroup.sortedFetchRequest())) ?? []
+        let noteReq = NSFetchRequest<Note>(entityName: "Note")
+        noteReq.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        let srcNotes = (try? src.fetch(noteReq)) ?? []
+
         var groupMap: [UUID: NoteGroup] = [:]
         var importedGroups = 0
-        for row in backup.groups {
-            if let existing = fetchGroup(id: row.id, in: context) {
-                groupMap[row.id] = existing
+        for g in srcGroups {
+            if let existing = fetchGroup(id: g.id, in: context) {
+                groupMap[g.id] = existing
                 continue
             }
-            let g = NoteGroup(context: context)
-            g.id = row.id
-            g.name = row.name
-            g.createdAt = row.createdAt
-            g.sortOrder = row.sortOrder
-            groupMap[row.id] = g
+            let copy = NoteGroup(context: context)
+            copy.id = g.id
+            copy.name = g.name
+            copy.createdAt = g.createdAt
+            copy.sortOrder = g.sortOrder
+            groupMap[g.id] = copy
             importedGroups += 1
         }
 
         var importedNotes = 0
-        for row in backup.notes {
-            if fetchNote(id: row.id, in: context) != nil { continue }
-            let n = Note(context: context)
-            n.id = row.id
-            n.content = row.content
-            n.createdAt = row.createdAt
-            n.updatedAt = row.updatedAt
-            n.isPinned = row.isPinned
-            n.colorIndex = row.colorIndex
-            n.isTrashed = row.isTrashed
-            n.trashedAt = row.trashedAt
-            n.isArchived = row.isArchived ?? false
-            n.archivedAt = row.archivedAt
-            n.hasSavedFrame = false
-            n.isCollapsed = false
-            if let gid = row.groupId, let g = groupMap[gid] {
-                n.group = g
-            } else if let gid = row.groupId {
-                // 备份里 note.groupId 指了一个 group 但 backup.groups 里没列出
-                // (理论上不该出现,容错跳过分组)。
-                _ = gid
-            }
+        for n in srcNotes {
+            if fetchNote(id: n.id, in: context) != nil { continue }
+            let copy = Note(context: context)
+            copyNoteFields(from: n, to: copy)
+            // frame / collapsed 是本机 UI 状态,不跨库带过来(同旧 restore 行为)。
+            copy.hasSavedFrame = false
+            copy.isCollapsed = false
+            if let gid = n.group?.id, let g = groupMap[gid] { copy.group = g }
             importedNotes += 1
         }
 
@@ -207,6 +235,58 @@ enum NoteIO {
     }
 
     // MARK: - Helpers ---------------------------------------------------------
+
+    /// 拷贝便签的「数据」字段(不含 frame/collapsed 这类本机 UI 状态,也不含
+    /// reminderDate —— 跨库恢复的提醒没经过 ReminderScheduler 调度,带过去只是
+    /// 一个不会触发的死值,沿用旧 restore 不带它的行为)。
+    private static func copyNoteFields(from src: Note, to dst: Note) {
+        dst.id = src.id
+        dst.content = src.content
+        dst.createdAt = src.createdAt
+        dst.updatedAt = src.updatedAt
+        dst.isPinned = src.isPinned
+        dst.colorIndex = src.colorIndex
+        dst.isTrashed = src.isTrashed
+        dst.trashedAt = src.trashedAt
+        dst.isArchived = src.isArchived
+        dst.archivedAt = src.archivedAt
+    }
+
+    /// 删掉 sqlite 三件套(.sqlite/.sqlite-shm/.sqlite-wal)。导出前清理目标用。
+    private static func removeStoreFiles(at url: URL) {
+        let fm = FileManager.default
+        for suffix in ["", "-shm", "-wal"] {
+            let f = url.deletingLastPathComponent()
+                .appendingPathComponent(url.lastPathComponent + suffix)
+            if fm.fileExists(atPath: f.path) { try? fm.removeItem(at: f) }
+        }
+    }
+
+    /// 把源 sqlite(及可能的 -wal/-shm 边车)拷到一个独立 temp 目录,返回拷贝后
+    /// 的 .sqlite URL。失败返回 nil。调用方负责删 temp 目录(`removeItem` 父目录)。
+    private static func copyStoreToTemp(_ url: URL) -> URL? {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory
+            .appendingPathComponent("NotickyImport-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let dest = dir.appendingPathComponent(url.lastPathComponent)
+            try fm.copyItem(at: url, to: dest)
+            for suffix in ["-shm", "-wal"] {
+                let from = url.deletingLastPathComponent()
+                    .appendingPathComponent(url.lastPathComponent + suffix)
+                guard fm.fileExists(atPath: from.path) else { continue }
+                try fm.copyItem(
+                    at: from,
+                    to: dir.appendingPathComponent(url.lastPathComponent + suffix)
+                )
+            }
+            return dest
+        } catch {
+            NSLog("Noticky: copyStoreToTemp failed: %@", "\(error)")
+            return nil
+        }
+    }
 
     private static func fetchNote(id: UUID, in context: NSManagedObjectContext) -> Note? {
         let req = NSFetchRequest<Note>(entityName: "Note")
@@ -239,7 +319,7 @@ enum NoteIO {
 /// 主线程没问题(用户在等结果)。
 enum NoteIOPanels {
 
-    /// 选若干 .md / .txt 文件来 import。返回 URLs;用户取消返回空数组。
+    /// 选若干 .md / .txt 文件来 import(逐文件 → 新便签)。用户取消返回空数组。
     static func chooseFilesToImport() -> [URL] {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.plainText, .text]
@@ -257,7 +337,7 @@ enum NoteIOPanels {
         return panel.runModal() == .OK ? panel.url : nil
     }
 
-    /// 多条 export 的目录选择器。返回选中的目录 URL。
+    /// 多条 / 整库 Markdown export 的目录选择器。返回选中的目录 URL。
     static func chooseExportFolder() -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -267,22 +347,27 @@ enum NoteIOPanels {
         return panel.runModal() == .OK ? panel.url : nil
     }
 
-    /// Backup save panel。建议名 `Noticky-backup-YYYYMMDD.json`。
-    static func chooseBackupDestination() -> URL? {
+    /// 整库 SQLite export 的 save panel。建议名 `Noticky-export-YYYYMMDD.sqlite`。
+    static func chooseExportAllSQLite() -> URL? {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
+        if let t = UTType(filenameExtension: "sqlite") { panel.allowedContentTypes = [t] }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd"
-        panel.nameFieldStringValue = "Noticky-backup-\(formatter.string(from: Date())).json"
+        panel.nameFieldStringValue = "Noticky-export-\(formatter.string(from: Date())).sqlite"
         return panel.runModal() == .OK ? panel.url : nil
     }
 
-    /// Restore open panel。
-    static func chooseBackupToRestore() -> URL? {
+    /// 整库 SQLite import 的 open panel。`allowsOtherFileTypes` 放宽,免得用户
+    /// 那份 store 扩展名不是 .sqlite(比如直接拷的容器内文件)就选不中。
+    static func chooseSQLiteToImport() -> URL? {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
+        var types: [UTType] = [.data]
+        if let t = UTType(filenameExtension: "sqlite") { types.insert(t, at: 0) }
+        panel.allowedContentTypes = types
+        panel.allowsOtherFileTypes = true
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
+        panel.canChooseFiles = true
         return panel.runModal() == .OK ? panel.url : nil
     }
 }

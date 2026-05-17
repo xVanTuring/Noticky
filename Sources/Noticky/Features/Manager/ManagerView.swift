@@ -110,6 +110,20 @@ struct ManagerView: View {
                 // .keyboardShortcut**,免得跟 main menu 抢。点按钮走 createNote;
                 // ⌘N 走 main menu 的 spawn-floating 路径。
             }
+            // 整库导出 / 导入。放 toolbar 而非右键 —— 右键是「针对选中便签」的
+            // 上下文,整库操作跟选中无关。这是用户唯一能真正点到的入口
+            //(LSUIElement 隐藏了菜单栏,AppDelegate 的 File 菜单点不到)。
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(L.t(.managerExportAllSQLite)) { exportAllSQLite() }
+                    Button(L.t(.managerExportAllMarkdown)) { exportAllMarkdown() }
+                    Divider()
+                    Button(L.t(.managerImportSQLite)) { importAllSQLite() }
+                } label: {
+                    Label(L.t(.managerDataMenu), systemImage: "ellipsis.circle")
+                }
+                .help(L.t(.managerDataMenu))
+            }
         }
     }
 
@@ -273,6 +287,46 @@ struct ManagerView: View {
         // 不再直接插占位条;弹 alert 先要用户输入名字,跟 Rename 体验一致。
         newGroupName = ""
         creatingGroup = true
+    }
+
+    // MARK: 整库导出 / 导入 -----------------------------------------------------
+    //
+    // 三个动作都是「同步阻塞 NSOpen/NSSavePanel → NoteIO → NSAlert 报结果」。
+    // panel 与 alert 都是主线程 modal,跟 createNote 一样在 Button action 里直接
+    // 跑没问题。整库 Core Data 拷贝对便签应用这种小库量级足够快,不另开后台。
+
+    private func exportAllSQLite() {
+        guard let url = NoteIOPanels.chooseExportAllSQLite() else { return }
+        if let count = NoteIO.exportAllSQLite(from: context, to: url) {
+            ioAlert(L.t(.exportAllSQLiteDone, count))
+        } else {
+            ioAlert(L.t(.exportAllSQLiteFailed))
+        }
+    }
+
+    private func exportAllMarkdown() {
+        guard let folder = NoteIOPanels.chooseExportFolder() else { return }
+        let count = NoteIO.exportAllMarkdown(in: context, toFolder: folder)
+        ioAlert(L.t(.exportAllMarkdownDone, count))
+    }
+
+    private func importAllSQLite() {
+        guard let url = NoteIOPanels.chooseSQLiteToImport() else { return }
+        if let result = NoteIO.importSQLite(url, into: context) {
+            ioAlert(L.t(.importSQLiteDone, result.notes, result.groups))
+        } else {
+            ioAlert(L.t(.importSQLiteFailed))
+        }
+    }
+
+    /// 整库 IO 完成提示。跟 AppDelegate.showCompletionAlert 同款,让用户确知
+    /// 导出/导入真的发生了(尤其导出后文件在别处,没视觉反馈会让人没底)。
+    private func ioAlert(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = L.t(.appName)
+        alert.informativeText = message
+        alert.addButton(withTitle: L.t(.ok))
+        alert.runModal()
     }
 
     /// 右键命中**选中**项里的某个 → 作用于整组当前选中(Finder/Notes 标准行为);

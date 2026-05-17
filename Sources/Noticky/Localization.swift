@@ -154,9 +154,15 @@ enum LocKey: String {
     // 色板名(批量改色用)
     case colorYellow, colorPink, colorBlue, colorGreen, colorPurple, colorGray
 
-    // File menu IO
-    case fileImport, fileBackup, fileRestore
-    case fileImportDone, fileBackupDone, fileBackupFailed, fileRestoreDone
+    // File menu IO(md/txt 文件 → 新便签)
+    case fileImport
+    case fileImportDone
+
+    // 整库导出 / 导入(Manager toolbar 数据菜单)
+    case managerDataMenu, managerExportAllSQLite, managerExportAllMarkdown, managerImportSQLite
+    case exportAllSQLiteDone, exportAllSQLiteFailed
+    case exportAllMarkdownDone
+    case importSQLiteDone, importSQLiteFailed
 
     // Accessibility prompt (NSAlert)
     case promptAxTitle, promptAxBody, promptAxOpen, promptAxNotNow
@@ -360,12 +366,16 @@ enum L {
         .colorPurple: "Purple",
         .colorGray: "Gray",
         .fileImport: "Import…",
-        .fileBackup: "Backup All Notes…",
-        .fileRestore: "Restore from Backup…",
         .fileImportDone: "Imported %d note(s).",
-        .fileBackupDone: "Backup written successfully.",
-        .fileBackupFailed: "Backup failed. Check the log for details.",
-        .fileRestoreDone: "Restored %d note(s) and %d group(s). Existing entries with matching IDs were skipped.",
+        .managerDataMenu: "Data",
+        .managerExportAllSQLite: "Export All Notes (SQLite)…",
+        .managerExportAllMarkdown: "Export All Notes (Markdown)…",
+        .managerImportSQLite: "Import All Notes (SQLite)…",
+        .exportAllSQLiteDone: "Exported %d note(s) to SQLite.",
+        .exportAllSQLiteFailed: "SQLite export failed. Check the log for details.",
+        .exportAllMarkdownDone: "Exported %d note(s) as Markdown.",
+        .importSQLiteDone: "Imported %d note(s) and %d group(s). Existing entries with matching IDs were skipped.",
+        .importSQLiteFailed: "SQLite import failed: could not read that file.",
 
         .promptAxTitle: "Enable Accessibility to auto-fill selected text",
         .promptAxBody: "Noticky needs the Accessibility permission to read the selected text from the frontmost app and prefill it when you press ⌘⇧N.\n\nOpen System Settings → Privacy & Security → Accessibility and enable Noticky. Then press ⌘⇧N again.",
@@ -564,12 +574,16 @@ enum L {
         .colorPurple: "紫色",
         .colorGray: "灰色",
         .fileImport: "导入…",
-        .fileBackup: "备份全部便签…",
-        .fileRestore: "从备份恢复…",
         .fileImportDone: "已导入 %d 条便签。",
-        .fileBackupDone: "备份成功。",
-        .fileBackupFailed: "备份失败,详见日志。",
-        .fileRestoreDone: "恢复了 %d 条便签和 %d 个分组。UUID 已存在的条目被跳过。",
+        .managerDataMenu: "数据",
+        .managerExportAllSQLite: "导出全部便签 (SQLite)…",
+        .managerExportAllMarkdown: "导出全部便签 (Markdown)…",
+        .managerImportSQLite: "导入全部便签 (SQLite)…",
+        .exportAllSQLiteDone: "已导出 %d 条便签到 SQLite。",
+        .exportAllSQLiteFailed: "SQLite 导出失败,详见日志。",
+        .exportAllMarkdownDone: "已导出 %d 条便签为 Markdown。",
+        .importSQLiteDone: "导入了 %d 条便签和 %d 个分组。UUID 已存在的条目被跳过。",
+        .importSQLiteFailed: "SQLite 导入失败:无法读取该文件。",
 
         .promptAxTitle: "开启辅助功能以自动填入选中文本",
         .promptAxBody: "Noticky 需要「辅助功能」权限才能在你按下 ⌘⇧N 时,读取当前 App 里选中的文字并自动填入。\n\n打开「系统设置 → 隐私与安全性 → 辅助功能」,把 Noticky 勾上即可。授权后再按 ⌘⇧N 就能用了。",
