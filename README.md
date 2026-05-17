@@ -9,14 +9,13 @@ AppKit shell with SwiftUI content (bridged via `NSHostingController`), backed by
 Core Data, with optional `NSPersistentCloudKitContainer` for cross-device sync.
 No Dock icon, lives in the menu bar (`LSUIElement`).
 
-> Screenshot placeholders — to be added later: menubar / floating note / Manager / Settings
-
 <p align="center">
-  <img src="docs/screenshots/menubar.png" width="320" alt="Menu bar">
-  <img src="docs/screenshots/floating.png" width="320" alt="Floating note">
+  <img src="docs/screenshots/menutray-open.png" width="340" alt="Menu bar tray">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/stack.png" width="255" alt="Floating sticky note">
 </p>
 <p align="center">
-  <img src="docs/screenshots/manager.png" width="640" alt="Manager window">
+  <img src="docs/screenshots/manage-all-note.png" width="760" alt="Manager window">
 </p>
 
 ---
@@ -37,6 +36,15 @@ No Dock icon, lives in the menu bar (`LSUIElement`).
 - `Float on top` (menubar toggle) keeps every floating note above other windows.
 - Double-click the title bar to collapse (toggleable in Settings).
 - Inactive notes fade for less visual noise (toggleable in Settings).
+
+<p align="center">
+  <img src="docs/screenshots/stack-animation.gif" width="300" alt="Stack layout — the selected note slides to the bottom"><br>
+  <sub><b>Stack</b> — selecting a note slides it to the bottom for full visibility</sub>
+</p>
+<p align="center">
+  <img src="docs/screenshots/tile-animation.gif" width="840" alt="Tile layout — drag a note to reorder"><br>
+  <sub><b>Tile</b> — auto-arranged grid; drag a note to reorder</sub>
+</p>
 
 ### Editor
 - Plain text (`PlainTextEditor`, an `NSTextView` wrapper) and Markdown modes.

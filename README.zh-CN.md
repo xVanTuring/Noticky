@@ -8,14 +8,13 @@ Noticky 是一款 macOS 15+ 原生便签 / 速记工具。AppKit 外壳 + SwiftU
 （`NSHostingController` 桥接），Core Data 持久化，可选 `NSPersistentCloudKitContainer`
 跨设备同步。无 Dock 图标，常驻菜单栏（`LSUIElement`）。
 
-> 截图占位 — 后续补：菜单栏 / 浮窗 / Manager / Settings
-
 <p align="center">
-  <img src="docs/screenshots/menubar.png" width="320" alt="菜单栏">
-  <img src="docs/screenshots/floating.png" width="320" alt="浮窗便签">
+  <img src="docs/screenshots/menutray-open.png" width="340" alt="菜单栏托盘">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/stack.png" width="255" alt="浮窗便签">
 </p>
 <p align="center">
-  <img src="docs/screenshots/manager.png" width="640" alt="Manager 窗口">
+  <img src="docs/screenshots/manage-all-note.png" width="760" alt="Manager 窗口">
 </p>
 
 ---
@@ -33,6 +32,15 @@ Noticky 是一款 macOS 15+ 原生便签 / 速记工具。AppKit 外壳 + SwiftU
 - `Float on top`（菜单栏切换）让所有浮窗常驻最上层。
 - 双击标题栏可折叠（可在 Settings 关）。
 - 失焦半透明（可在 Settings 关）。
+
+<p align="center">
+  <img src="docs/screenshots/stack-animation.gif" width="300" alt="Stack 层叠布局"><br>
+  <sub><b>Stack</b> — 选中谁谁滑到最下方完整可见</sub>
+</p>
+<p align="center">
+  <img src="docs/screenshots/tile-animation.gif" width="840" alt="Tile 平铺布局"><br>
+  <sub><b>Tile</b> — 自动平铺成网格，拖动即可重排</sub>
+</p>
 
 ### 编辑器
 - 纯文本（`NSTextView` 包装的 `PlainTextEditor`）和 Markdown 双模式。
