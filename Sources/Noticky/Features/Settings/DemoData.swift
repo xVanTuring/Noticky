@@ -39,7 +39,6 @@ enum DemoData {
             color: Int16 = 0,
             createdAgo: Double,
             updatedAgo: Double? = nil,
-            pinned: Bool = false,
             group: NoteGroup? = nil,
             archived: Bool = false,
             trashed: Bool = false
@@ -49,7 +48,11 @@ enum DemoData {
             n.content = content
             n.createdAt = ago(createdAgo)
             n.updatedAt = ago(updatedAgo ?? createdAgo)
-            n.isPinned = pinned
+            // **必须 false**:isPinned 在本项目里 = 「浮窗已打开 / 开机自动恢复」
+            //(见 CLAUDE.md),不是普通的「用户收藏」。造数据时设 true 却没真的
+            // spawn 浮窗,会让 menubar 的 active 徽标算进这些「幽灵 pinned」,
+            // 数字比实际可见浮窗多 —— 想测 pinned 就开机后手动打开浮窗。
+            n.isPinned = false
             n.colorIndex = color
             n.hasSavedFrame = false
             n.isCollapsed = false
@@ -75,7 +78,7 @@ enum DemoData {
         - [ ] Book the demo room
 
         Owner: **me** — review by Friday.
-        """, color: 2, createdAgo: 30, updatedAgo: 1, pinned: true, group: work)
+        """, color: 2, createdAgo: 30, updatedAgo: 1, group: work)
 
         makeNote("""
         Standup notes
@@ -100,7 +103,7 @@ enum DemoData {
         - Olive oil
         - Oranges
         - Sparkling water
-        """, color: 3, createdAgo: 18, updatedAgo: 2, pinned: true, group: personal)
+        """, color: 3, createdAgo: 18, updatedAgo: 2, group: personal)
 
         makeNote("Call the dentist to reschedule next week's appointment.",
                  color: 1, createdAgo: 90, updatedAgo: 90, group: personal)
