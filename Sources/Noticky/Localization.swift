@@ -80,6 +80,10 @@ enum LocKey: String {
     case generalMenuBarCount
     case menuBarCountNone, menuBarCountTotal, menuBarCountActive
     case generalTrashRetention, generalTrashRetentionDesc
+    // General → 数据(危险区:清空全部内容)
+    case generalDataSection, generalClearAll, generalClearAllDesc
+    case generalClearAllConfirmTitle, generalClearAllConfirmMsg, generalClearAllConfirmButton
+    case generalClearAllDone
 
     // Settings Shortcuts
     case shortcutsCustomizable, shortcutsSystem
@@ -237,6 +241,13 @@ enum L {
         .menuBarCountActive: "Shown stickies",
         .generalTrashRetention: "Keep deleted notes for %d days",
         .generalTrashRetentionDesc: "Notes in Trash are permanently removed after this many days. Range 7-365.",
+        .generalDataSection: "Data",
+        .generalClearAll: "Clear All Content…",
+        .generalClearAllDesc: "Permanently deletes every note (including Archive and Trash) and every group. Settings are kept. This cannot be undone — export a backup first via Manage All Notes → Data.",
+        .generalClearAllConfirmTitle: "Clear all content?",
+        .generalClearAllConfirmMsg: "This permanently deletes all %d note(s) and %d group(s), including Archive and Trash. This cannot be undone.\n\nConsider exporting a backup first (Manage All Notes → Data).",
+        .generalClearAllConfirmButton: "Clear Everything",
+        .generalClearAllDone: "Cleared: deleted %d note(s) and %d group(s).",
 
         .shortcutsCustomizable: "Customizable",
         .shortcutsSystem: "System",
@@ -445,6 +456,13 @@ enum L {
         .menuBarCountActive: "激活显示数量",
         .generalTrashRetention: "回收站保留 %d 天",
         .generalTrashRetentionDesc: "进入回收站的便签超过设定天数后会被永久删除。范围 7-365 天。",
+        .generalDataSection: "数据",
+        .generalClearAll: "清空全部内容…",
+        .generalClearAllDesc: "永久删除全部便签(含归档与回收站)和全部分组,设置/偏好保留。无法撤销 —— 建议先在「管理所有便签 → 数据」导出备份。",
+        .generalClearAllConfirmTitle: "清空全部内容?",
+        .generalClearAllConfirmMsg: "这将永久删除全部 %d 条便签和 %d 个分组(含归档与回收站),无法撤销。\n\n建议先在「管理所有便签 → 数据」导出备份。",
+        .generalClearAllConfirmButton: "清空全部",
+        .generalClearAllDone: "已清空:删除了 %d 条便签和 %d 个分组。",
 
         .shortcutsCustomizable: "可自定义",
         .shortcutsSystem: "系统",

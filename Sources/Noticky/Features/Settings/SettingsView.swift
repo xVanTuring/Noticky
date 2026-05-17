@@ -248,10 +248,55 @@ struct GeneralTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            // 危险区:整库一次性清空。单独 Section + destructive 角色,跟上面
+            // 的偏好项视觉分开;真正的二次确认在 clearAllContent 的 NSAlert 里
+            //(critical + 回车默认落在「取消」上,防误删)。
+            Section {
+                Button(role: .destructive, action: clearAllContent) {
+                    Text(L.t(.generalClearAll))
+                }
+            } header: {
+                Text(L.t(.generalDataSection))
+            } footer: {
+                Text(L.t(.generalClearAllDesc))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 450)
+        .frame(width: 480, height: 560)
+    }
+
+    /// 清空全部内容。强二次确认 —— `.critical` NSAlert,清空键标 destructive
+    /// 外观且不绑回车,回车落在「取消」(安全默认),贴合 macOS 破坏性操作规范。
+    /// 确认后走 FloatingNotesRegistry.clearAll(同步关浮窗 + 下一 tick 删库),
+    /// 再弹完成提示。registry 还没建好(理论上不会,Settings 在启动后才开)
+    /// 时静默 no-op。
+    private func clearAllContent() {
+        let context = PersistenceController.shared.container.viewContext
+        guard let registry = FloatingNotesRegistry.shared else { return }
+        let counts = registry.contentCounts(in: context)
+
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = L.t(.generalClearAllConfirmTitle)
+        alert.informativeText = L.t(.generalClearAllConfirmMsg, counts.notes, counts.groups)
+        let clear = alert.addButton(withTitle: L.t(.generalClearAllConfirmButton))
+        clear.hasDestructiveAction = true
+        clear.keyEquivalent = ""          // 不做回车默认,防误删
+        let cancel = alert.addButton(withTitle: L.t(.cancel))
+        cancel.keyEquivalent = "\r"       // 回车 = 取消(安全默认)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let deleted = registry.clearAll(in: context)
+
+        let done = NSAlert()
+        done.messageText = L.t(.appName)
+        done.informativeText = L.t(.generalClearAllDone, deleted.notes, deleted.groups)
+        done.addButton(withTitle: L.t(.ok))
+        done.runModal()
     }
 
     /// SMAppService.mainApp 要求 App 已正确签名 + 在 /Applications 之类标准位置。

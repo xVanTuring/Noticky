@@ -30,6 +30,13 @@ enum LayoutMode: String, CaseIterable {
 
 /// 跟踪所有当前打开的悬浮便签,保证一条笔记最多一个浮窗。
 final class FloatingNotesRegistry {
+    /// 单实例引用。所有权在 AppDelegate 的 `private let floating`(全程存活),
+    /// 这里 weak —— 不延长生命周期。给没有注入路径的地方(Settings →
+    /// 「清空全部内容」)拿到 registry 去同步关浮窗用。
+    static weak var shared: FloatingNotesRegistry?
+
+    init() { FloatingNotesRegistry.shared = self }
+
     private var windows: [NSManagedObjectID: FloatingNoteWindowController] = [:]
     /// 当前显示顺序。stack 模式下:[0] = cascade 最上方(最老/最旧选中的),
     /// 末尾 = cascade 最下方(最近选中的,最完整可见)。tile 模式下用作行序优先。
@@ -478,6 +485,43 @@ final class FloatingNotesRegistry {
             }
             try? context.save()
         }
+    }
+
+    /// 清空全部内容:删掉**所有** Note(活跃 / 归档 / 回收站全包含)+ 所有
+    /// NoteGroup。设置 / 偏好(UserDefaults)一概不动。**不可撤销** —— 调用方
+    /// 负责弹强确认(Settings → General 的「清空全部内容」)。
+    ///
+    /// 防 SIGTRAP 套路同 `emptyTrash` / `delete`:先**同步**关掉所有浮窗(其
+    /// SwiftUI `@ObservedObject` 视图树随窗口释放),再把 `context.delete` 推到
+    /// 下一个 runloop tick —— 不在 SwiftUI 还持有 note 的同一 tick 里 fault
+    /// 已删对象。windows / displayOrder 这里就清空,关窗触发的 onClose 写
+    /// isPinned 无所谓(对象马上整体删掉)。
+    /// 返回这次清掉的 (便签数, 分组数) —— 同步 fetch 出来,删除本身异步。
+    @discardableResult
+    func clearAll(in context: NSManagedObjectContext) -> (notes: Int, groups: Int) {
+        for wc in windows.values { wc.close() }
+        windows.removeAll()
+        displayOrder.removeAll()
+
+        // note 不带任何 predicate —— 三态(活跃 / 归档 / 回收站)全要。
+        let notes = (try? context.fetch(NSFetchRequest<Note>(entityName: "Note"))) ?? []
+        let groups = (try? context.fetch(NSFetchRequest<NoteGroup>(entityName: "NoteGroup"))) ?? []
+        for note in notes { ReminderScheduler.shared.cancel(noteID: note.id) }
+
+        DispatchQueue.main.async {
+            for note in notes { context.delete(note) }
+            for group in groups { context.delete(group) }
+            try? context.save()
+        }
+        return (notes.count, groups.count)
+    }
+
+    /// 当前库里 (便签数, 分组数);便签含三态全部。给「清空全部内容」确认弹窗
+    /// 显示规模用。
+    func contentCounts(in context: NSManagedObjectContext) -> (notes: Int, groups: Int) {
+        let n = (try? context.count(for: NSFetchRequest<Note>(entityName: "Note"))) ?? 0
+        let g = (try? context.count(for: NSFetchRequest<NoteGroup>(entityName: "NoteGroup"))) ?? 0
+        return (n, g)
     }
 
     /// 启动时调一次:把超过保留天数的 trashed 笔记真删。默认 30 天(对齐
