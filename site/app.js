@@ -35,8 +35,11 @@
     "f.capture.li2": "<b>仅剪贴板</b> —— 不调 AX，直接用剪贴板内容预填。",
     "f.capture.li3": "<b>关闭</b> —— 一个空白窗口，记下灵感。",
 
-    "g.md.title": "纯文本或 Markdown",
-    "g.md.body": "纯文本走原生 NSTextView；Markdown 模式支持「渲染态 ↔ 编辑态」一键切换。全局字号实时同步到每一个打开的窗口。",
+    "f.md.title": "纯文本，或 Markdown",
+    "f.md.body": "纯文本或 Markdown 随你写 —— 原生 NSTextView 编辑器，不锁专有格式。一键在「可编辑源码」与「渲染态」之间切换。",
+    "f.md.li1": "<b>编辑态</b> —— 你的原始文本 / Markdown，可全选、可迁出。",
+    "f.md.li2": "<b>渲染态</b> —— 标题、列表、任务复选框、代码块（基于 Textual）。",
+    "f.md.li3": "全局字号（12–24），实时同步到每一个打开的窗口。",
 
     "g.manager.title": "管理窗口",
     "g.manager.body": "原生侧栏 —— 分组、Ungrouped、Trash。拖便签进分组、全文搜索、右键重命名/移动，以及多选批量操作。",
