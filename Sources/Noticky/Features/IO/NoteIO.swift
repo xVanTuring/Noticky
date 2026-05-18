@@ -159,7 +159,13 @@ enum NoteIO {
     // MARK: - 整库 SQLite 导入 ------------------------------------------------
 
     /// 从一个 Noticky sqlite 导入。**已存在相同 UUID 的不导入**,避免覆盖用户当前
-    /// 数据。返回 (importedNotes, importedGroups);文件无法读取返回 nil。
+    /// 数据。返回 (importedNotes, importedGroups, pinned);文件无法读取返回 nil。
+    /// `pinned` = 这次新导入、且 isPinned 且未删未归档的 Note —— 调用方据此 spawn
+    /// 浮窗,让导入即恢复显示(等同重启时 AppDelegate.restorePinnedNotes,用户
+    /// 不必重启)。注意:`isPinned` 跟 frame/collapsed 一样是「本机窗口/UI 状态」,
+    /// 但备份的语义是「这些当时开着」,所以我们**保留** isPinned 并主动 spawn,
+    /// 而不是像 hasSavedFrame/isCollapsed 那样清掉(否则 menu 打勾但无窗,要重启
+    /// 才一致)。
     ///
     /// 鲁棒性:
     ///   - 先把选中文件(连同可能存在的 -wal/-shm)拷到 temp 再打开 —— 不改动
@@ -168,7 +174,7 @@ enum NoteIO {
     ///     导出的 sqlite 会被 lightweight 迁移到当前版本再读;
     ///   - 这也能容忍用户直接拷一份「活的」Noticky.sqlite(带 CloudKit 系统表 /
     ///     history)进来:Core Data 用非 CloudKit container 打开时忽略那些表。
-    static func importSQLite(_ url: URL, into context: NSManagedObjectContext) -> (notes: Int, groups: Int)? {
+    static func importSQLite(_ url: URL, into context: NSManagedObjectContext) -> (notes: Int, groups: Int, pinned: [Note])? {
         guard let temp = copyStoreToTemp(url) else {
             NSLog("Noticky: importSQLite temp copy failed for %@", url.path)
             return nil
@@ -217,6 +223,11 @@ enum NoteIO {
         }
 
         var importedNotes = 0
+        // 备份里 isPinned==true 表示「当时开着浮窗 / 开机自动恢复」。收集这次新
+        // 导入且 pinned 的笔记,调用方导入完立刻 spawn,无需等重启。
+        // isTrashed/isArchived 脏数据(pin 理论上会被清,跨设备同步残留可能仍带)
+        // 挡掉 —— 跟 AppDelegate.restorePinnedNotes 同款防御。
+        var toShow: [Note] = []
         for n in srcNotes {
             if fetchNote(id: n.id, in: context) != nil { continue }
             let copy = Note(context: context)
@@ -225,13 +236,16 @@ enum NoteIO {
             copy.hasSavedFrame = false
             copy.isCollapsed = false
             if let gid = n.group?.id, let g = groupMap[gid] { copy.group = g }
+            if copy.isPinned && !copy.isTrashed && !copy.isArchived {
+                toShow.append(copy)
+            }
             importedNotes += 1
         }
 
         if importedNotes > 0 || importedGroups > 0 {
             try? context.save()
         }
-        return (importedNotes, importedGroups)
+        return (importedNotes, importedGroups, toShow)
     }
 
     // MARK: - Helpers ---------------------------------------------------------

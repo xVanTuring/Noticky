@@ -313,6 +313,10 @@ struct ManagerView: View {
     private func importAllSQLite() {
         guard let url = NoteIOPanels.chooseSQLiteToImport() else { return }
         if let result = NoteIO.importSQLite(url, into: context) {
+            // 备份里在浮窗状态的笔记导入后立刻现身 —— 等同重启时 restorePinnedNotes,
+            // 用户不必重启。show() 内部已 applyLayout,这里逐条 spawn 即可
+            // (跟下方右键 "Open as Sticky" 多选 spawn 同一路径)。
+            for note in result.pinned { floating.show(note: note) }
             ioAlert(L.t(.importSQLiteDone, result.notes, result.groups))
         } else {
             ioAlert(L.t(.importSQLiteFailed))
