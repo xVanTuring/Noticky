@@ -22,6 +22,7 @@ enum SettingsKey {
     static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
     static let defaultNoteSize = "Noticky.defaultNoteSize"       // String raw,DefaultNoteSize enum
     static let startInEditMode = "Noticky.startInEditMode"       // Bool,新便签直接进编辑态(默认 false:渲染态)
+    static let experimentalMarkdownEngine = "Noticky.experimentalMarkdownEngine" // Bool,实验性 WYSIWYG 引擎(默认 false:Textual 双态)
 
     /// iCloud 同步开关。改这个值后必须重启 Noticky —— PersistenceController
     /// 在 init 时一次性读 + 决定走 NSPersistentContainer 还是
@@ -534,6 +535,7 @@ struct NotesTab: View {
     @AppStorage(SettingsKey.noteFontSize) private var noteFontSize: Int = 14
     @AppStorage(SettingsKey.defaultNoteSize) private var defaultNoteSizeRaw: String = DefaultNoteSize.medium.rawValue
     @AppStorage(SettingsKey.startInEditMode) private var startInEditMode: Bool = false
+    @AppStorage(SettingsKey.experimentalMarkdownEngine) private var experimentalEngine: Bool = false
     @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
@@ -588,10 +590,21 @@ struct NotesTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Section(L.t(.notesExperimental)) {
+                Toggle(isOn: $experimentalEngine) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L.t(.notesExperimentalEngine))
+                        Text(L.t(.notesExperimentalEngineDesc))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 320)
+        .frame(width: 480, height: 460)
     }
 }
 

@@ -25,6 +25,16 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle.git
     from: "2.9.1"
+  # 实验性 WYSIWYG Markdown 引擎(自维护 fork)。仓库只有 main 分支、无 semver
+  # tag,所以 pin 到 branch: main —— 每次 xcodegen / resolve 会拉最新。仅给
+  # Settings → Notes 里的「实验性」开关用,默认关。三个 product:
+  #   - MarkdownEngine          核心 TextKit2 编辑器(零外部依赖)
+  #   - MarkdownEngineCodeBlocks  HighlighterSwift 代码高亮 turnkey bridge
+  #   - MarkdownEngineLatex       SwiftMath LaTeX turnkey bridge
+  # 后两者把 HighlighterSwift / SwiftMath 作为传递依赖带进来。
+  MarkdownEngine:
+    url: https://github.com/xVanTuring/swift-markdown-engine
+    branch: main
 
 settings:
   base:
@@ -78,6 +88,12 @@ targets:
       - package: KeyboardShortcuts
       - package: Sparkle
         product: Sparkle
+      - package: MarkdownEngine
+        product: MarkdownEngine
+      - package: MarkdownEngine
+        product: MarkdownEngineCodeBlocks
+      - package: MarkdownEngine
+        product: MarkdownEngineLatex
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Noticky

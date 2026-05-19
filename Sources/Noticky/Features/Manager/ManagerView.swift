@@ -952,15 +952,18 @@ private struct NoteDetailView: View {
                 // 直接复用 MarkdownNoteEditor 的双态(渲染 ↔ 编辑),管理窗口
                 // 既能看也能改,跟浮窗里的体验一致。Open as Sticky 行为通过
                 // sidebar 行右键菜单走,不再用大按钮占地方。
-                MarkdownNoteEditor(text: Binding(
-                    get: { note.content },
-                    set: { newValue in
-                        guard newValue != note.content else { return }
-                        note.content = newValue
-                        note.updatedAt = Date()
-                        try? context.save()
-                    }
-                ))
+                MarkdownNoteEditor(
+                    text: Binding(
+                        get: { note.content },
+                        set: { newValue in
+                            guard newValue != note.content else { return }
+                            note.content = newValue
+                            note.updatedAt = Date()
+                            try? context.save()
+                        }
+                    ),
+                    documentId: note.id.uuidString
+                )
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }

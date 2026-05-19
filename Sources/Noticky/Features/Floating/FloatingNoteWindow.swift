@@ -1054,15 +1054,18 @@ private struct FloatingNoteView: View {
             if !note.isCollapsed {
                 VStack(spacing: 0) {
                     Spacer().frame(height: 28)
-                    MarkdownNoteEditor(text: Binding(
-                        get: { note.content },
-                        set: { newValue in
-                            guard newValue != note.content else { return }
-                            note.content = newValue
-                            note.updatedAt = Date()
-                            try? context.save()
-                        }
-                    ))
+                    MarkdownNoteEditor(
+                        text: Binding(
+                            get: { note.content },
+                            set: { newValue in
+                                guard newValue != note.content else { return }
+                                note.content = newValue
+                                note.updatedAt = Date()
+                                try? context.save()
+                            }
+                        ),
+                        documentId: note.id.uuidString
+                    )
                     .padding(.horizontal, 6)
                     .padding(.bottom, 10)
                 }
