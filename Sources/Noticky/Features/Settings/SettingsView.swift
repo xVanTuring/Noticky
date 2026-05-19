@@ -276,7 +276,19 @@ struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 560)
+        .frame(width: 480, height: Self.tabHeight)
+    }
+
+    /// 窗口按选中 tab 的 preferredContentSize 定高(见 SettingsWindowController),
+    /// 且 `.scrollDisabled(true)` —— 高度不够内容会被截断,不会出滚动条。
+    /// DEBUG 构建多出「填充演示数据」按钮 + 一段较长说明,560 装不下;Release
+    /// 没这段,保持 560 不动以免改动已发布布局。
+    private static var tabHeight: CGFloat {
+        #if DEBUG
+        680
+        #else
+        560
+        #endif
     }
 
     /// 清空全部内容。强二次确认 —— `.critical` NSAlert,清空键标 destructive
