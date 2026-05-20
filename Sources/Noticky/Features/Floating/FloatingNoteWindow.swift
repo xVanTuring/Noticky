@@ -1321,6 +1321,10 @@ private struct HoverToolbar: View {
 
                 // 铃铛:hover 时和「已设提醒」时都显示。fill 图标 + 强调色 = 设了。
                 // outline + 默认色 = 没设(只在 hover 期间出现)。
+                // 圆形底:hasReminder 时铃铛常驻顶部,长标题截尾会撞到这里 ——
+                // 给个半透明 + 毛玻璃的圆底把标题文本盖住,避免视觉重叠。
+                // .ultraThinMaterial 在 palette 色底上自然糊一层,既能遮字
+                // 又不会像实色圆点那么突兀。
                 Button {
                     showReminderPicker.toggle()
                 } label: {
@@ -1329,7 +1333,8 @@ private struct HoverToolbar: View {
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(hasReminder ? Color.accentColor : Color.primary.opacity(0.65))
                         .contentShape(Rectangle())
-                        .frame(width: 18, height: 18)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(.ultraThinMaterial))
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
