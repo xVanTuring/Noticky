@@ -659,9 +659,10 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// 真正的用户拖动结束信号:windowDidMove 高频回调,用 debounce 200ms 攒一次。
     private var pendingUserMove: DispatchWorkItem?
 
-    /// 折叠状态下窗口高度:刚好够装下 28pt 的标题条 + 一点呼吸空间。
-    /// 太矮的话顶部圆角会切到字。
-    static let collapsedHeight: CGFloat = 36
+    /// 折叠状态下窗口高度,也是展开态顶部 strip(标题条 + hover 工具条 + 双击
+    /// 命中层)的高度。两态共用同一个高度避免折叠时标题文字垂直位置发生跳变。
+    /// 32pt 给 16pt 图标和 12pt 文字都留出 8/10pt 上下呼吸空间,顶部圆角不切字。
+    static let collapsedHeight: CGFloat = 32
 
     init(
         note: Note,
@@ -837,8 +838,12 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         w.setFrame(f, display: true)
     }
 
-    /// 双击标题:折叠 ↔ 展开。写库 + 用 animateFrame 平滑过渡。
-    /// 展开时高度回到 savedFrame.height(若没存过则用默认 280)。
+    /// 双击标题 / ⋯ 菜单:折叠 ↔ 展开。**瞬间生效,无动画**(顶边锚定,top edge 不变)。
+    ///
+    /// 这里曾尝试做平滑折叠动画,反复失败 —— 根因是 `NSWindow` frame 动画(WindowServer
+    /// 服务端时间轴)与 `NSHostingView` 内容(客户端 CA 时间轴)无法同步,内容要么挤压、
+    /// 要么滑动后瞬移、要么不被窗口裁剪而「完全没有变化」。完整归档见
+    /// `docs/collapse-animation-attempts.md`。最终决定移除动画,直接 `setFrame`。
     private func toggleCollapse() {
         guard let w = window else { return }
         let nowCollapsed = !note.isCollapsed
@@ -870,7 +875,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
             )
             w.styleMask.insert(.resizable)
         }
-        animateFrame(target)
+        w.setFrame(target, display: true)
     }
 
     /// saved frame 至少跟某个屏幕的可见区有交集才算还能用。完全在屏幕外
@@ -1036,7 +1041,12 @@ private struct FloatingNoteView: View {
     }
 
     private var mainBody: some View {
-        ZStack(alignment: .top) {
+        // 顶部 strip 高度:折叠 / 展开两态都用 collapsedHeight(32pt)。
+        // 这样折叠时标题文字垂直位置不跳;同时编辑器顶部 spacer 也用这个值,
+        // 跟标题条对齐。
+        let stripHeight = FloatingNoteWindowController.collapsedHeight
+
+        return ZStack(alignment: .top) {
             // 卡片本体:活跃时实色填充,失焦时切到 .regularMaterial(NSVisualEffectView)
             // 毛玻璃 + 调色板色当 tint(opacity 0.45 让材质透出来)。
             // 窗体本身透明,系统阴影自动跟圆角形状走。
@@ -1053,7 +1063,7 @@ private struct FloatingNoteView: View {
             // 用户双击展开后再重建。
             if !note.isCollapsed {
                 VStack(spacing: 0) {
-                    Spacer().frame(height: 28)
+                    Spacer().frame(height: FloatingNoteWindowController.collapsedHeight)
                     MarkdownNoteEditor(
                         text: Binding(
                             get: { note.content },
@@ -1078,17 +1088,18 @@ private struct FloatingNoteView: View {
             // 占位,免得用户折叠后只剩一条空 bar 不知道是啥。
             NoteTitleBar(
                 text: note.cleanTitle,
-                fallbackWhenEmpty: note.isCollapsed ? L.t(.emptyNote) : nil
+                fallbackWhenEmpty: note.isCollapsed ? L.t(.emptyNote) : nil,
+                stripHeight: stripHeight
             )
 
             // 双击命中层。**位于 HoverToolbar 之下** —— × / ⋯ 按钮要先吃到点击。
-            // 占顶部 28pt 条,正好覆盖标题/hover 工具条所在区域;高度往下不延伸,
-            // 不会挡到下面编辑器的 mouseDown。设置关掉时整个 overlay 不存在,
-            // 系统的 isMovableByWindowBackground 接管点击 = 跟未引入此功能时一样。
+            // 高度 = stripHeight:展开态 28pt 不挡编辑器 mouseDown,折叠态 32pt 整条
+            // bar 都能双击展开。设置关掉时整个 overlay 不存在,系统的
+            // isMovableByWindowBackground 接管点击 = 跟未引入此功能时一样。
             if doubleClickToCollapseEnabled {
                 VStack {
                     TitleDoubleClickHit(onDoubleClick: onToggleCollapse)
-                        .frame(height: 28)
+                        .frame(height: stripHeight)
                     Spacer(minLength: 0)
                 }
             }
@@ -1100,6 +1111,7 @@ private struct FloatingNoteView: View {
             HoverToolbar(
                 palette: palette,
                 isCollapsed: note.isCollapsed,
+                stripHeight: stripHeight,
                 reminderDate: note.reminderDate,
                 onClose: onClose,
                 onPickColor: { picked in
@@ -1185,12 +1197,17 @@ private struct FloatingNoteView: View {
 }
 
 /// 浮窗顶部始终可见的标题条。空标题 + 没有 fallback 时不渲染(EmptyView),
-/// 保持顶部 28pt 留给 hover 工具条不挤压编辑器。`fallbackWhenEmpty` 给折叠
-/// 态用 —— 没标题文字也得显示个占位符,否则折叠后是空 28pt 条用户看不到任何
+/// 保持顶部 strip 留给 hover 工具条不挤压编辑器。`fallbackWhenEmpty` 给折叠
+/// 态用 —— 没标题文字也得显示个占位符,否则折叠后是空 strip 用户看不到任何
 /// 信息。文本居中、单行截断,左右各 32pt 给 × / ⋯ 按钮腾位置。
+///
+/// `stripHeight` 决定垂直居中的容器高度:展开态 28pt,折叠态 32pt。文本以
+/// `.frame(height:, alignment: .center)` 居中,不再依赖 `.padding(.top, 8)`,
+/// 这样折叠时整条 bar 内文字自然垂直居中。
 private struct NoteTitleBar: View {
     let text: String
     var fallbackWhenEmpty: String? = nil
+    let stripHeight: CGFloat
 
     var body: some View {
         let display = text.isEmpty ? (fallbackWhenEmpty ?? "") : text
@@ -1199,17 +1216,20 @@ private struct NoteTitleBar: View {
         if display.isEmpty {
             EmptyView()
         } else {
-            Text(display)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary.opacity(isFallback ? 0.4 : 0.65))
-                .italic(isFallback)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .padding(.top, 8)
-                .padding(.horizontal, 32)
-                .frame(maxWidth: .infinity)
-                // 标题条不挡点击,不抢编辑器/按钮/双击 hit 区的事件。
-                .allowsHitTesting(false)
+            VStack(spacing: 0) {
+                Text(display)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary.opacity(isFallback ? 0.4 : 0.65))
+                    .italic(isFallback)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 32)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(height: stripHeight, alignment: .center)
+                Spacer(minLength: 0)
+            }
+            // 标题条不挡点击,不抢编辑器/按钮/双击 hit 区的事件。
+            .allowsHitTesting(false)
         }
     }
 }
@@ -1276,9 +1296,14 @@ private struct TitleDoubleClickHit: NSViewRepresentable {
 
 /// 浮窗顶部 hover 工具条 + 全窗 hover 检测。`@State hovering` 在这里独立持有,
 /// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownNoteEditor 重渲染。
+///
+/// 折叠态(`isCollapsed == true`)下整条 bar 就是工具条本身,所有按钮始终可见
+/// (`buttonsVisible` 直接 true),不需要 hover 提示。展开态保留 hover-only 行为。
 private struct HoverToolbar: View {
     let palette: StickyPalette
     let isCollapsed: Bool
+    /// 顶部 strip 高度:展开 28pt / 折叠 32pt。HStack 用它做 frame 高度 + 居中。
+    let stripHeight: CGFloat
     /// 当前 note 的 reminderDate(可能 nil / 过去 / 未来)。决定铃铛是 outline
     /// 还是 fill,以及是否「无 hover 也常驻显示」(已设提醒时铃铛是状态标记)。
     let reminderDate: Date?
@@ -1296,6 +1321,9 @@ private struct HoverToolbar: View {
     /// 是否有「已设」提醒(过去/未来都算 —— 用户至少要看到铃铛常驻才能知道
     /// 还有遗留提醒可以清掉)。
     private var hasReminder: Bool { reminderDate != nil }
+
+    /// 折叠态下按钮始终可见;展开态下沿用 hover-only 行为。
+    private var buttonsVisible: Bool { isCollapsed || hovering }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1315,7 +1343,7 @@ private struct HoverToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
-                .opacity(hovering ? 1 : 0)
+                .opacity(buttonsVisible ? 1 : 0)
 
                 Spacer()
 
@@ -1338,7 +1366,7 @@ private struct HoverToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
-                .opacity(hovering || hasReminder ? 1 : 0)
+                .opacity(buttonsVisible || hasReminder ? 1 : 0)
                 .popover(isPresented: $showReminderPicker, arrowEdge: .top) {
                     ReminderPicker(
                         currentReminder: reminderDate,
@@ -1366,7 +1394,7 @@ private struct HoverToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .background(NonDraggable())
-                .opacity(hovering ? 1 : 0)
+                .opacity(buttonsVisible ? 1 : 0)
                 .popover(isPresented: $showColorPicker, arrowEdge: .top) {
                     NoteActionsBubble(
                         selected: palette,
@@ -1391,7 +1419,10 @@ private struct HoverToolbar: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.top, 6)
+            // 用固定 stripHeight + center 对齐替换原先的 `.padding(.top, 6)` ——
+            // 折叠态 32pt 下按钮自然垂直居中(原方案 6pt top padding 留出底部空白)。
+            // 外层 ZStack(alignment: .top) 负责把整个 HStack 锚到窗顶。
+            .frame(height: stripHeight, alignment: .center)
             .foregroundStyle(.primary.opacity(0.65))
             .animation(.easeOut(duration: 0.12), value: hovering)
         }
