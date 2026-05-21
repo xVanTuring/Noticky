@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import CoreData
+import CoreSpotlight
 import KeyboardShortcuts
 
 @main
@@ -39,19 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 系统会在 applicationDidFinishLaunching 之后第一拍主线程把 didReceive
         // 投递过来,所以 delegate + tapHandler 必须在 return 之前装好。
         ReminderScheduler.shared.tapHandler = { [weak self] uuid in
-            guard let self else { return }
-            let ctx = PersistenceController.shared.container.viewContext
-            let request = NSFetchRequest<Note>(entityName: "Note")
-            request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-            request.fetchLimit = 1
             // 通知点击的笔记可能在用户其它 device 上已经删了 —— CloudKit 同步
-            // 还没拉到本机时这里 fetch 不到,静默跳过。
-            // 归档/回收站里的笔记点通知不弹浮窗(归档时已 cancel 提醒,这里
-            // 再挡一层防御 —— 跨设备同步残留的提醒可能仍会触发)。
-            guard let note = (try? ctx.fetch(request))?.first,
-                  !note.isTrashed, !note.isArchived else { return }
-            NSApp.activate(ignoringOtherApps: true)
-            self.floating.show(note: note)
+            // 还没拉到本机时这里 fetch 不到,静默跳过。归档/回收站里的笔记点
+            // 通知不弹浮窗(归档时已 cancel 提醒,这里再挡一层防御 —— 跨设备
+            // 同步残留的提醒可能仍会触发)。逻辑在 openNote(uuid:) 里。
+            self?.openNote(uuid: uuid)
         }
 
         // 启动头一件事:把进回收站超过 30 天的笔记真删。放在 manager/menu
@@ -326,6 +319,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             capture.toggle()
         }
+    }
+
+    /// 点击 Spotlight 结果回到 App。系统通过 continue user activity 投递,
+    /// activityType 是 `CSSearchableItemActionType`,userInfo 里带的标识就是
+    /// `NoteSpotlightDelegate` 索引时父类写入的 uniqueIdentifier —— 即 Note 的
+    /// objectID URI。已运行则直接投递,从冷启动唤起则在 didFinishLaunching 之后投递。
+    func application(
+        _ application: NSApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void
+    ) -> Bool {
+        guard userActivity.activityType == CSSearchableItemActionType,
+              let uri = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+              let url = URL(string: uri) else { return false }
+        openNote(spotlightObjectURI: url)
+        return true
+    }
+
+    /// Spotlight 续传:objectID URI → Note → 弹浮窗。索引里可能残留已归档 /
+    /// 进回收站 / 在别的设备删掉的条目(store 重建后 URI 还会整体失效),任何
+    /// 还原失败或非活跃笔记都静默跳过。
+    private func openNote(spotlightObjectURI url: URL) {
+        let coordinator = PersistenceController.shared.container.persistentStoreCoordinator
+        guard let objectID = coordinator.managedObjectID(forURIRepresentation: url) else { return }
+        let ctx = PersistenceController.shared.container.viewContext
+        guard let note = try? ctx.existingObject(with: objectID) as? Note,
+              !note.isTrashed, !note.isArchived else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        floating.show(note: note)
+    }
+
+    /// 按 UUID 弹浮窗。提醒点击复用;非活跃 / fetch 不到的笔记静默跳过。
+    private func openNote(uuid: UUID) {
+        let ctx = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        guard let note = (try? ctx.fetch(request))?.first,
+              !note.isTrashed, !note.isArchived else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        floating.show(note: note)
     }
 
     /// 启动时把上次还在浮窗状态的笔记自动恢复出来。`isPinned` 一字段同时表达

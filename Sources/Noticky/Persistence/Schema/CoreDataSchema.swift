@@ -30,7 +30,29 @@ enum SchemaVersion: String, CaseIterable {
 enum CoreDataSchema {
     /// PersistenceController 用的 head model。
     static func currentModel() -> NSManagedObjectModel {
-        SchemaVersion.current.makeModel()
+        let model = SchemaVersion.current.makeModel()
+        applySpotlightMarking(to: model)
+        return model
+    }
+
+    /// 给 Note 实体打 Spotlight 标记。
+    ///
+    /// programmatic model 没有 .xcdatamodeld 编辑器里的 "Index in Spotlight"
+    /// 勾选框,而 `NSCoreDataCoreSpotlightDelegate` **只对被标记的 entity** 调
+    /// `attributeSet(for:)`(光重写 attributeSet 不够,delegate 不会主动遍历
+    /// 未标记的 entity)。programmatic 等价物是给 entity 设
+    /// `coreSpotlightDisplayNameExpression` —— 设上即视为"已标记为 Spotlight
+    /// 可索引"。表达式本身返回展示名(取剥过 markdown 的标题);真正进索引的
+    /// 字段由 `NoteSpotlightDelegate.attributeSet(for:)` 决定。
+    ///
+    /// 这是**非结构性元数据**,不进 model version hash,不影响 store 兼容性,
+    /// 因此放在 model 组装后统一打,不需要新 SchemaV5、也不必改已发布的
+    /// SchemaV{N} builder。
+    private static func applySpotlightMarking(to model: NSManagedObjectModel) {
+        guard let note = model.entitiesByName["Note"] else { return }
+        note.coreSpotlightDisplayNameExpression = NSExpression(block: { object, _, _ in
+            (object as? Note)?.displayTitle ?? "Note"
+        }, arguments: nil)
     }
 
     /// 检查 sqlite 元数据里的 schema hash 跟当前 model 是不是匹配。
