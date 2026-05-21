@@ -3,7 +3,9 @@ import SwiftUI
 import CoreData
 
 final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
-    private let note: Note
+    /// 模块内可读 —— `FloatingNotesRegistry` 持久化 displayOrder 时要从打开的
+    /// 窗反查对应 Note。其余外部不应改写。
+    let note: Note
     private let initialLevel: NSWindow.Level
     private let initialCollectionBehavior: NSWindow.CollectionBehavior
     private let onClose: () -> Void

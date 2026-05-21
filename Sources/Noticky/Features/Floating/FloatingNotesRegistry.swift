@@ -47,6 +47,12 @@ final class FloatingNotesRegistry {
     /// 下次启动 restore 就全 false。这个 flag 让 onClose 在退出阶段跳过 isPinned 写。
     var isTerminating = false
 
+    /// AppDelegate 启动 restore 期间设为 true。restore 会按持久化的
+    /// `Note.displayOrder` 顺序逐条 spawn,这时每次 spawn 不要立刻回写顺序
+    /// (会触发 N 次 save,且只是把读出来的序号原样写回);restore 结束后由
+    /// `persistDisplayOrder()` 一次性冻结。
+    var isRestoring = false
+
     /// 全局置顶开关。新窗按这个值设 level,toggle 时同步刷所有已开窗。
     /// 持久化在 UserDefaults,key 见 `floatOnTopKey`。
     private static let floatOnTopKey = "Noticky.floatOnTop"
@@ -299,6 +305,7 @@ final class FloatingNotesRegistry {
         guard displayOrder.contains(id) else { return }
         displayOrder.removeAll { $0 == id }
         displayOrder.append(id)
+        persistDisplayOrder()
         // 用户在哪屏点的窗,cascade 就锚到哪屏 —— 不让 activeScreen 的 oldest 偏好
         // 把刚拖到新屏的窗弹回去。
         applyStackLayout(onScreen: screenForWindow(id: id))
@@ -319,6 +326,7 @@ final class FloatingNotesRegistry {
             applyStackLayout(onScreen: draggedScreen)
         case .tile:
             sortDisplayOrderByCurrentPosition()
+            persistDisplayOrder()
             applyTileLayout(onScreen: draggedScreen)
         }
     }
@@ -341,6 +349,25 @@ final class FloatingNotesRegistry {
             }
             return fa.minX < fb.minX        // 同行按左边
         }
+    }
+
+    /// 把当前 `displayOrder` 的次序写回每条打开窗对应 Note 的 `displayOrder`
+    /// 字段(数组下标即序号),一次性 save。重排(stack 选中、tile 拖动)和新窗
+    /// spawn 后调,使顺序跨重启保持。`isRestoring` 期间是个 no-op —— restore
+    /// 自己读的就是这些值,逐条回写没意义,等 restore 收尾时再调一次冻结。
+    ///
+    /// 只对**当前打开**的窗重排序号:关掉的窗(isPinned 已 false)留着旧值,
+    /// 下次 restore 不会 fetch 到;重新打开会走 spawn append 到末尾再拿到新序号。
+    func persistDisplayOrder() {
+        guard !isRestoring else { return }
+        var context: NSManagedObjectContext?
+        for (index, id) in displayOrder.enumerated() {
+            guard let note = windows[id]?.note else { continue }
+            let newOrder = Int32(index)
+            if note.displayOrder != newOrder { note.displayOrder = newOrder }
+            context = context ?? note.managedObjectContext
+        }
+        try? context?.save()
     }
 
     /// 打开便签;若已打开,则把窗口提到最前。返回 true 表示创建了新窗口。
@@ -582,6 +609,9 @@ final class FloatingNotesRegistry {
             note.isPinned = true
             try? note.managedObjectContext?.save()
         }
+        // 运行期新开/重开窗:把整组当前次序冻结(新窗排末尾)。restore 期间
+        // isRestoring=true,persistDisplayOrder 会自动跳过,留给 restore 收尾统一写。
+        persistDisplayOrder()
         applyLayout()
     }
 }

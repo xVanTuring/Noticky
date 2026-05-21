@@ -343,11 +343,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             format: "isPinned == %@ AND isTrashed == %@ AND isArchived == %@",
             NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
         )
-        request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
+        // V4 起按持久化的 displayOrder 升序恢复浮窗顺序(stack 层叠 / tile 排列
+        // 次序跨重启保持)。displayOrder 全 0 的库(V3→V4 迁移后首启动、或从未
+        // 重排过)退化为 updatedAt 倒序 —— 与旧行为一致,观感不变。
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "displayOrder", ascending: true),
+            NSSortDescriptor(key: "updatedAt", ascending: false)
+        ]
         guard let pinned = try? context.fetch(request) else { return }
+        // restore 期间 spawn 不逐条回写顺序;收尾后一次性冻结(把首启动的
+        // updatedAt 退化序固化下来,后续编辑改 updatedAt 不再打乱排序)。
+        floating.isRestoring = true
         for note in pinned {
             floating.show(note: note)
         }
+        floating.isRestoring = false
+        floating.persistDisplayOrder()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

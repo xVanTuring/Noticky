@@ -23,6 +23,10 @@ public final class Note: NSManagedObject, Identifiable {
     /// 自动清理(归档没有过期一说)。
     @NSManaged public var archivedAt: Date?
     @NSManaged public var isCollapsed: Bool
+    /// V4 起:悬浮窗显示序号(stack 层叠次序 / tile 排列次序)。0 = 未排序。
+    /// 由 `FloatingNotesRegistry` 在重排后写入,启动 restore 按它升序恢复,
+    /// 使顺序跨重启保持。仅对当前 pinned 的窗有意义,关掉后值留着不清。
+    @NSManaged public var displayOrder: Int32
     /// V2 起:一次性提醒时间。nil = 未设。
     /// 设/清值后,代码层调 `ReminderScheduler` 同步 UN 调度;
     /// 这个字段只是做持久化记忆(用于 UI 显示和跨设备 CloudKit 同步)。
