@@ -130,11 +130,6 @@ struct HoverToolbar: View {
     /// 按钮只在 hover 时显示 —— 折叠态和展开态行为一致。
     private var buttonsVisible: Bool { hovering }
 
-    /// 颜色选择 Picker 的双向绑定:读当前 palette,写时回调 onPickColor。
-    private var colorSelection: Binding<StickyPalette> {
-        Binding(get: { palette }, set: { onPickColor($0) })
-    }
-
     var body: some View {
         ZStack(alignment: .top) {
             // 全窗 hover 检测层:用 NSTrackingArea 自己的 NSView,不挡点击
@@ -194,49 +189,20 @@ struct HoverToolbar: View {
                     )
                 }
 
-                // 动作菜单改用原生 Menu(NSMenu),不再用 popover。NSMenu 在自己的
-                // 事件追踪循环里开关,选中项后菜单同步消失、动作立刻执行 —— 不像
-                // NSPopover 那样有一段独立子窗口的 dismiss 动画,会和折叠时改父窗 frame
-                // 打架(内容先掉窗底再瞬移回顶)。换 NSMenu 后折叠不再需要任何延迟兜底。
-                Menu {
-                    Picker(selection: colorSelection) {
-                        ForEach(StickyPalette.allCases) { p in
-                            Image(systemName: "circle.fill")
-                                .tint(p.color)
-                                .tag(p)
-                        }
-                    } label: {
-                        Text(L.t(.noteColor))
-                    }
-                    .pickerStyle(.palette)
-
-                    Divider()
-
-                    Button(action: onToggleCollapse) {
-                        Label(
-                            isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse),
-                            systemImage: isCollapsed ? "chevron.down" : "chevron.up"
-                        )
-                    }
-                    Button(action: onArchive) {
-                        Label(L.t(.floatArchive), systemImage: "archivebox")
-                    }
-                    Button(role: .destructive, action: onDelete) {
-                        Label(L.t(.floatDelete), systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .font(.system(size: 16))
-                        .symbolRenderingMode(.hierarchical)
-                        .contentShape(Rectangle())
-                }
-                // .button menu style + .plain button style 让触发器渲染成纯图标,
-                // 跟 × / 铃铛(都是 .buttonStyle(.plain))一致,不带 bezel/高亮。
-                // .borderlessButton 会自己画一层底,显得比其它按钮突兀。
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .fixedSize()
+                // 动作菜单是自建的 NSMenu(见 StickyActionMenuButton)。用 NSMenu 而非
+                // popover:NSMenu 在自己的事件追踪循环里开关,选中项后菜单同步消失、动作
+                // 立刻执行 —— 不像 NSPopover 那样有独立子窗口的 dismiss 动画会和折叠时改父窗
+                // frame 打架。颜色行是自绘 NSView:系统 palette picker 的 hover 是个灰色圆角
+                // 方块、改不掉,这里自己画圆点 + hover 浅色环 + 选中强调环。
+                StickyActionMenuButton(
+                    selected: palette,
+                    isCollapsed: isCollapsed,
+                    onPickColor: onPickColor,
+                    onToggleCollapse: onToggleCollapse,
+                    onArchive: onArchive,
+                    onDelete: onDelete
+                )
+                .frame(width: 20, height: 20)
                 .background(NonDraggable())
                 .opacity(buttonsVisible ? 1 : 0)
             }
@@ -307,5 +273,191 @@ private struct HoverTracker: NSViewRepresentable {
         nsView.onHoverChange = { newValue in
             DispatchQueue.main.async { hovering = newValue }
         }
+    }
+}
+
+/// ⋯ 动作菜单的触发器。点一下弹一个**自建 NSMenu**:第一项是自绘的颜色行
+/// (`ColorSwatchMenuRow`),分隔线,然后折叠/归档/删除三个原生菜单项。
+///
+/// 为什么不用 SwiftUI `Menu` + palette Picker:系统 palette picker 的 hover 高亮是
+/// 个灰色圆角方块,没有公开 API 改成圆环;而 SwiftUI `Menu` 又塞不进任意 NSView。
+/// 所以颜色行只能走 AppKit 自绘,菜单也得自己建。折叠/归档/删除仍用原生菜单项 ——
+/// 保留它们的系统外观,也保留「NSMenu 同步关闭、动作立刻执行」对折叠动画的友好性。
+struct StickyActionMenuButton: NSViewRepresentable {
+    let selected: StickyPalette
+    let isCollapsed: Bool
+    let onPickColor: (StickyPalette) -> Void
+    let onToggleCollapse: () -> Void
+    let onArchive: () -> Void
+    let onDelete: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton()
+        button.isBordered = false
+        button.bezelStyle = .regularSquare
+        button.imagePosition = .imageOnly
+        button.title = ""
+        button.setButtonType(.momentaryChange)
+        // 跟 × / 铃铛(SF Symbol 16pt hierarchical, primary 0.65)对齐。
+        button.contentTintColor = NSColor.labelColor.withAlphaComponent(0.65)
+        let cfg = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+            .applying(.preferringHierarchical())
+        button.image = NSImage(systemSymbolName: "ellipsis.circle.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(cfg)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.showMenu(_:))
+        return button
+    }
+
+    func updateNSView(_ nsView: NSButton, context: Context) {
+        // 弹菜单时从 coordinator.parent 现读 selected / isCollapsed,这里只需刷新引用。
+        context.coordinator.parent = self
+    }
+
+    final class Coordinator: NSObject {
+        var parent: StickyActionMenuButton
+        init(_ parent: StickyActionMenuButton) { self.parent = parent }
+
+        @objc func showMenu(_ sender: NSButton) {
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+
+            let colorItem = NSMenuItem()
+            colorItem.view = ColorSwatchMenuRow(selected: parent.selected) { [weak self] picked in
+                self?.parent.onPickColor(picked)
+            }
+            menu.addItem(colorItem)
+            menu.addItem(.separator())
+
+            let collapse = NSMenuItem(
+                title: parent.isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse),
+                action: #selector(doCollapse), keyEquivalent: ""
+            )
+            collapse.target = self
+            collapse.image = NSImage(
+                systemSymbolName: parent.isCollapsed ? "chevron.down" : "chevron.up",
+                accessibilityDescription: nil
+            )
+            menu.addItem(collapse)
+
+            let archive = NSMenuItem(title: L.t(.floatArchive), action: #selector(doArchive), keyEquivalent: "")
+            archive.target = self
+            archive.image = NSImage(systemSymbolName: "archivebox", accessibilityDescription: nil)
+            menu.addItem(archive)
+
+            let delete = NSMenuItem(title: L.t(.floatDelete), action: #selector(doDelete), keyEquivalent: "")
+            delete.target = self
+            delete.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+            menu.addItem(delete)
+
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+        }
+
+        @objc private func doCollapse() { parent.onToggleCollapse() }
+        @objc private func doArchive() { parent.onArchive() }
+        @objc private func doDelete() { parent.onDelete() }
+    }
+}
+
+/// NSMenu 里那一行调色板,自绘。系统 palette picker 的 hover 是灰色圆角方块改不掉,
+/// 这里自己来:画 6 个实心圆点;hover 的圆点外圈一道**浅色环**;当前选中的外圈一道
+/// **强调色环**。鼠标移动靠 tracking area 追(.mouseMoved + .activeAlways 在菜单的
+/// 事件追踪 runloop 里照常派发),点中某个圆点回调 onPick 并 cancelTracking 收菜单。
+final class ColorSwatchMenuRow: NSView {
+    private let palettes = StickyPalette.allCases
+    private let selected: StickyPalette
+    private let onPick: (StickyPalette) -> Void
+    private var hovered: Int?
+
+    private let dot: CGFloat = 15      // 圆点直径
+    private let gap: CGFloat = 12      // 圆点之间(边到边)
+    private let hPad: CGFloat = 14     // 跟原生菜单项的 leading 内缩大致对齐
+    private let vPad: CGFloat = 7
+    private let ringGap: CGFloat = 3   // 环跟圆点的间隙
+
+    init(selected: StickyPalette, onPick: @escaping (StickyPalette) -> Void) {
+        self.selected = selected
+        self.onPick = onPick
+        super.init(frame: .zero)
+        let n = CGFloat(palettes.count)
+        let width = hPad * 2 + n * dot + (n - 1) * gap
+        let height = vPad * 2 + dot + (ringGap + 2) * 2   // 上下给环留位置
+        frame = NSRect(x: 0, y: 0, width: width, height: height)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func centerX(_ i: Int) -> CGFloat {
+        hPad + dot / 2 + CGFloat(i) * (dot + gap)
+    }
+
+    private func index(at p: NSPoint) -> Int? {
+        let cy = bounds.midY
+        let hitR = dot / 2 + gap / 2   // 命中区放宽到圆点间隙的一半
+        for i in palettes.indices {
+            let dx = p.x - centerX(i)
+            let dy = p.y - cy
+            if dx * dx + dy * dy <= hitR * hitR { return i }
+        }
+        return nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let cy = bounds.midY
+        for (i, p) in palettes.enumerated() {
+            let cx = centerX(i)
+            let dotRect = NSRect(x: cx - dot / 2, y: cy - dot / 2, width: dot, height: dot)
+            p.nsColor.setFill()
+            NSBezierPath(ovalIn: dotRect).fill()
+
+            // 选中 = 强调色环;否则 hover = 浅色环。选中优先(选中且 hover 时不叠 hover 环)。
+            if p == selected {
+                strokeRing(cx: cx, cy: cy, color: .controlAccentColor, lineWidth: 2)
+            } else if i == hovered {
+                strokeRing(cx: cx, cy: cy, color: NSColor.labelColor.withAlphaComponent(0.4), lineWidth: 1.5)
+            }
+        }
+    }
+
+    private func strokeRing(cx: CGFloat, cy: CGFloat, color: NSColor, lineWidth: CGFloat) {
+        let r = dot / 2 + ringGap
+        let rect = NSRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
+        color.setStroke()
+        let path = NSBezierPath(ovalIn: rect)
+        path.lineWidth = lineWidth
+        path.stroke()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for ta in trackingAreas { removeTrackingArea(ta) }
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    private func updateHover(_ event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        let idx = index(at: p)
+        if idx != hovered { hovered = idx; needsDisplay = true }
+    }
+
+    override func mouseEntered(with event: NSEvent) { updateHover(event) }
+    override func mouseMoved(with event: NSEvent) { updateHover(event) }
+    override func mouseExited(with event: NSEvent) {
+        if hovered != nil { hovered = nil; needsDisplay = true }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        if let idx = index(at: p) {
+            onPick(palettes[idx])
+        }
+        enclosingMenuItem?.menu?.cancelTracking()
     }
 }
