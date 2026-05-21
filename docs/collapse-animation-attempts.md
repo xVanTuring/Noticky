@@ -1,8 +1,40 @@
-# 折叠动画尝试记录（失败归档）
+# 折叠动画尝试记录
 
 > 2026-05-21。目标:把浮动便签的折叠/展开做成「从下往上折叠、从上往下展开,
-> 顶边锚定,内容零挤压,无瞬移」。多轮尝试均失败,最终决定**移除折叠动画**
-> (改为瞬间折叠/展开)。本文档归档所有尝试与发现,避免后人重蹈覆辙。
+> 顶边锚定,内容零挤压,无瞬移」。早期多轮尝试均失败,一度决定移除动画。
+> **同日晚些时候做出来了** —— 见下方「✅ 最终成功方案」。失败归档保留在后,
+> 避免后人重蹈覆辙。
+
+## ✅ 最终成功方案
+
+实现在 `FloatingNoteWindowController.toggleCollapse` + `FoldState` + `FloatingNoteView`。
+四个要点缺一不可:
+
+1. **绝不用 `window.animator().setFrame`。** 它在 WindowServer 服务端把内容当缓存
+   位图缩放,SwiftUI 的 CALayer(圆角、标题位置)不逐帧重绘 → 圆角变直角、标题
+   上飘(就是「关键发现 A」的撕裂)。改成自己用 `Timer`(`.common` mode、按
+   `CACurrentMediaTime` 算 easeInOut 进度)逐帧 **瞬时** `setFrame(_:display:true)`。
+2. **逐帧显式驱动一个 SwiftUI 依赖值强制重绘。** 只改窗口 frame / host bounds
+   *不足以* 让 SwiftUI 每帧重画(它合并/延后布局 → 表现为「停一下再瞬变」)。
+   引入 `FoldState.currentHeight`(`@Published`),每帧 `setFrame` 前先改它;卡片
+   高度绑这个值 → 每帧真重绘。
+3. **编辑器在动画期间冻结在展开高度**(`FoldState.expandedHeight`),绝不随窗口
+   收缩压扁文字;超出窗口的部分靠裁剪盖掉。动画结束 `isCollapsed` 仍 true 时再
+   卸载编辑器(此时已被裁没,无可见跳变)。
+4. **`clipShape` 必须裁在 `currentHeight` 上**,即放在 `.frame(height: currentHeight)`
+   *之后*。否则圆角落在 mainBody 内部 ZStack 的自然高度(被冻结编辑器撑到展开
+   高度)上,可视底边只是中段直边 = **底部直角**(踩过两次的坑)。
+
+外加:frame 插值保持 `maxY` 恒定(顶边锚定);窗口关闭 / 重新折叠时 invalidate 掉
+timer。时长 `foldDuration` 0.38s(可调)。
+
+> **为什么以前没成:** 失败尝试要么并行动画窗口 + 内容(时间轴撕裂),要么只改
+> 窗口 frame 指望 SwiftUI 自动跟(不会逐帧重绘)。成功的关键是「窗口逐帧瞬时
+> setFrame + 同帧显式驱动 SwiftUI 重绘」二者合一,再把圆角裁在当前帧高度上。
+
+---
+
+# 失败归档（保留供参考）
 
 ## 需求 / 期望视觉
 
@@ -78,14 +110,10 @@
   (ffmpeg 在 `/Users/xvan/Project/ffmpeg/ffmpeg`;Desktop 有 TCC 限制,需先拷到 /tmp。)
 - **filmstrip**:`-start_number N -frames:v M -vf "scale=...,tile=Mx1"` 看连续帧。
 
-## 结论 / 待解
+## 当时的结论(已被推翻)
 
-逻辑层(窗口 frame、host frame、timer、缓动)反复验证都正确,但视觉始终是
-「内容不被窗口裁剪 / 内容滞后」,根因未彻底定位(疑似 NSHostingView 在 borderless
-透明窗 + 自定义 contentView 下的 layer 合成行为)。投入产出比过低,**决定移除折叠动画**,
-折叠/展开改为瞬间生效(`setFrame` 不带动画)。如未来重做,建议方向:
-
-- 用 SwiftUI 自身的高度动画(让 SwiftUI 驱动一切、窗口跟随 intrinsic size),
-  而不是 AppKit 窗口动画 + 手动定位内容。
-- 或对内容做快照(`NSView.dataWithPDF` / layer snapshot),用快照图层做动画,
-  再换回真实内容,彻底绕开 NSHostingView 的合成行为。
+> 当时判断「内容不被窗口裁剪 / 内容滞后」根因难定位、投入产出比过低,决定移除动画。
+> 实际根因后来定位清楚了:**(a)** 用了 `animator()` 的服务端窗口动画,内容不逐帧
+> 重绘;**(b)** 指望窗口/host bounds 变化自动触发 SwiftUI 重绘(不会)。两点都改掉
+> 后(见顶部「✅ 最终成功方案」)动画就成了。当时建议的两个方向里,「SwiftUI 驱动
+> 一切」基本对路 —— 最终方案就是用一个 `@Published` 高度逐帧驱动 SwiftUI 重绘。

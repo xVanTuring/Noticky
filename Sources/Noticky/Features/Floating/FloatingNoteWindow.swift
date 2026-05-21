@@ -658,6 +658,15 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     private var isAnimating = false
     /// 真正的用户拖动结束信号:windowDidMove 高频回调,用 debounce 200ms 攒一次。
     private var pendingUserMove: DispatchWorkItem?
+    /// 折叠/展开动画期间,把内容布局冻结在展开尺寸的共享状态(见 `FoldState`)。
+    private let foldState = FoldState()
+    /// 折叠/展开动画用的逐帧定时器。**手动 setFrame,不用 `animator()`** —— 见
+    /// `toggleCollapse` 注释里的原因。
+    private var foldTimer: Timer?
+    private var foldFrom: NSRect = .zero
+    private var foldTo: NSRect = .zero
+    private var foldStartTime: CFTimeInterval = 0
+    private let foldDuration: CFTimeInterval = 0.38
 
     /// 折叠状态下窗口高度,也是展开态顶部 strip(标题条 + hover 工具条 + 双击
     /// 命中层)的高度。两态共用同一个高度避免折叠时标题文字垂直位置发生跳变。
@@ -761,6 +770,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         let host = NSHostingController(
             rootView: FloatingNoteView(
                 note: note,
+                foldState: foldState,
                 onClose: { [weak self] in
                     // borderless 窗口没有 .closable,performClose 是 no-op,
                     // 直接 close() 才会真关 + 触发 windowWillClose 让 registry 清 isPinned。
@@ -838,44 +848,103 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         w.setFrame(f, display: true)
     }
 
-    /// 双击标题 / ⋯ 菜单:折叠 ↔ 展开。**瞬间生效,无动画**(顶边锚定,top edge 不变)。
+    /// 双击标题 / ⋯ 菜单:折叠 ↔ 展开。带平滑动画,顶边锚定(top edge 不动)。
     ///
-    /// 这里曾尝试做平滑折叠动画,反复失败 —— 根因是 `NSWindow` frame 动画(WindowServer
-    /// 服务端时间轴)与 `NSHostingView` 内容(客户端 CA 时间轴)无法同步,内容要么挤压、
-    /// 要么滑动后瞬移、要么不被窗口裁剪而「完全没有变化」。完整归档见
-    /// `docs/collapse-animation-attempts.md`。最终决定移除动画,直接 `setFrame`。
+    /// **关键:用逐帧定时器手动 `setFrame`,绝不用 `window.animator().setFrame`。**
+    /// animator 的窗口动画跑在 WindowServer(服务端),它把内容当成一张缓存位图去
+    /// 缩放/流式播放,SwiftUI 的 CALayer(圆角裁剪、标题位置)不会逐帧重绘 →
+    /// 表现为「圆角变直角 + 标题往上飘」(正是 docs/collapse-animation-attempts.md
+    /// 里的撕裂)。改成自己用 Timer 在主线程逐帧 `setFrame(_:display:true)`(瞬时,
+    /// 非动画):窗口尺寸和 SwiftUI 内容在同一拍更新,圆角/裁剪每帧重绘、严丝合缝。
+    ///
+    /// 内容这边由 `FoldState` 在动画期间冻结在展开高度(编辑器固定布局、绝不压缩),
+    /// 只随窗口缩放被 host bounds 的 clipShape 裁剪 —— 折叠 = 从底部裁掉,展开 =
+    /// 自上而下显出;卡片背景与圆角始终跟随 host bounds,故全程圆角 + 阴影正确。
     private func toggleCollapse() {
         guard let w = window else { return }
+        // 动画进行中忽略重复触发,避免 frame 半路被打断错位。
+        guard !isAnimating else { return }
         let nowCollapsed = !note.isCollapsed
-        note.isCollapsed = nowCollapsed
-        try? note.managedObjectContext?.save()
 
         let current = w.frame
         let topY = current.maxY
+
+        let expandedHeight: CGFloat
         let target: NSRect
         if nowCollapsed {
-            // 折叠:高度→ collapsedHeight,顶部锚不变。
-            target = NSRect(
-                x: current.minX,
-                y: topY - Self.collapsedHeight,
-                width: current.width,
-                height: Self.collapsedHeight
-            )
-            w.styleMask.remove(.resizable)
+            // 折叠:高度 → collapsedHeight,顶部锚不变。内容冻结在当前展开高度。
+            expandedHeight = current.height
+            target = NSRect(x: current.minX, y: topY - Self.collapsedHeight,
+                            width: current.width, height: Self.collapsedHeight)
         } else {
-            // 展开:回到上次的展开高度。savedFrame 在折叠期间的 flushFrameSave
-            // 里只更新 X 和补偿后的 Y,W/H 保留的是展开时的,直接读出来用。
-            let expandedH = (note.savedFrame?.height).map { max($0, 80) } ?? 280
-            let expandedW = note.savedFrame?.width ?? current.width
-            target = NSRect(
-                x: current.minX,
-                y: topY - expandedH,
-                width: expandedW,
-                height: expandedH
-            )
-            w.styleMask.insert(.resizable)
+            // 展开:回到上次展开高度。foldState 里内容也按这个高度布局,窗口长大时
+            // 自上而下显出。savedFrame 在折叠期间只更新位置、保留展开 W/H,直接读。
+            let h = (note.savedFrame?.height).map { max($0, 80) } ?? 280
+            let wdt = note.savedFrame?.width ?? current.width
+            expandedHeight = h
+            target = NSRect(x: current.minX, y: topY - h, width: wdt, height: h)
         }
-        w.setFrame(target, display: true)
+
+        note.isCollapsed = nowCollapsed
+        try? note.managedObjectContext?.save()
+
+        // 进入折叠布局:编辑器冻结在展开高度;卡片高度从当前帧开始逐帧驱动。
+        foldState.expandedHeight = expandedHeight
+        foldState.currentHeight = current.height
+        foldState.animating = true
+
+        // 折叠态不可拖边 resize;展开态恢复。
+        if nowCollapsed { w.styleMask.remove(.resizable) } else { w.styleMask.insert(.resizable) }
+
+        isAnimating = true
+        pendingFrameSave?.cancel()
+
+        startFoldAnimation(from: current, to: target)
+    }
+
+    /// 逐帧驱动折叠/展开:Timer 按 wall-clock 进度算 easeInOut,每拍**瞬时**
+    /// `setFrame`。加进 `.common` mode,保证菜单/拖动 tracking loop 期间也跑。
+    private func startFoldAnimation(from: NSRect, to: NSRect) {
+        foldTimer?.invalidate()
+        foldFrom = from
+        foldTo = to
+        foldStartTime = CACurrentMediaTime()
+        let timer = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] t in
+            guard let self, let w = self.window else { t.invalidate(); return }
+            let raw = min(1.0, (CACurrentMediaTime() - self.foldStartTime) / self.foldDuration)
+            let p = Self.easeInOut(CGFloat(raw))
+            let f = NSRect(
+                x: self.foldFrom.minX + (self.foldTo.minX - self.foldFrom.minX) * p,
+                y: self.foldFrom.minY + (self.foldTo.minY - self.foldFrom.minY) * p,
+                width: self.foldFrom.width + (self.foldTo.width - self.foldFrom.width) * p,
+                height: self.foldFrom.height + (self.foldTo.height - self.foldFrom.height) * p
+            )
+            // 先驱动 SwiftUI 卡片高度(强制本帧重绘),再把窗口设到同尺寸 —— 两者
+            // 同一拍更新,内容与窗口严丝合缝。
+            self.foldState.currentHeight = f.height
+            w.setFrame(f, display: true)
+            if raw >= 1.0 {
+                t.invalidate()
+                self.foldTimer = nil
+                self.finishFold()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        foldTimer = timer
+    }
+
+    private func finishFold() {
+        foldState.animating = false
+        // 动画收尾写回正确 saved frame(折叠时只更新位置、保留展开 W/H)。
+        flushFrameSave()
+        // 加一拍再清 isAnimating,等最后一次 windowDidResize 跑完。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.isAnimating = false
+        }
+    }
+
+    private static func easeInOut(_ t: CGFloat) -> CGFloat {
+        t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
     }
 
     /// saved frame 至少跟某个屏幕的可见区有交集才算还能用。完全在屏幕外
@@ -952,6 +1021,8 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     }
 
     func close() {
+        foldTimer?.invalidate()
+        foldTimer = nil
         window?.orderOut(nil)
         window = nil
     }
@@ -978,6 +1049,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        // 折叠动画还在跑就关窗:停掉定时器,免得它对已关窗 setFrame。
+        foldTimer?.invalidate()
+        foldTimer = nil
         // 拖完手立刻关窗的情况下,debounced 写还在排队 → 立刻取消并同步刷一次,
         // 不然 250ms 后来时窗口和 note 状态都没了。
         pendingFrameSave?.cancel()
@@ -999,8 +1073,27 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     }
 }
 
+/// 折叠/展开动画期间,把内容布局「冻结」在展开尺寸的共享状态。
+/// controller 持有并驱动,`FloatingNoteView` 观察。
+/// - `animating == true`:内容按 `expandedHeight` 固定高度顶端对齐渲染,由窗口
+///   当前尺寸裁剪。窗口 frame 动画是唯一驱动,SwiftUI 只跟随 host bounds 重裁、
+///   不跑自己的动画,所以不会出现 docs/collapse-animation-attempts.md 里那种
+///   「窗口 / 内容两条时间轴撕裂」。
+/// - `animating == false`:内容正常填满 host(展开态可被用户拖动 resize;折叠态
+///   就是 32pt 的标题条)。
+final class FoldState: ObservableObject {
+    @Published var animating = false
+    /// 编辑器在动画期间冻结的高度(= 展开高度),保证文字不被压缩。
+    @Published var expandedHeight: CGFloat = 280
+    /// 动画当前帧的卡片高度。**逐帧显式改它**来强制 SwiftUI 重绘 —— 只改窗口
+    /// frame / host bounds 不足以让 SwiftUI 每帧重画(它会合并/延后布局,表现为
+    /// 「等一下然后瞬变」)。卡片背景 + 圆角裁剪绑这个值,故每帧都重画、平滑。
+    @Published var currentHeight: CGFloat = 280
+}
+
 private struct FloatingNoteView: View {
     @ObservedObject var note: Note
+    @ObservedObject var foldState: FoldState
     @Environment(\.managedObjectContext) private var context
     /// 当前窗口是否处于 key 状态:.key = 活跃,其它都按非活跃处理(渲染毛玻璃)。
     /// SwiftUI 自动跟踪这个 env value,key 状态变化会触发 body 重渲染,
@@ -1036,7 +1129,16 @@ private struct FloatingNoteView: View {
         if note.isDeleted || note.managedObjectContext == nil {
             EmptyView()
         } else {
+            // 动画期间把卡片高度绑到 foldState.currentHeight(逐帧显式驱动 → 每帧
+            // 重绘);非动画时不约束,正常填满 host。
+            // **clipShape 必须在 currentHeight frame 之后**:这样圆角裁剪发生在
+            // currentHeight 这个高度上,而不是 mainBody 内部 ZStack 的自然高度(被
+            // 冻结的编辑器撑到展开高度)—— 否则圆角落在展开高度处,可视底边只是中段
+            // 的直边 = 底部直角。
             mainBody
+                .frame(height: foldState.animating ? foldState.currentHeight : nil, alignment: .top)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -1059,9 +1161,11 @@ private struct FloatingNoteView: View {
             }
             .animation(.easeInOut(duration: 0.18), value: isInactive)
 
-            // 折叠态隐藏编辑器 —— 整个 NSTextView/SwiftUI 子树移除,光标失焦无副作用。
-            // 用户双击展开后再重建。
-            if !note.isCollapsed {
+            // 折叠态(静止)隐藏编辑器 —— 整个 NSTextView/SwiftUI 子树移除,光标失焦
+            // 无副作用。但**动画期间必须挂着**:折叠的「从下往上裁掉」/ 展开的「自上
+            // 而下显出」靠的就是编辑器以固定展开高度存在、被窗口裁剪。动画结束 isCollapsed
+            // 仍 true 时再卸载(此时窗口已是 32pt,编辑器早被裁没,卸载无可见跳变)。
+            if foldState.animating || !note.isCollapsed {
                 VStack(spacing: 0) {
                     Spacer().frame(height: FloatingNoteWindowController.collapsedHeight)
                     MarkdownNoteEditor(
@@ -1079,6 +1183,13 @@ private struct FloatingNoteView: View {
                     .padding(.horizontal, 6)
                     .padding(.bottom, 10)
                 }
+                // 动画期间把编辑器区域钉死在展开高度、顶端对齐 —— 不随窗口收缩压扁
+                // 文字;超出当前窗口的部分由外层 clipShape(= 窗口圆角)裁掉,于是
+                // 折叠 = 文字从底部被裁没、展开 = 自上而下显出。非动画时填满 host。
+                // 卡片背景与圆角始终跟随 host bounds(下方 ZStack 的 clipShape),
+                // 所以动画全程圆角 + 阴影都正确。
+                .frame(height: foldState.animating ? foldState.expandedHeight : nil, alignment: .top)
+                .frame(maxHeight: .infinity, alignment: .top)
             }
 
             // 顶部标题条:始终可见,跟着 note.content 自动派生(`cleanTitle` 剥过
@@ -1126,7 +1237,8 @@ private struct FloatingNoteView: View {
                 onClearReminder: { clearReminder() }
             )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        // clipShape 不在这里 —— 移到 body 里、currentHeight frame 之后,确保圆角
+        // 落在当前帧高度上而不是被冻结编辑器撑出的展开高度上(见 body 注释)。
     }
 
     /// 设/改提醒:先 async 申请权限,授权后写库 + 调度 UN。被拒弹引导对话框。
