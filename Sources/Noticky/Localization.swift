@@ -57,6 +57,7 @@ enum LocKey: String {
     case menuNewNote, menuShowAllStickies, menuHideAllStickies
     case menuManageAllNotes, menuSettings, menuFloatOnTop, menuLayout, menuQuit
     case menuMoveAllToDisplay
+    case menuUpdateAvailable
 
     // Layout modes
     case layoutFree, layoutStack, layoutTile
@@ -71,6 +72,7 @@ enum LocKey: String {
     case updatesAutoCheck, updatesIncludePrereleases, updatesFooter
     case updatesCurrentVersion, updatesLastChecked, updatesNeverChecked
     case updatesCheckNow
+    case updatesInterval, updatesIntervalHourly, updatesIntervalDaily, updatesIntervalWeekly
 
     // Settings General
     case generalLaunchAtLogin, generalSortBy
@@ -217,6 +219,7 @@ enum L {
         .menuSettings: "Settings…", .menuFloatOnTop: "Float on Top",
         .menuLayout: "Layout", .menuQuit: "Quit Noticky",
         .menuMoveAllToDisplay: "Move All Stickies to Display",
+        .menuUpdateAvailable: "Update to %@ available…",
 
         .layoutFree: "Free Layout", .layoutStack: "Stack", .layoutTile: "Tile",
 
@@ -225,13 +228,17 @@ enum L {
         .tabGeneral: "General", .tabCapture: "Capture", .tabShortcuts: "Shortcuts",
         .tabNotes: "Notes", .tabICloud: "iCloud Sync", .tabUpdates: "Updates",
 
-        .updatesAutoCheck: "Automatically check for updates on launch",
+        .updatesAutoCheck: "Automatically check for updates",
         .updatesIncludePrereleases: "Include pre-release builds (beta channel)",
-        .updatesFooter: "Updates are signed with EdDSA, downloaded over HTTPS, and installed by Sparkle's helper. Pre-release builds come from the `beta` channel of the appcast.",
+        .updatesFooter: "Updates are signed with EdDSA, downloaded over HTTPS, and installed by Sparkle's helper. When a background check finds an update, it appears in the menu bar instead of interrupting you — click it to install. Pre-release builds come from the `beta` channel of the appcast.",
         .updatesCurrentVersion: "Current version",
         .updatesLastChecked: "Last checked",
         .updatesNeverChecked: "Never",
         .updatesCheckNow: "Check Now…",
+        .updatesInterval: "Check frequency",
+        .updatesIntervalHourly: "Every hour",
+        .updatesIntervalDaily: "Every day",
+        .updatesIntervalWeekly: "Every week",
 
         .generalLaunchAtLogin: "Launch at login",
         .generalSortBy: "Sort by:",
@@ -439,6 +446,7 @@ enum L {
         .menuSettings: "设置…", .menuFloatOnTop: "悬浮置顶",
         .menuLayout: "布局", .menuQuit: "退出 Noticky",
         .menuMoveAllToDisplay: "将所有便签移到显示器",
+        .menuUpdateAvailable: "有新版本 %@ 可更新…",
 
         .layoutFree: "自由布局", .layoutStack: "堆叠", .layoutTile: "平铺",
 
@@ -447,13 +455,17 @@ enum L {
         .tabGeneral: "通用", .tabCapture: "抓取", .tabShortcuts: "快捷键",
         .tabNotes: "便签", .tabICloud: "iCloud 同步", .tabUpdates: "更新",
 
-        .updatesAutoCheck: "启动时自动检查更新",
+        .updatesAutoCheck: "自动检查更新",
         .updatesIncludePrereleases: "包含预发布版本(beta 通道)",
-        .updatesFooter: "更新通过 EdDSA 签名校验、HTTPS 下载,由 Sparkle 的辅助进程完成安装。预发布版本来自 appcast 的 `beta` 通道。",
+        .updatesFooter: "更新通过 EdDSA 签名校验、HTTPS 下载,由 Sparkle 的辅助进程完成安装。后台检查发现新版本时只在菜单栏显示入口,不打断你 —— 点一下即可安装。预发布版本来自 appcast 的 `beta` 通道。",
         .updatesCurrentVersion: "当前版本",
         .updatesLastChecked: "上次检查",
         .updatesNeverChecked: "从未",
         .updatesCheckNow: "立即检查…",
+        .updatesInterval: "检查频率",
+        .updatesIntervalHourly: "每小时",
+        .updatesIntervalDaily: "每天",
+        .updatesIntervalWeekly: "每周",
 
         .generalLaunchAtLogin: "开机自动启动",
         .generalSortBy: "排序方式:",

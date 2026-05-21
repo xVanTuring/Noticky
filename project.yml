@@ -123,6 +123,9 @@ targets:
         # 跑完会 commit + push 更新后的 appcast.xml。Sparkle 默认从
         # raw.githubusercontent.com 这个 URL 拉取。
         SUFeedURL: "https://raw.githubusercontent.com/xVanTuring/Noticky/main/appcast.xml"
+        # 默认定期检查间隔(秒)。用户在 Settings → Updates 改了之后,Sparkle
+        # 把新值持久化到自己的 defaults domain,这里只是首次安装的初值(每天)。
+        SUScheduledCheckInterval: 86400
         # EdDSA 公钥 —— Sparkle 用它校验下载的 zip 签名;私钥由发布机的
         # login keychain(`https://sparkle-project.org` item)持有,由
         # release.sh 调 `sign_update` 时读取。生成步骤见 docs/release.md。

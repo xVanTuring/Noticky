@@ -635,6 +635,13 @@ struct UpdatesTab: View {
     @AppStorage("Noticky.updater.autoCheck") private var autoCheckMirror: Bool = true
     @AppStorage("Noticky.updater.includePrereleases") private var includePrereleases: Bool = false
 
+    /// 频率选项(秒)。Sparkle 下限 1 小时,所以最小给到每小时。
+    private let intervalOptions: [(key: LocKey, seconds: TimeInterval)] = [
+        (.updatesIntervalHourly, 3600),
+        (.updatesIntervalDaily, 86400),
+        (.updatesIntervalWeekly, 604800),
+    ]
+
     var body: some View {
         Form {
             Section {
@@ -645,6 +652,15 @@ struct UpdatesTab: View {
                         updater.autoCheck = newValue
                     }
                 ))
+                Picker(L.t(.updatesInterval), selection: Binding(
+                    get: { snappedInterval },
+                    set: { updater.setUpdateInterval($0) }
+                )) {
+                    ForEach(intervalOptions, id: \.seconds) { option in
+                        Text(L.t(option.key)).tag(option.seconds)
+                    }
+                }
+                .disabled(!autoCheckMirror)
                 Toggle(L.t(.updatesIncludePrereleases), isOn: $includePrereleases)
             } footer: {
                 Text(L.t(.updatesFooter))
@@ -675,12 +691,21 @@ struct UpdatesTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 320)
+        .frame(width: 480, height: 360)
     }
 
     private var lastCheckedLabel: String {
         guard let date = updater.lastChecked else { return L.t(.updatesNeverChecked) }
         return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    /// 把 Sparkle 当前的 updateCheckInterval 吸附到最近的预设选项,保证 Picker
+    /// 永远有一个匹配的 tag(否则非预设值会让 Picker 显示空白)。
+    private var snappedInterval: TimeInterval {
+        let current = updater.checkInterval
+        return intervalOptions
+            .min { abs($0.seconds - current) < abs($1.seconds - current) }?
+            .seconds ?? 86400
     }
 }
 

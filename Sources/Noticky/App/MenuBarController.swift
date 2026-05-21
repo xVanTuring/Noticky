@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CoreData
 
 final class MenuBarController: NSObject {
@@ -7,6 +8,11 @@ final class MenuBarController: NSObject {
     private let floating: FloatingNotesRegistry
     private let manager: ManagerWindowController
     private let settings: SettingsWindowController
+
+    private var cancellables: Set<AnyCancellable> = []
+    /// 后台检查发现的待处理更新版本号(nil = 没有)。托盘菜单据此显示入口,
+    /// 图标据此点角标。订阅 `UpdaterService.shared.$availableVersion` 同步。
+    private var availableUpdateVersion: String?
 
     init(
         context: NSManagedObjectContext,
@@ -22,7 +28,7 @@ final class MenuBarController: NSObject {
         super.init()
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "Noticky")
+            button.image = Self.statusImage(updateBadge: false, for: button)
             button.target = self
             button.action = #selector(showMenu(_:))
             // 左右键统一一个出口,弹同一个原生 NSMenu —— 参考 Apple Stickies 的菜单样式。
@@ -47,10 +53,60 @@ final class MenuBarController: NSObject {
             object: nil
         )
         refreshBadge()
+
+        // 后台静默检查发现更新时,UpdaterService 把版本号 publish 出来。
+        // 我们据此重画图标角标(托盘菜单的入口在 buildMenu 里按需读取)。
+        UpdaterService.shared.$availableVersion
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] version in
+                guard let self else { return }
+                self.availableUpdateVersion = version
+                self.refreshUpdateBadge()
+            }
+            .store(in: &cancellables)
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+
+    /// 更新角标变化时重画状态栏图标(有待处理更新 → note.text + 橙点)。
+    /// 跟 refreshBadge 的数字徽标正交:那个只动 title / imagePosition。
+    private func refreshUpdateBadge() {
+        guard let button = statusItem.button else { return }
+        button.image = Self.statusImage(updateBadge: availableUpdateVersion != nil, for: button)
+    }
+
+    /// 托盘图标。`updateBadge == false` 时直接用模板符号(自动适配深浅菜单栏 +
+    /// 点击高亮)。有待处理更新时,改用非模板合成图:符号染成 labelColor + 右上
+    /// 角一个橙点 —— 模板图会把整张统一染色丢掉橙色,所以这里必须非模板。
+    private static func statusImage(updateBadge: Bool, for button: NSStatusBarButton) -> NSImage? {
+        guard let base = NSImage(systemSymbolName: "note.text", accessibilityDescription: "Noticky") else {
+            return nil
+        }
+        guard updateBadge else {
+            base.isTemplate = true
+            return base
+        }
+        base.isTemplate = true
+        let appearance = button.effectiveAppearance
+        let size = base.size
+        let image = NSImage(size: size, flipped: false) { rect in
+            appearance.performAsCurrentDrawingAppearance {
+                base.draw(in: rect)
+                // 模板符号画出来是黑色字形,sourceAtop 把它染成当前外观的 labelColor。
+                NSColor.labelColor.set()
+                rect.fill(using: .sourceAtop)
+                // 右上角橙点。
+                let d = min(rect.width, rect.height) * 0.45
+                let dot = NSRect(x: rect.maxX - d, y: rect.maxY - d, width: d, height: d)
+                NSColor.systemOrange.setFill()
+                NSBezierPath(ovalIn: dot).fill()
+            }
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 
     /// 多个通知(如 showAll 一次性 spawn N 个浮窗)在同一 runloop 周期内合并成
@@ -118,6 +174,19 @@ final class MenuBarController: NSObject {
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
+
+        // 后台发现的待处理更新放最上面,最显眼。点了走 Sparkle 的下载/安装 UI。
+        if let version = availableUpdateVersion {
+            let updateItem = NSMenuItem(
+                title: L.t(.menuUpdateAvailable, version),
+                action: #selector(installUpdate),
+                keyEquivalent: ""
+            )
+            updateItem.target = self
+            updateItem.image = NSImage(systemSymbolName: "arrow.down.circle.fill", accessibilityDescription: nil)
+            menu.addItem(updateItem)
+            menu.addItem(.separator())
+        }
 
         let newItem = NSMenuItem(title: L.t(.menuNewNote), action: #selector(newNote), keyEquivalent: "n")
         newItem.target = self
@@ -289,6 +358,13 @@ final class MenuBarController: NSObject {
 
     @objc private func showManager() {
         manager.showWindow()
+    }
+
+    /// 用户点托盘里的「有可用更新」。交给 Sparkle 走 user-initiated 检查,
+    /// 把后台发现的更新带 UI 重新呈现。点完 Sparkle 的 didReceiveUserAttention
+    /// 会回调清掉 availableVersion,角标随之消失。
+    @objc private func installUpdate() {
+        UpdaterService.shared.showAvailableUpdate()
     }
 
     @objc private func showSettings() {
