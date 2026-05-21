@@ -1297,8 +1297,9 @@ private struct TitleDoubleClickHit: NSViewRepresentable {
 /// 浮窗顶部 hover 工具条 + 全窗 hover 检测。`@State hovering` 在这里独立持有,
 /// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownNoteEditor 重渲染。
 ///
-/// 折叠态(`isCollapsed == true`)下整条 bar 就是工具条本身,所有按钮始终可见
-/// (`buttonsVisible` 直接 true),不需要 hover 提示。展开态保留 hover-only 行为。
+/// 按钮一律 hover-only:鼠标进入浮窗才显示 × / 铃铛 / ⋯,移出即隐藏 ——
+/// 折叠态和展开态行为一致(`isCollapsed` 仍传入,只用于 ⋯ 菜单里折叠/展开项的
+/// 文案与图标)。已设提醒的铃铛例外,始终常驻当状态标记。
 private struct HoverToolbar: View {
     let palette: StickyPalette
     let isCollapsed: Bool
@@ -1315,15 +1316,19 @@ private struct HoverToolbar: View {
     let onSetReminder: (Date) -> Void
     let onClearReminder: () -> Void
     @State private var hovering = false
-    @State private var showColorPicker = false
     @State private var showReminderPicker = false
 
     /// 是否有「已设」提醒(过去/未来都算 —— 用户至少要看到铃铛常驻才能知道
     /// 还有遗留提醒可以清掉)。
     private var hasReminder: Bool { reminderDate != nil }
 
-    /// 折叠态下按钮始终可见;展开态下沿用 hover-only 行为。
-    private var buttonsVisible: Bool { isCollapsed || hovering }
+    /// 按钮只在 hover 时显示 —— 折叠态和展开态行为一致。
+    private var buttonsVisible: Bool { hovering }
+
+    /// 颜色选择 Picker 的双向绑定:读当前 palette,写时回调 onPickColor。
+    private var colorSelection: Binding<StickyPalette> {
+        Binding(get: { palette }, set: { onPickColor($0) })
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1384,39 +1389,51 @@ private struct HoverToolbar: View {
                     )
                 }
 
-                Button {
-                    showColorPicker.toggle()
+                // 动作菜单改用原生 Menu(NSMenu),不再用 popover。NSMenu 在自己的
+                // 事件追踪循环里开关,选中项后菜单同步消失、动作立刻执行 —— 不像
+                // NSPopover 那样有一段独立子窗口的 dismiss 动画,会和折叠时改父窗 frame
+                // 打架(内容先掉窗底再瞬移回顶)。换 NSMenu 后折叠不再需要任何延迟兜底。
+                Menu {
+                    Picker(selection: colorSelection) {
+                        ForEach(StickyPalette.allCases) { p in
+                            Image(systemName: "circle.fill")
+                                .tint(p.color)
+                                .tag(p)
+                        }
+                    } label: {
+                        Text(L.t(.noteColor))
+                    }
+                    .pickerStyle(.palette)
+
+                    Divider()
+
+                    Button(action: onToggleCollapse) {
+                        Label(
+                            isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse),
+                            systemImage: isCollapsed ? "chevron.down" : "chevron.up"
+                        )
+                    }
+                    Button(action: onArchive) {
+                        Label(L.t(.floatArchive), systemImage: "archivebox")
+                    }
+                    Button(role: .destructive, action: onDelete) {
+                        Label(L.t(.floatDelete), systemImage: "trash")
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle.fill")
                         .font(.system(size: 16))
                         .symbolRenderingMode(.hierarchical)
                         .contentShape(Rectangle())
                 }
+                // .button menu style + .plain button style 让触发器渲染成纯图标,
+                // 跟 × / 铃铛(都是 .buttonStyle(.plain))一致,不带 bezel/高亮。
+                // .borderlessButton 会自己画一层底,显得比其它按钮突兀。
+                .menuStyle(.button)
                 .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .background(NonDraggable())
                 .opacity(buttonsVisible ? 1 : 0)
-                .popover(isPresented: $showColorPicker, arrowEdge: .top) {
-                    NoteActionsBubble(
-                        selected: palette,
-                        isCollapsed: isCollapsed,
-                        onPickColor: { picked in
-                            onPickColor(picked)
-                            showColorPicker = false
-                        },
-                        onToggleCollapse: {
-                            showColorPicker = false
-                            onToggleCollapse()
-                        },
-                        onArchive: {
-                            showColorPicker = false
-                            onArchive()
-                        },
-                        onDelete: {
-                            showColorPicker = false
-                            onDelete()
-                        }
-                    )
-                }
             }
             .padding(.horizontal, 8)
             // 用固定 stripHeight + center 对齐替换原先的 `.padding(.top, 6)` ——
@@ -1535,72 +1552,5 @@ private struct HoverTracker: NSViewRepresentable {
         nsView.onHoverChange = { newValue in
             DispatchQueue.main.async { hovering = newValue }
         }
-    }
-}
-
-private struct NoteActionsBubble: View {
-    let selected: StickyPalette
-    let isCollapsed: Bool
-    let onPickColor: (StickyPalette) -> Void
-    let onToggleCollapse: () -> Void
-    let onArchive: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                ForEach(StickyPalette.allCases) { palette in
-                    Button {
-                        onPickColor(palette)
-                    } label: {
-                        Circle()
-                            .fill(palette.color)
-                            .frame(width: 22, height: 22)
-                            .overlay(
-                                Circle()
-                                    .stroke(palette == selected ? Color.accentColor : Color.black.opacity(0.15),
-                                            lineWidth: palette == selected ? 2 : 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            Divider()
-            // 展开/折叠入口 —— 跟"双击标题"功能等价但始终可用,即使用户在
-            // Settings 里关掉了 doubleClickTitleToCollapse,这里也能切换;同时
-            // 兜底处理"开了双击 → 折叠 → 关掉双击设置"导致便签卡死的情况。
-            Button(action: onToggleCollapse) {
-                HStack(spacing: 6) {
-                    Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
-                    Text(isCollapsed ? L.t(.floatExpand) : L.t(.floatCollapse))
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            // 归档:收起但保留(不进回收站、永不自动删)。放在折叠和删除之间 ——
-            // 比删除"轻",是日常整理动作。
-            Button(action: onArchive) {
-                HStack(spacing: 6) {
-                    Image(systemName: "archivebox")
-                    Text(L.t(.floatArchive))
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            Button(role: .destructive, action: onDelete) {
-                HStack(spacing: 6) {
-                    Image(systemName: "trash")
-                    Text(L.t(.floatDelete))
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.red)
-        }
-        .padding(10)
-        .frame(minWidth: 180)
     }
 }

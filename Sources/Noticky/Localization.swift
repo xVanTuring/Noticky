@@ -160,6 +160,8 @@ enum LocKey: String {
 
     // 色板名(批量改色用)
     case colorYellow, colorPink, colorBlue, colorGreen, colorPurple, colorGray
+    // 浮窗 ⋯ 菜单里颜色选择器的标题
+    case noteColor
 
     // File menu IO(md/txt 文件 → 新便签)
     case fileImport
@@ -385,6 +387,7 @@ enum L {
         .colorGreen: "Green",
         .colorPurple: "Purple",
         .colorGray: "Gray",
+        .noteColor: "Color",
         .fileImport: "Import…",
         .fileImportDone: "Imported %d note(s).",
         .managerDataMenu: "Data",
@@ -606,6 +609,7 @@ enum L {
         .colorGreen: "绿色",
         .colorPurple: "紫色",
         .colorGray: "灰色",
+        .noteColor: "颜色",
         .fileImport: "导入…",
         .fileImportDone: "已导入 %d 条便签。",
         .managerDataMenu: "数据",
