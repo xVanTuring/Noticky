@@ -14,6 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// 内容仍然 SwiftUI(在 NSHostingController 里),只是窗口/菜单/快捷键归 AppKit。
     static func main() {
+        // 单实例守卫。抢不到锁说明已有 Noticky 在跑 —— 喊它把窗口浮上来,自己
+        // 直接退出,**绝不**往下走到 PersistenceController(两进程同开一个 sqlite
+        // 会损库)。必须在 NSApplication / Core Data 任何初始化之前。
+        guard SingleInstanceLock.acquire() else {
+            SingleInstanceLock.notifyExistingInstance()
+            return
+        }
         let delegate = AppDelegate()
         let app = NSApplication.shared
         app.delegate = delegate
@@ -80,6 +87,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if UserDefaults.standard.object(forKey: "Noticky.updater.autoCheck") as? Bool ?? true {
             UpdaterService.shared.checkInBackground()
         }
+
+        // 第二个实例启动时会 post 这个 distributed notification(随即自己退出)。
+        // 收到就把 Manager 窗口浮上来,给「又点了一次」的用户一个可见反馈。
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleSecondLaunchAttempt),
+            name: SingleInstanceLock.secondLaunchNotification,
+            object: nil
+        )
+    }
+
+    /// 已有实例在跑时,新进程抢不到单实例锁就喊这一声 —— 把 Manager 浮上来。
+    @objc private func handleSecondLaunchAttempt() {
+        manager.showWindow()
     }
 
     /// 整体覆盖 SwiftUI 自动生成的 main menu。LSUIElement App 的 menu bar
