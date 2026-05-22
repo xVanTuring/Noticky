@@ -323,34 +323,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 点击 Spotlight 结果回到 App。系统通过 continue user activity 投递,
     /// activityType 是 `CSSearchableItemActionType`,userInfo 里带的标识就是
-    /// `NoteSpotlightDelegate` 索引时父类写入的 uniqueIdentifier —— 即 Note 的
-    /// objectID URI。已运行则直接投递,从冷启动唤起则在 didFinishLaunching 之后投递。
+    /// `SpotlightIndexer` 索引时用的 uniqueIdentifier —— 即 Note.id 的 UUID 字符串。
+    /// 已运行则直接投递,从冷启动唤起则在 didFinishLaunching 之后投递。
     func application(
         _ application: NSApplication,
         continue userActivity: NSUserActivity,
         restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void
     ) -> Bool {
         guard userActivity.activityType == CSSearchableItemActionType,
-              let uri = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
-              let url = URL(string: uri) else { return false }
-        openNote(spotlightObjectURI: url)
+              let idStr = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+              let uuid = UUID(uuidString: idStr) else { return false }
+        openNote(uuid: uuid)
         return true
     }
 
-    /// Spotlight 续传:objectID URI → Note → 弹浮窗。索引里可能残留已归档 /
-    /// 进回收站 / 在别的设备删掉的条目(store 重建后 URI 还会整体失效),任何
-    /// 还原失败或非活跃笔记都静默跳过。
-    private func openNote(spotlightObjectURI url: URL) {
-        let coordinator = PersistenceController.shared.container.persistentStoreCoordinator
-        guard let objectID = coordinator.managedObjectID(forURIRepresentation: url) else { return }
-        let ctx = PersistenceController.shared.container.viewContext
-        guard let note = try? ctx.existingObject(with: objectID) as? Note,
-              !note.isTrashed, !note.isArchived else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        floating.show(note: note)
-    }
-
-    /// 按 UUID 弹浮窗。提醒点击复用;非活跃 / fetch 不到的笔记静默跳过。
+    /// 按 UUID 弹浮窗。提醒点击、Spotlight 续传共用;非活跃 / fetch 不到的
+    /// 笔记静默跳过(索引里可能残留已归档 / 删除 / 别设备删掉的条目)。
     private func openNote(uuid: UUID) {
         let ctx = PersistenceController.shared.container.viewContext
         let request = NSFetchRequest<Note>(entityName: "Note")

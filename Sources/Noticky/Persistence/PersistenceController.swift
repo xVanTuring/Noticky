@@ -19,9 +19,9 @@ final class PersistenceController {
     /// CloudKit import 后的去重观察者。仅 cloudKitEnabled=true 时持有,负责
     /// 自动合并云上拉下来的同 UUID 重复 record。详见 CloudKitDeduplicator。
     private var deduplicator: CloudKitDeduplicator?
-    /// 系统 Spotlight 索引导出器。**必须 retain**,否则 Core Data 停止往
-    /// Spotlight 推增量。inMemory(测试)场景不建。详见 NoteSpotlightDelegate。
-    private var spotlightDelegate: NoteSpotlightDelegate?
+    /// 系统 Spotlight 索引器。**必须 retain**,否则它持有的通知观察者随对象
+    /// 一起释放、增量同步就停了。inMemory(测试)场景不建。详见 SpotlightIndexer。
+    private var spotlightIndexer: SpotlightIndexer?
 
     init(inMemory: Bool = false) {
         let model = CoreDataSchema.currentModel()
@@ -87,16 +87,10 @@ final class PersistenceController {
             deduplicator = CloudKitDeduplicator(container: ckContainer)
         }
 
-        // Spotlight 索引。store load 之后构造(需要 coordinator),retain delegate
-        // 并 startSpotlightIndexing() 注册 exporter —— 之后 Core Data 用 persistent
-        // history 自动增量索引活跃笔记。本地 / CloudKit 模式都开;inMemory 跳过。
-        if !inMemory, let description = container.persistentStoreDescriptions.first {
-            let delegate = NoteSpotlightDelegate(
-                forStoreWith: description,
-                coordinator: container.persistentStoreCoordinator
-            )
-            delegate.startSpotlightIndexing()
-            spotlightDelegate = delegate
+        // Spotlight 索引。store load 之后构造:启动全量索引活跃笔记,之后监听
+        // 存盘 / CloudKit 远端变更增量同步。本地 / CloudKit 模式都开;inMemory 跳过。
+        if !inMemory {
+            spotlightIndexer = SpotlightIndexer(container: container)
         }
     }
 
