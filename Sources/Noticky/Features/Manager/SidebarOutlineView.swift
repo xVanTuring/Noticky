@@ -514,6 +514,14 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 final class NoteRowCellView: NSTableCellView {
     private let colorBar = NSView()
     private let label = NSTextField(labelWithString: "")
+    /// 行尾的任务进度饼,靠右对齐。无任务项时隐藏,标题随之延伸到行尾。
+    private let pie = TaskProgressPieView()
+
+    /// 标题尾部约束的两态:有饼时收到饼左侧、无饼时收到行尾。configure 切换。
+    private lazy var labelTrailingToPie =
+        label.trailingAnchor.constraint(lessThanOrEqualTo: pie.leadingAnchor, constant: -6)
+    private lazy var labelTrailingToEdge =
+        label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -541,15 +549,22 @@ final class NoteRowCellView: NSTableCellView {
         addSubview(label)
         textField = label
 
+        pie.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(pie)
+
         NSLayoutConstraint.activate([
             colorBar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 0),
             colorBar.widthAnchor.constraint(equalToConstant: 3),
             colorBar.topAnchor.constraint(equalTo: topAnchor, constant: 4),
             colorBar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
             label.leadingAnchor.constraint(equalTo: colorBar.trailingAnchor, constant: 8),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pie.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            pie.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pie.widthAnchor.constraint(equalToConstant: 14),
+            pie.heightAnchor.constraint(equalToConstant: 14),
         ])
+        labelTrailingToEdge.isActive = true
     }
 
     func configure(with note: Note) {
@@ -563,5 +578,19 @@ final class NoteRowCellView: NSTableCellView {
             ? NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
             : baseFont
         label.textColor = isEmpty ? .secondaryLabelColor : .labelColor
+
+        if let progress = note.taskProgress {
+            pie.isHidden = false
+            pie.progress = progress
+            pie.toolTip = "\(progress.completed)/\(progress.total)"
+            labelTrailingToEdge.isActive = false
+            labelTrailingToPie.isActive = true
+        } else {
+            pie.isHidden = true
+            pie.progress = nil
+            pie.toolTip = nil
+            labelTrailingToPie.isActive = false
+            labelTrailingToEdge.isActive = true
+        }
     }
 }

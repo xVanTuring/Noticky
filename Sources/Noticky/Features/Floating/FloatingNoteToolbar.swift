@@ -13,6 +13,8 @@ struct NoteTitleBar: View {
     let text: String
     var fallbackWhenEmpty: String? = nil
     let stripHeight: CGFloat
+    /// 任务进度,有任务项时在标题文字左侧画一个圆饼。nil = 无任务,不画。
+    var taskProgress: Note.TaskProgress? = nil
 
     var body: some View {
         let display = text.isEmpty ? (fallbackWhenEmpty ?? "") : text
@@ -22,15 +24,21 @@ struct NoteTitleBar: View {
             EmptyView()
         } else {
             VStack(spacing: 0) {
-                Text(display)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary.opacity(isFallback ? 0.4 : 0.65))
-                    .italic(isFallback)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.horizontal, 32)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .frame(height: stripHeight, alignment: .center)
+                // 圆饼 + 标题作为一个整体居中:饼始终贴在标题左侧、随标题一起移动。
+                HStack(spacing: 5) {
+                    if let taskProgress {
+                        TaskProgressPie(progress: taskProgress, diameter: 12)
+                    }
+                    Text(display)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary.opacity(isFallback ? 0.4 : 0.65))
+                        .italic(isFallback)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(height: stripHeight, alignment: .center)
                 Spacer(minLength: 0)
             }
             // 标题条不挡点击,不抢编辑器/按钮/双击 hit 区的事件。

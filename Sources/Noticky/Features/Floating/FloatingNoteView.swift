@@ -111,7 +111,8 @@ struct FloatingNoteView: View {
             NoteTitleBar(
                 text: note.cleanTitle,
                 fallbackWhenEmpty: note.isCollapsed ? L.t(.emptyNote) : nil,
-                stripHeight: stripHeight
+                stripHeight: stripHeight,
+                taskProgress: note.taskProgress
             )
 
             // 双击命中层。**位于 HoverToolbar 之下** —— × / ⋯ 按钮要先吃到点击。

@@ -129,6 +129,57 @@ extension Note {
         return Self.stripMarkdownMarkers(raw).trimmingCharacters(in: .whitespaces)
     }
 
+    /// 笔记里 markdown 任务项的完成进度。`taskProgress` 仅在 total > 0 时返回,
+    /// 所以 `fraction` 的 total==0 兜底理论上用不到。`isComplete` 给「全部勾完」
+    /// 时画整圆用。
+    struct TaskProgress: Equatable {
+        var completed: Int
+        var total: Int
+        /// 0...1 的完成比例。
+        var fraction: Double { total > 0 ? Double(completed) / Double(total) : 0 }
+        /// 至少有一项且全部勾完。
+        var isComplete: Bool { total > 0 && completed >= total }
+    }
+
+    /// 扫描内容里的 markdown 任务项(`- [ ]` / `* [x]` / `+ [X]`,允许行首缩进),
+    /// 统计总数与已勾选数。没有任何任务项时返回 nil —— 调用方据此决定不画进度饼。
+    /// 浮窗标题条与管理列表行都派生自这里。
+    var taskProgress: TaskProgress? {
+        var completed = 0
+        var total = 0
+        for line in content.components(separatedBy: .newlines) {
+            guard let done = Self.taskCheckState(in: line) else { continue }
+            total += 1
+            if done { completed += 1 }
+        }
+        guard total > 0 else { return nil }
+        return TaskProgress(completed: completed, total: total)
+    }
+
+    /// 单行是不是任务项:是 → 返回是否已勾选(true=完成),否 → nil。容忍行首缩进
+    /// 与 `-`/`*`/`+` 三种 bullet,勾选记号大小写不敏感。手写扫描而非正则 ——
+    /// 这个判断在每次标题条/行渲染时都会跑,免去 NSRegularExpression 的开销。
+    private static func taskCheckState(in line: String) -> Bool? {
+        var s = Substring(line)
+        func dropSpaces() { while let f = s.first, f == " " || f == "\t" { s = s.dropFirst() } }
+        dropSpaces()
+        guard let bullet = s.first, bullet == "-" || bullet == "*" || bullet == "+" else { return nil }
+        s = s.dropFirst()
+        // bullet 后必须至少一个空白,否则 `-[x]` 这类不算(也排除普通连字符行)。
+        guard let sp = s.first, sp == " " || sp == "\t" else { return nil }
+        dropSpaces()
+        guard s.first == "[" else { return nil }
+        s = s.dropFirst()
+        guard let mark = s.first else { return nil }
+        s = s.dropFirst()
+        guard s.first == "]" else { return nil }
+        switch mark {
+        case " ":      return false
+        case "x", "X": return true
+        default:       return nil
+        }
+    }
+
     private static func stripMarkdownMarkers(_ input: String) -> String {
         var s = input
         // 行首结构标记:#+ heading、>+ blockquote、`-`/`*`/`+` 列表、有序列表
