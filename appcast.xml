@@ -9,6 +9,15 @@
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
     <item>
+      <title>v1.3.2</title>
+      <pubDate>Fri, 22 May 2026 07:47:53 +0000</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>1.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.3.2</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.2/Noticky-1.3.2.zip" length="13769561" type="application/octet-stream" sparkle:edSignature="LwfeoEo9BJed15hCE2bQeiMkHfzdTsDSK/5ArOqj1M3BVGgCnbduKGEQWVzppWRH8xL+ipP9Wo++BUclfXtmDw==" />
+    </item>
+    <item>
       <title>v1.3.1</title>
       <pubDate>Thu, 21 May 2026 11:12:03 +0000</pubDate>
       <sparkle:version>8</sparkle:version>
