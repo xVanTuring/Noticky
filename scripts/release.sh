@@ -38,13 +38,16 @@ cd "$ROOT"
 # ── Project constants ───────────────────────────────────────────────
 TEAM_ID="T8F5T6HKG8"
 NOTARY_PROFILE="${NOTARY_PROFILE:-noticky-notary}"
-PROVISIONING_PROFILE_NAME="Noticky Developer ID"
-SCHEME="Noticky"
-PROJECT="Noticky.xcodeproj"
-PRODUCT="Noticky"
+PROVISIONING_PROFILE_NAME="Perch Developer ID"
+SCHEME="Perch"
+PROJECT="Perch.xcodeproj"
+PRODUCT="Perch"
+# Repo + appcast feed stay on xVanTuring/Noticky so existing installs keep
+# polling the same SUFeedURL — see Info.plist. (Bundle id changed to
+# tech.xvanturing.Perch, but the update feed location is independent.)
 GH_REPO="xVanTuring/Noticky"
 APPCAST="appcast.xml"
-INFO_PLIST="Sources/Noticky/Resources/Info.plist"
+INFO_PLIST="Sources/Perch/Resources/Info.plist"
 EXPORT_OPTIONS="scripts/ExportOptions.plist"
 BUILD_DIR=".build/release"
 # Sparkle 2 SPM artifact bundle — populated after
@@ -150,7 +153,7 @@ fi
 if [[ "$PROFILE_FOUND" -eq 0 ]]; then
     echo "ERROR: Developer ID provisioning profile '$PROVISIONING_PROFILE_NAME' not installed." >&2
     echo "       Create it at https://developer.apple.com/account/resources/profiles/add" >&2
-    echo "       (Distribution → Developer ID → App ID tech.xvanturing.Noticky)" >&2
+    echo "       (Distribution → Developer ID → App ID tech.xvanturing.Perch)" >&2
     exit 1
 fi
 

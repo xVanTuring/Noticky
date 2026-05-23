@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Rasterize Sources/Noticky/Resources/AppIcon.svg into the macOS
+# Rasterize Sources/Perch/Resources/AppIcon.svg into the macOS
 # AppIcon.appiconset (deduplicated layout — 7 PNGs each reused
 # across multiple idiom slots in Contents.json).
 #
@@ -14,8 +14,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-SRC="Sources/Noticky/Resources/AppIcon.svg"
-ASSETS="Sources/Noticky/Resources/Assets.xcassets"
+SRC="Sources/Perch/Resources/AppIcon.svg"
+ASSETS="Sources/Perch/Resources/Assets.xcassets"
 DEST="$ASSETS/AppIcon.appiconset"
 
 [[ -f "$SRC" ]] || { echo "ERROR: $SRC not found" >&2; exit 1; }
@@ -24,7 +24,7 @@ command -v rsvg-convert >/dev/null \
 
 mkdir -p "$DEST"
 
-# Noticky uses deduplicated PNGs: one file per pixel size, mapped to
+# Perch uses deduplicated PNGs: one file per pixel size, mapped to
 # multiple idiom/scale slots in Contents.json (e.g. icon_32.png is
 # both 16@2x and 32@1x).
 sizes=(16 32 64 128 256 512 1024)
