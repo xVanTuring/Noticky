@@ -114,6 +114,9 @@ targets:
         CFBundleVersion: "11"
         CFBundlePackageType: APPL
         LSMinimumSystemVersion: "15.0"
+        # 应用分类(便签 = 效率工具)。消除打包时 "No App Category is set" 警告,
+        # 也是 Finder / App Store 元数据。等价于 Xcode General 标签里的 Category。
+        LSApplicationCategoryType: public.app-category.productivity
         LSUIElement: true
         NSHumanReadableCopyright: "© 2026 xVanTuring"
         NSPrincipalClass: NSApplication
