@@ -1,4 +1,4 @@
-name: Noticky
+name: Perch
 options:
   bundleIdPrefix: tech.xvanturing
   deploymentTarget:
@@ -14,12 +14,12 @@ packages:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.0.0"
   # Sparkle 2 自动更新框架。装好后:
-  #   - `Sources/Noticky/Features/Updater/UpdaterService.swift` 用
+  #   - `Sources/Perch/Features/Updater/UpdaterService.swift` 用
   #     `SPUStandardUpdaterController` 驱动整条更新流程(拉 appcast、
   #     EdDSA 校验、下载、out-of-process 安装、重启)。
   #   - `scripts/release.sh` 用 SPM artifact 里的 `sign_update` 工具
   #     给每个 release 的 zip 签 EdDSA,把 `<item>` 插进 appcast.xml。
-  #   - Noticky **不在 sandbox**,所以省掉了 Installer XPC service +
+  #   - Perch **不在 sandbox**,所以省掉了 Installer XPC service +
   #     `-spks`/`-spki` mach-lookup entitlements,集成比 sandboxed App
   #     简单不少。
   Sparkle:
@@ -40,14 +40,14 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "15.0"
-    PRODUCT_NAME: Noticky
+    PRODUCT_NAME: Perch
     # Hardened Runtime 是 Developer ID 公证的硬性要求(notarytool 拒绝未启用的 .app)。
     # 也是 dev 阶段就开,免得 release 时再排查 unentitled framework 之类的兼容性问题。
     ENABLE_HARDENED_RUNTIME: YES
     # T8F5T6HKG8 = "Shenzhen Zhiqishidai Technology" 企业账号。
-    # ⚠️ CloudKit container `iCloud.tech.xvanturing.Noticky` 需要在该 team 的
+    # ⚠️ CloudKit container `iCloud.tech.xvanturing.Perch` 需要在该 team 的
     #    Apple Developer portal(https://developer.apple.com/account/resources/identifiers/list/cloudContainer)
-    #    下手动创建,Identifier 完全一致;App ID `tech.xvanturing.Noticky` 也要
+    #    下手动创建,Identifier 完全一致;App ID `tech.xvanturing.Perch` 也要
     #    在同一 team 注册并勾上 iCloud + Push Notifications capability。
     DEVELOPMENT_TEAM: T8F5T6HKG8
     DEAD_CODE_STRIPPING: YES
@@ -72,17 +72,17 @@ settings:
       OTHER_CODE_SIGN_FLAGS: "--timestamp"
 
 targets:
-  Noticky:
+  Perch:
     type: application
     platform: macOS
     sources:
-      - path: Sources/Noticky
+      - path: Sources/Perch
         excludes:
           - "Resources/**"
       # Resources/** 整体排除是因为 Info.plist / entitlements 由 info.path 和
       # CODE_SIGN_ENTITLEMENTS 单独 wire,不能再走 Sources。AppIcon 的资产目录
       # 必须手动加回来,否则 Xcode 编译时找不到 CFBundleIconName 指向的资源。
-      - Sources/Noticky/Resources/Assets.xcassets
+      - Sources/Perch/Resources/Assets.xcassets
     dependencies:
       - package: Textual
       - package: KeyboardShortcuts
@@ -96,20 +96,20 @@ targets:
         product: MarkdownEngineLatex
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Noticky
+        PRODUCT_BUNDLE_IDENTIFIER: tech.xvanturing.Perch
       configs:
         # Debug 用开发环境 entitlements(aps-environment=development → CloudKit Dev)。
         Debug:
-          CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky.entitlements
+          CODE_SIGN_ENTITLEMENTS: Sources/Perch/Resources/Perch.entitlements
         # Release 用 production entitlements(aps-environment=production → CloudKit Prod)。
         # 部署 schema 到 Production 见 CLAUDE.md "Schema → CloudKit deployment workflow"。
         Release:
-          CODE_SIGN_ENTITLEMENTS: Sources/Noticky/Resources/Noticky-Release.entitlements
+          CODE_SIGN_ENTITLEMENTS: Sources/Perch/Resources/Perch-Release.entitlements
     info:
-      path: Sources/Noticky/Resources/Info.plist
+      path: Sources/Perch/Resources/Info.plist
       properties:
-        CFBundleName: Noticky
-        CFBundleDisplayName: Noticky
+        CFBundleName: Perch
+        CFBundleDisplayName: Perch
         CFBundleShortVersionString: "1.4.0"
         CFBundleVersion: "11"
         CFBundlePackageType: APPL

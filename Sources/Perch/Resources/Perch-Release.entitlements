@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Release(对外发布)entitlements。
+      跟 Perch.entitlements 内容一致,**唯一区别**:
+        com.apple.developer.aps-environment = "production"
+      → 让 NSPersistentCloudKitContainer 走真正的 CloudKit Production 环境,
+        而不是 Debug 用的 Development。Production schema 必须先在 CloudKit
+        Console 部署完成,否则线上用户开同步会拿空 schema 报错。
+        部署流程见 CLAUDE.md "Schema → CloudKit deployment workflow"。
+
+      Sandbox 仍关 (com.apple.security.app-sandbox = false) —— 同 Debug,
+      理由同 Perch.entitlements 顶部注释(AX 跨进程查询走不通 sandbox)。
+      代价:不能上 Mac App Store。Developer ID + 公证后可直接分发(DMG/zip)。
+    -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array>
+        <string>iCloud.tech.xvanturing.Perch</string>
+    </array>
+    <key>com.apple.developer.ubiquity-kvstore-identifier</key>
+    <string>$(TeamIdentifierPrefix)tech.xvanturing.Perch</string>
+    <!-- 唯一与 Debug entitlements 不同的字段 -->
+    <key>com.apple.developer.aps-environment</key>
+    <string>production</string>
+</dict>
+</plist>
