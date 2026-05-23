@@ -434,8 +434,7 @@ final class ColorSwatchMenuRow: NSView {
         for (i, p) in palettes.enumerated() {
             let cx = centerX(i)
             let dotRect = NSRect(x: cx - dot / 2, y: cy - dot / 2, width: dot, height: dot)
-            p.nsColor.setFill()
-            NSBezierPath(ovalIn: dotRect).fill()
+            p.fill(path: NSBezierPath(ovalIn: dotRect), vivid: true)
 
             // 选中 = 强调色环;否则 hover = 浅色环。选中优先(选中且 hover 时不叠 hover 环)。
             if p == selected {

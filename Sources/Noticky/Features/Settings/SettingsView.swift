@@ -568,7 +568,7 @@ struct NotesTab: View {
                             defaultColorIndex = Int(palette.rawValue)
                         } label: {
                             Circle()
-                                .fill(palette.color)
+                                .fill(palette.swatchFill)
                                 .frame(width: 22, height: 22)
                                 .overlay(
                                     Circle().stroke(

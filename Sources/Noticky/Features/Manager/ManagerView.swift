@@ -414,7 +414,7 @@ struct ManagerView: View {
                     try? context.save()
                 } label: {
                     Label(L.t(palette.locKey), systemImage: "circle.fill")
-                        .foregroundStyle(palette.color)
+                        .foregroundStyle(palette.swatchFill)
                 }
             }
         }
@@ -513,10 +513,10 @@ struct ManagerView: View {
                 }
                 try? context.save()
             }
-            // Color swatch as menu icon — a 12pt filled circle in the palette tint.
+            // Color swatch as menu icon — a 12pt filled circle in the palette tint
+            // (炫彩走渐变填充)。
             let swatch = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
-                palette.nsColor.setFill()
-                NSBezierPath(ovalIn: rect).fill()
+                palette.fill(path: NSBezierPath(ovalIn: rect), vivid: true)
                 return true
             }
             item.image = swatch
@@ -609,7 +609,7 @@ private struct NoteSidebarRow: View {
         } else {
             HStack(spacing: 8) {
                 Rectangle()
-                    .fill(StickyPalette.from(index: note.colorIndex).color)
+                    .fill(StickyPalette.from(index: note.colorIndex).swatchFill)
                     .frame(width: 3)
                     .frame(maxHeight: .infinity)
                     .cornerRadius(1.5)
@@ -778,7 +778,7 @@ private struct TrashRow: View {
         } else {
             HStack(spacing: 12) {
                 Rectangle()
-                    .fill(StickyPalette.from(index: note.colorIndex).color)
+                    .fill(StickyPalette.from(index: note.colorIndex).swatchFill)
                     .frame(width: 3)
                     .frame(maxHeight: .infinity)
                     .cornerRadius(1.5)
@@ -891,7 +891,7 @@ private struct ArchiveRow: View {
         } else {
             HStack(spacing: 12) {
                 Rectangle()
-                    .fill(StickyPalette.from(index: note.colorIndex).color)
+                    .fill(StickyPalette.from(index: note.colorIndex).swatchFill)
                     .frame(width: 3)
                     .frame(maxHeight: .infinity)
                     .cornerRadius(1.5)
@@ -947,7 +947,8 @@ private struct NoteDetailView: View {
             EmptyView()
         } else {
             ZStack {
-                StickyPalette.from(index: note.colorIndex).color
+                Rectangle()
+                    .fill(StickyPalette.from(index: note.colorIndex).backgroundFill)
                     .ignoresSafeArea()
                 // 直接复用 MarkdownNoteEditor 的双态(渲染 ↔ 编辑),管理窗口
                 // 既能看也能改,跟浮窗里的体验一致。Open as Sticky 行为通过

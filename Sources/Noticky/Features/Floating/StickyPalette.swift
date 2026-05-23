@@ -10,8 +10,17 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
     case green
     case purple
     case gray
+    /// 「炫彩」—— 不是单一颜色而是彩虹角度渐变。便签背景用柔和淡彩(`backgroundFill`),
+    /// 选择器色块用鲜艳版(`swatchFill`)。其余纯色 case 的 fillStyle 退化成自己的实色。
+    case rainbow
 
     var id: Int16 { rawValue }
+
+    /// 是否「炫彩」渐变色 —— 渲染时要走渐变分支(没有单一 nsColor)。
+    var isRainbow: Bool { self == .rainbow }
+
+    /// 6 个纯色(不含炫彩),供「随机默认色」从中挑 —— 随机不该摇到炫彩这种特殊项。
+    static var solidCases: [StickyPalette] { allCases.filter { $0 != .rainbow } }
 
     static func from(index: Int16) -> StickyPalette {
         StickyPalette(rawValue: index) ?? .yellow
@@ -29,7 +38,7 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         if let p = StickyPalette(rawValue: Int16(truncatingIfNeeded: index)) {
             return p
         }
-        return allCases.randomElement() ?? .yellow
+        return solidCases.randomElement() ?? .yellow
     }
 
     /// 用在 Menu / 列表里展示色名。LocKey 走 Localization.swift 集中翻译。
@@ -41,6 +50,7 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         case .green:  return .colorGreen
         case .purple: return .colorPurple
         case .gray:   return .colorGray
+        case .rainbow: return .colorRainbow
         }
     }
 
@@ -61,6 +71,8 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         case .green:  return NSColor(srgbRed: 0.80, green: 0.94, blue: 0.80, alpha: 1)
         case .purple: return NSColor(srgbRed: 0.90, green: 0.85, blue: 1.00, alpha: 1)
         case .gray:   return NSColor(srgbRed: 0.94, green: 0.94, blue: 0.94, alpha: 1)
+        // 炫彩没有单一色,任何走 nsColor 的兜底路径给个柔和中间紫,实际渲染走渐变。
+        case .rainbow: return NSColor(srgbRed: 0.90, green: 0.86, blue: 1.00, alpha: 1)
         }
     }
 
@@ -72,6 +84,72 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         case .green:  return NSColor(srgbRed: 0.22, green: 0.40, blue: 0.28, alpha: 1)
         case .purple: return NSColor(srgbRed: 0.34, green: 0.28, blue: 0.48, alpha: 1)
         case .gray:   return NSColor(srgbRed: 0.28, green: 0.28, blue: 0.30, alpha: 1)
+        case .rainbow: return NSColor(srgbRed: 0.34, green: 0.30, blue: 0.48, alpha: 1)
+        }
+    }
+
+    // MARK: - 炫彩渐变 --------------------------------------------------------
+    //
+    // 两套彩虹色环:`vivid` 给选择器色块(高饱和,显眼);非 vivid 给便签背景
+    // (低饱和淡彩,跟现有 6 个柔和色一脉相承,正文文字仍可读)。都是 dynamic
+    // NSColor,深浅色各一版。SwiftUI(`AngularGradient`)与 AppKit(`NSGradient` /
+    // `CAGradientLayer`)共用同一组色。
+
+    private static func dyn(_ l: (Double, Double, Double), _ d: (Double, Double, Double)) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let c = isDark ? d : l
+            return NSColor(srgbRed: c.0, green: c.1, blue: c.2, alpha: 1)
+        }
+    }
+
+    /// 炫彩色环(红→橙→黄→绿→蓝→紫)。`vivid` 鲜艳 / 否则柔和。
+    static func rainbowStops(vivid: Bool) -> [NSColor] {
+        if vivid {
+            return [
+                dyn((1.00, 0.42, 0.45), (0.86, 0.32, 0.36)),
+                dyn((1.00, 0.70, 0.32), (0.85, 0.56, 0.24)),
+                dyn((1.00, 0.92, 0.38), (0.82, 0.74, 0.28)),
+                dyn((0.46, 0.85, 0.52), (0.34, 0.68, 0.42)),
+                dyn((0.40, 0.72, 1.00), (0.30, 0.55, 0.86)),
+                dyn((0.72, 0.52, 1.00), (0.56, 0.40, 0.86)),
+            ]
+        } else {
+            return [
+                dyn((1.00, 0.86, 0.87), (0.44, 0.30, 0.33)),
+                dyn((1.00, 0.91, 0.80), (0.45, 0.37, 0.26)),
+                dyn((1.00, 0.97, 0.82), (0.43, 0.40, 0.26)),
+                dyn((0.84, 0.95, 0.84), (0.28, 0.43, 0.31)),
+                dyn((0.82, 0.90, 1.00), (0.26, 0.34, 0.49)),
+                dyn((0.90, 0.85, 1.00), (0.37, 0.31, 0.49)),
+            ]
+        }
+    }
+
+    /// SwiftUI 角度渐变(首色补到末尾,环形闭合不留接缝)。
+    func angularGradient(vivid: Bool) -> AngularGradient {
+        let colors = Self.rainbowStops(vivid: vivid).map { Color(nsColor: $0) }
+        return AngularGradient(colors: colors + [colors[0]], center: .center)
+    }
+
+    /// SwiftUI 便签背景填充:纯色返回实色;炫彩返回**柔和**角度渐变(正文可读)。
+    var backgroundFill: AnyShapeStyle {
+        isRainbow ? AnyShapeStyle(angularGradient(vivid: false)) : AnyShapeStyle(color)
+    }
+
+    /// SwiftUI 色块/选择器/细色条填充:纯色返回实色;炫彩返回**鲜艳**角度渐变。
+    var swatchFill: AnyShapeStyle {
+        isRainbow ? AnyShapeStyle(angularGradient(vivid: true)) : AnyShapeStyle(color)
+    }
+
+    /// AppKit:用本色填充给定 path。纯色直接 setFill;炫彩用 `NSGradient` 斜扫一遍
+    /// 彩虹(小图标/小色点上线性渐变就够「彩」了)。`vivid` 选鲜艳还是柔和。
+    func fill(path: NSBezierPath, vivid: Bool) {
+        if isRainbow, let g = NSGradient(colors: Self.rainbowStops(vivid: vivid)) {
+            g.draw(in: path, angle: 45)
+        } else {
+            nsColor.setFill()
+            path.fill()
         }
     }
 }

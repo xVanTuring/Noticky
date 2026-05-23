@@ -408,8 +408,7 @@ final class MenuBarController: NSObject {
         let image = NSImage(size: size, flipped: false) { rect in
             let body = rect.insetBy(dx: 1, dy: 1)
             let path = NSBezierPath(roundedRect: body, xRadius: 3, yRadius: 3)
-            palette.nsColor.setFill()
-            path.fill()
+            palette.fill(path: path, vivid: true)
             NSColor.black.withAlphaComponent(0.18).setStroke()
             path.lineWidth = 1
             path.stroke()

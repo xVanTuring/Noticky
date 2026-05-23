@@ -75,7 +75,7 @@ struct FloatingNoteView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(.regularMaterial)
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(palette.color)
+                    .fill(palette.backgroundFill)
                     .opacity(isInactive ? 0.45 : 1.0)
             }
             .animation(.easeInOut(duration: 0.18), value: isInactive)

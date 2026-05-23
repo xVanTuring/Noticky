@@ -534,8 +534,14 @@ final class NoteRowCellView: NSTableCellView {
 
     private func setup() {
         wantsLayer = true
+        // colorBar 用 CAGradientLayer 当宿主层 —— 纯色时是退化的单色渐变(两端同色),
+        // 炫彩时纵向扫一遍彩虹。宿主层 frame 由 AppKit 跟着 view bounds 自动同步。
+        let grad = CAGradientLayer()
+        grad.cornerRadius = 1.5
+        grad.startPoint = CGPoint(x: 0.5, y: 0)
+        grad.endPoint = CGPoint(x: 0.5, y: 1)
+        colorBar.layer = grad
         colorBar.wantsLayer = true
-        colorBar.layer?.cornerRadius = 1.5
         colorBar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(colorBar)
 
@@ -569,7 +575,17 @@ final class NoteRowCellView: NSTableCellView {
 
     func configure(with note: Note) {
         let palette = StickyPalette.from(index: note.colorIndex)
-        colorBar.layer?.backgroundColor = palette.nsColor.cgColor
+        if let grad = colorBar.layer as? CAGradientLayer {
+            let stops = palette.isRainbow
+                ? StickyPalette.rainbowStops(vivid: true)
+                : [palette.nsColor, palette.nsColor]
+            // dynamic NSColor → cgColor 必须按当前外观解析,否则深浅色会错。
+            var cg: [CGColor] = []
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                cg = stops.map { $0.cgColor }
+            }
+            grad.colors = cg
+        }
 
         let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         label.stringValue = isEmpty ? L.t(.emptyNote) : note.displayTitle
