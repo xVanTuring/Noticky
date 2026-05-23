@@ -385,15 +385,82 @@ echo "    edSignature ${ED_SIG:0:24}…  length ${ASSET_LEN}"
 DOWNLOAD_URL="https://github.com/${GH_REPO}/releases/download/${TAG}/${ZIP_ASSET}"
 RELEASE_NOTES_LINK="https://github.com/${GH_REPO}/releases/tag/${TAG}"
 
+# Gather release-notes markdown for the INLINE appcast <description>. Sparkle
+# renders <description> HTML straight into its update window — clean notes, no
+# embedded webpage. We deliberately do NOT use <sparkle:releaseNotesLink>:
+# that makes Sparkle load the GitHub release *page* inside a tiny web view
+# (full GitHub chrome, nav bar and all), which is what we're fixing here.
+#
+# Source = same as the GitHub release body: --notes-file if given, else commit
+# subjects since the previous tag (the new tag isn't created yet at this point,
+# so `git describe` returns the prior release). Drop the bump/appcast chores.
+PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+NOTES_MD_FILE="$(mktemp)"
+if [[ -n "$NOTES_FILE" ]]; then
+    cat "$NOTES_FILE" > "$NOTES_MD_FILE"
+elif [[ -n "$PREV_TAG" ]]; then
+    git log "${PREV_TAG}..HEAD" --no-merges --pretty='- %s' \
+        | grep -vE '^- (release|appcast):' > "$NOTES_MD_FILE" || true
+else
+    git log --no-merges --pretty='- %s' > "$NOTES_MD_FILE" || true
+fi
+[[ -s "$NOTES_MD_FILE" ]] || printf -- '- %s\n' "$TITLE" > "$NOTES_MD_FILE"
+
 echo "==> Updating ${APPCAST}"
-python3 - "$APPCAST" "$TAG" "$VERSION" "$next_build" "$ED_SIG" "$ASSET_LEN" "$DOWNLOAD_URL" "$RELEASE_NOTES_LINK" "$PRERELEASE" <<'PYEOF'
-import sys
+python3 - "$APPCAST" "$TAG" "$VERSION" "$next_build" "$ED_SIG" "$ASSET_LEN" "$DOWNLOAD_URL" "$RELEASE_NOTES_LINK" "$PRERELEASE" "$NOTES_MD_FILE" <<'PYEOF'
+import sys, html, re
 from datetime import datetime, timezone
 
-appcast, tag, short_ver, build, ed_sig, length, dl_url, notes_link, prerelease = sys.argv[1:]
+appcast, tag, short_ver, build, ed_sig, length, dl_url, notes_link, prerelease, notes_md_file = sys.argv[1:]
 
 pub_date = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S +0000')
 channel_line = f"      <sparkle:channel>{prerelease}</sparkle:channel>\n" if prerelease else ""
+
+# ── Minimal Markdown → HTML for the release-notes pane ──────────────
+# Just enough for our notes (commit-subject bullet lists, the occasional
+# heading / **bold** / `code`). Source text is HTML-escaped first so a commit
+# like "fix: handle <empty>" shows literally instead of vanishing as a tag.
+def md_to_html(md):
+    def inline(s):
+        s = html.escape(s, quote=False)
+        s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
+        s = re.sub(r'`(.+?)`', r'<code>\1</code>', s)
+        return s
+    out, in_list = [], False
+    for raw in md.splitlines():
+        line = raw.rstrip()
+        heading = re.match(r'^(#{1,6})\s+(.*)$', line)
+        bullet = re.match(r'^[-*]\s+(.*)$', line)
+        if bullet:
+            if not in_list:
+                out.append('<ul>'); in_list = True
+            out.append(f'<li>{inline(bullet.group(1))}</li>')
+            continue
+        if in_list:
+            out.append('</ul>'); in_list = False
+        if heading:
+            lvl = min(len(heading.group(1)) + 1, 6)  # bump so top-level "#" isn't huge
+            out.append(f'<h{lvl}>{inline(heading.group(2))}</h{lvl}>')
+        elif line:
+            out.append(f'<p>{inline(line)}</p>')
+    if in_list:
+        out.append('</ul>')
+    return '\n'.join(out)
+
+with open(notes_md_file, 'r', encoding='utf-8') as f:
+    notes_html = md_to_html(f.read())
+
+# Footer link to the full GitHub release page (Sparkle opens it in the browser).
+notes_html += f'\n<p><a href="{html.escape(notes_link)}">View full release on GitHub →</a></p>'
+
+# CDATA must not contain the literal "]]>"; neutralize just in case.
+notes_html = notes_html.replace(']]>', ']]&gt;')
+
+description = (
+    "      <description><![CDATA[\n"
+    f"{notes_html}\n"
+    "      ]]></description>\n"
+)
 
 item = (
     "    <item>\n"
@@ -403,7 +470,7 @@ item = (
     f"      <sparkle:shortVersionString>{short_ver}</sparkle:shortVersionString>\n"
     "      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>\n"
     f"{channel_line}"
-    f"      <sparkle:releaseNotesLink>{notes_link}</sparkle:releaseNotesLink>\n"
+    f"{description}"
     f"      <enclosure url=\"{dl_url}\" length=\"{length}\" "
     f"type=\"application/octet-stream\" sparkle:edSignature=\"{ed_sig}\" />\n"
     "    </item>\n"
@@ -420,6 +487,8 @@ new_src = src.replace(marker, marker + item, 1)
 with open(appcast, 'w', encoding='utf-8') as f:
     f.write(new_src)
 PYEOF
+
+rm -f "$NOTES_MD_FILE"
 
 # Sanity: read the just-written signature back and compare. If anything
 # raced or mangled the file we want to know before we push a bad feed.
