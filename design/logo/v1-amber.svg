@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"   stop-color="#3A3F4A"/>
+      <stop offset="0.5" stop-color="#1E2128"/>
+      <stop offset="1"   stop-color="#0C0E14"/>
+    </linearGradient>
+    <linearGradient id="glass1" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="glass2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.07"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFEF6"/>
+      <stop offset="1" stop-color="#EBE2C8"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"   stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="1"   stop-color="#FFFFFF" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="paperEdge" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"    stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="branch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8A6038"/>
+      <stop offset="1" stop-color="#4A3018"/>
+    </linearGradient>
+    <linearGradient id="bird" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0"   stop-color="#FBC56A"/>
+      <stop offset="0.5" stop-color="#F2A33F"/>
+      <stop offset="1"   stop-color="#DD7322"/>
+    </linearGradient>
+    <linearGradient id="birdShine" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"    stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="0.5"  stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
+      <feOffset dx="0" dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="paperShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
+      <feOffset dx="0" dy="16"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.62"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="birdShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="14"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#shine)"/>
+
+  <!-- glass cards (depth) -->
+  <g filter="url(#shadow)" transform="translate(512 600) rotate(-9)">
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="url(#glass1)"/>
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="none" stroke="url(#edge)" stroke-width="3"/>
+  </g>
+  <g filter="url(#shadow)" transform="translate(512 565) rotate(4)">
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="url(#glass2)"/>
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="none" stroke="url(#edge)" stroke-width="3"/>
+  </g>
+
+  <!-- paper note -->
+  <g filter="url(#paperShadow)" transform="translate(512 540) rotate(-3)">
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="url(#paper)"/>
+    <rect x="-250" y="-250" width="500" height="500" rx="52" fill="none" stroke="url(#paperEdge)" stroke-width="3"/>
+    <rect x="-170" y="30"  width="340" height="30" rx="15" fill="#1E2128" opacity="0.55"/>
+    <rect x="-170" y="100" width="270" height="30" rx="15" fill="#1E2128" opacity="0.5"/>
+    <rect x="-170" y="170" width="320" height="30" rx="15" fill="#1E2128" opacity="0.5"/>
+  </g>
+
+  <!-- perch (branch) resting on the note's top edge + bird -->
+  <g transform="translate(512 540) rotate(-3)">
+    <!-- branch -->
+    <g filter="url(#shadow)">
+      <rect x="-250" y="-272" width="500" height="22" rx="11" fill="url(#branch)"/>
+      <!-- small twig stub -->
+      <path d="M210 -261 q40 -6 64 -34 q-8 30 -64 50 z" fill="url(#branch)"/>
+    </g>
+    <!-- bird (perched songbird, brand-consistent shape) -->
+    <g filter="url(#birdShadow)" transform="translate(-95 -465) scale(4.4)">
+      <!-- legs -->
+      <path d="M26 45 L25 52 M32 45 L33 52" stroke="#C8731E" stroke-width="2" stroke-linecap="round"/>
+      <!-- body -->
+      <path fill="url(#bird)" d="M14 25 C14 16 21 11 28 12 C33 12.5 36 15 37.5 18 L53 40 C54 41.5 53 43.5 51 43 L40 40 C39 43 36 45.5 31 45.8 C22 46.3 14 40 14 30 Z"/>
+      <!-- top shine -->
+      <path fill="url(#birdShine)" d="M14 25 C14 16 21 11 28 12 C33 12.5 36 15 37.5 18 L44 28 C36 22 24 22 18 28 C16 27 15 26 14 25 Z"/>
+      <!-- beak -->
+      <path fill="#C85A1E" d="M14.5 24 L4 23 L14 30 Z"/>
+      <!-- eye -->
+      <circle cx="22" cy="22.5" r="1.9" fill="#2A1A0E"/>
+    </g>
+  </g>
+</svg>
