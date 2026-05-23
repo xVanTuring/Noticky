@@ -14,7 +14,15 @@
       <sparkle:version>10</sparkle:version>
       <sparkle:shortVersionString>1.3.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.3.3</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Spotlight Fix</h4>
+<ul>
+<li>Rewrote Spotlight indexing to use <strong>manual <code>CSSearchableIndex</code></strong> — fixes cases where notes were not appearing in Spotlight results on some macOS configurations.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.2...v1.3.3">https://github.com/xVanTuring/Noticky/compare/v1.3.2...v1.3.3</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.3/Noticky-1.3.3.zip" length="13775470" type="application/octet-stream" sparkle:edSignature="B/yuM6OhhaZYvE4LJmUJRXa1LQsyzFs/gbpamqmwfa9QFjklIxQNBNr9eGPbSW4PusvihVHTrSD37esQlUnUBg==" />
     </item>
     <item>
@@ -23,7 +31,15 @@
       <sparkle:version>9</sparkle:version>
       <sparkle:shortVersionString>1.3.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.3.2</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Spotlight Integration</h4>
+<ul>
+<li>Notes are now <strong>indexed in macOS Spotlight</strong>. Search for any note from Spotlight and click the result to open it directly in Noticky.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.1...v1.3.2">https://github.com/xVanTuring/Noticky/compare/v1.3.1...v1.3.2</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.2/Noticky-1.3.2.zip" length="13769561" type="application/octet-stream" sparkle:edSignature="LwfeoEo9BJed15hCE2bQeiMkHfzdTsDSK/5ArOqj1M3BVGgCnbduKGEQWVzppWRH8xL+ipP9Wo++BUclfXtmDw==" />
     </item>
     <item>
@@ -32,7 +48,24 @@
       <sparkle:version>8</sparkle:version>
       <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.3.1</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Floating Note Polish</h4>
+<ul>
+<li><strong>Note order persists</strong> across restarts — floating notes reopen in the same stacking order you left them.</li>
+<li><strong>Smooth collapse/expand animation</strong> — sticky notes now fold and unfold with a fluid animation instead of snapping.</li>
+<li>Collapsed sticky bar is now <strong>vertically centered</strong> for a tidier look.</li>
+<li>New <strong>color swatch row</strong> in the floating-note ⋯ menu with a ring hover effect — change note color without opening Settings.</li>
+<li>Update checks now surface <strong>quietly in the menu bar</strong> instead of interrupting you with a popup.</li>
+</ul>
+<h4>Bug Fixes</h4>
+<ul>
+<li>Fixed a glitch where the floating-note ⋯ menu could collapse unexpectedly; menu now uses native <code>Menu</code> with hover-only buttons.</li>
+<li>Fixed the reminder bell icon overlapping long note titles.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.0...v1.3.1">https://github.com/xVanTuring/Noticky/compare/v1.3.0...v1.3.1</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.1/Noticky-1.3.1.zip" length="13761263" type="application/octet-stream" sparkle:edSignature="tHcjViqd4CnqXczFyuQu0hHwnQROpCuLmYOVrbgXWAJTCSZPclmPM3tWk7AwT8OqEf8ISztnJfNSSSw83kjGAA==" />
     </item>
     <item>
@@ -41,7 +74,28 @@
       <sparkle:version>7</sparkle:version>
       <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.3.0</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Markdown Editor (Experimental)</h4>
+<ul>
+<li>New <strong>WYSIWYG Markdown editor</strong> powered by swift-markdown-engine. Write in plain Markdown and see it rendered live — toggle between edit and preview in the note header.</li>
+</ul>
+<h4>Library Export &amp; Import</h4>
+<ul>
+<li>Export your entire library as <strong>SQLite or Markdown files</strong> for backup or migration.</li>
+<li>Import a Noticky SQLite backup directly — useful for restoring from a manual backup or moving between Macs.</li>
+</ul>
+<h4>Settings</h4>
+<ul>
+<li>Added <strong>Clear All Content</strong> in Settings → General — wipes all notes and groups with a single confirmation. Useful for a fresh start.</li>
+</ul>
+<h4>Bug Fixes</h4>
+<ul>
+<li>Fixed: pinned notes imported from a backup now correctly appear as floating windows immediately after import.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.3...v1.3.0">https://github.com/xVanTuring/Noticky/compare/v1.2.3...v1.3.0</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.0/Noticky-1.3.0.zip" length="13742094" type="application/octet-stream" sparkle:edSignature="8VI7P2EEaHfeEjfySZ8byDEqCNWERKv9NbyMzMgWzobefpM6kd0VTSUUt5c3DFJaID/Umdb+9iV02Gw9VYsIBg==" />
     </item>
     <item>
@@ -50,7 +104,19 @@
       <sparkle:version>6</sparkle:version>
       <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.2.3</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Archive</h4>
+<ul>
+<li>Notes now have a <strong>third state: Archived</strong>. Move notes out of your way without sending them to Trash — they stay searchable and recoverable anytime.</li>
+</ul>
+<h4>Menu Bar Badge</h4>
+<ul>
+<li>Optional <strong>note-count badge</strong> on the menu bar icon. Choose between: off, count all notes, or count only visible notes. Configure it in Settings.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.2...v1.2.3">https://github.com/xVanTuring/Noticky/compare/v1.2.2...v1.2.3</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.3/Noticky-1.2.3.zip" length="8117608" type="application/octet-stream" sparkle:edSignature="BgY6RumQ5UBweCq8fJex7gBGYZkv1ARCpuw8tm/ZLMxij+nsHswt6sdyUzR8pl0aJY1RV4ieG/tHh9KHPH1QBg==" />
     </item>
     <item>
@@ -59,7 +125,20 @@
       <sparkle:version>5</sparkle:version>
       <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.2.2</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Localization</h4>
+<ul>
+<li>Settings tabs now <strong>live-refresh</strong> when you switch the app language — no restart needed.</li>
+<li>Permissions settings merged into the Capture tab for a cleaner layout.</li>
+</ul>
+<h4>New App Icon</h4>
+<ul>
+<li>Fresh <strong>graphite + cream-paper</strong> icon — a cleaner, more timeless look that fits right in on macOS.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.1...v1.2.2">https://github.com/xVanTuring/Noticky/compare/v1.2.1...v1.2.2</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.2/Noticky-1.2.2.zip" length="8085523" type="application/octet-stream" sparkle:edSignature="85fBkIhTa0poWXax49lh0wOavAH8/kmA6FnvzQI8l3lPE2xYFuiG/hhdBHCeEOUFSmRwk53njTY2Th8UtUtACA==" />
     </item>
     <item>
@@ -68,7 +147,16 @@
       <sparkle:version>4</sparkle:version>
       <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.2.1</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Display Management</h4>
+<ul>
+<li><strong>Move All Stickies</strong> now respects the current screen layout and anchors new positions relative to existing windows — notes land where you expect them.</li>
+<li>Removed the per-note display pin in favor of the unified <strong>Move All</strong> action in the menu bar, keeping the interface cleaner.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.0...v1.2.1">https://github.com/xVanTuring/Noticky/compare/v1.2.0...v1.2.1</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.1/Noticky-1.2.1.zip" length="8159119" type="application/octet-stream" sparkle:edSignature="PHe79hSTgwdTTASsrFucXzMgeNjP92vy35PFauoXDMNPbUmDMnExnkEJ2vGPrP3T+t+qN6Yx0q0eSFIUpZCuDA==" />
     </item>
     <item>
@@ -77,7 +165,23 @@
       <sparkle:version>3</sparkle:version>
       <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/xVanTuring/Noticky/releases/tag/v1.2.0</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Auto-update</h4>
+<ul>
+<li>Integrated <strong>Sparkle 2</strong> — Noticky now checks for updates and installs them in-place automatically.</li>
+</ul>
+<h4>Reminders</h4>
+<ul>
+<li>Added per-note <strong>one-shot local notifications</strong> — set a reminder on any sticky note and get notified at the chosen time.</li>
+</ul>
+<h4>Note Manager</h4>
+<ul>
+<li>Rebuilt the manager sidebar using <strong>NSOutlineView</strong> for native macOS drag-and-drop reordering and grouping.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/commits/v1.2.0">https://github.com/xVanTuring/Noticky/commits/v1.2.0</a></p>
+      ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.0/Noticky-1.2.0.zip" length="8149000" type="application/octet-stream" sparkle:edSignature="MELoC/dVSQAPejT5J/ZN5wNMZN4XntWUo/nGCXtMuZgNSdu1B3EeAY3DROoZR8h1D+dJbSeHLDM053k2lu44DA==" />
     </item>
     <!-- END-ITEMS -->
