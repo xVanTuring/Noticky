@@ -121,8 +121,12 @@ struct HoverToolbar: View {
     /// 当前 note 的 reminderDate(可能 nil / 过去 / 未来)。决定铃铛是 outline
     /// 还是 fill,以及是否「无 hover 也常驻显示」(已设提醒时铃铛是状态标记)。
     let reminderDate: Date?
+    /// 当前(展开)窗口尺寸,用来在尺寸行里高亮命中的预设。nil = 没有存档尺寸,
+    /// 不高亮任何预设。
+    let currentSize: NSSize?
     let onClose: () -> Void
     let onPickColor: (StickyPalette) -> Void
+    let onPickSize: (NSSize) -> Void
     let onToggleCollapse: () -> Void
     let onDelete: () -> Void
     let onArchive: () -> Void
@@ -204,8 +208,10 @@ struct HoverToolbar: View {
                 // 方块、改不掉,这里自己画圆点 + hover 浅色环 + 选中强调环。
                 StickyActionMenuButton(
                     selected: palette,
+                    currentSize: currentSize,
                     isCollapsed: isCollapsed,
                     onPickColor: onPickColor,
+                    onPickSize: onPickSize,
                     onToggleCollapse: onToggleCollapse,
                     onArchive: onArchive,
                     onDelete: onDelete
@@ -293,8 +299,11 @@ private struct HoverTracker: NSViewRepresentable {
 /// 保留它们的系统外观,也保留「NSMenu 同步关闭、动作立刻执行」对折叠动画的友好性。
 struct StickyActionMenuButton: NSViewRepresentable {
     let selected: StickyPalette
+    /// 当前(展开)窗口尺寸,用于在尺寸行里高亮命中的预设。nil = 不高亮。
+    let currentSize: NSSize?
     let isCollapsed: Bool
     let onPickColor: (StickyPalette) -> Void
+    let onPickSize: (NSSize) -> Void
     let onToggleCollapse: () -> Void
     let onArchive: () -> Void
     let onDelete: () -> Void
@@ -337,6 +346,14 @@ struct StickyActionMenuButton: NSViewRepresentable {
                 self?.parent.onPickColor(picked)
             }
             menu.addItem(colorItem)
+            menu.addItem(.separator())
+
+            // 尺寸预设行:跟颜色行同理,自绘 NSView,点中某个预设直接切换窗口尺寸。
+            let sizeItem = NSMenuItem()
+            sizeItem.view = SizePresetMenuRow(currentSize: parent.currentSize) { [weak self] size in
+                self?.parent.onPickSize(size)
+            }
+            menu.addItem(sizeItem)
             menu.addItem(.separator())
 
             let collapse = NSMenuItem(
@@ -465,6 +482,129 @@ final class ColorSwatchMenuRow: NSView {
         let p = convert(event.locationInWindow, from: nil)
         if let idx = index(at: p) {
             onPick(palettes[idx])
+        }
+        enclosingMenuItem?.menu?.cancelTracking()
+    }
+}
+
+/// NSMenu 里那一行尺寸预设,自绘 —— 跟 `ColorSwatchMenuRow` 同一套交互:画
+/// `DefaultNoteSize.allCases` 每个预设一个圆角方块,边长按预设实际尺寸等比缩放
+/// (小→中→大,直观表达尺寸关系);hover 的外圈一道**浅色环**、当前命中的预设
+/// 外圈一道**强调色环**(选中优先,选中且 hover 时不叠 hover 环)。鼠标移动靠
+/// tracking area 追,点中某个方块回调 onPick 并 cancelTracking 收菜单。
+///
+/// 「命中的预设」= 当前窗口尺寸与某预设在 1pt 容差内相等;用户手动 resize 到非
+/// 预设尺寸时则没有方块带强调环。
+final class SizePresetMenuRow: NSView {
+    private let presets = DefaultNoteSize.allCases
+    private let currentSize: NSSize?
+    private let onPick: (NSSize) -> Void
+    private var hovered: Int?
+
+    private let cell: CGFloat = 22      // 每个预设的方格(命中 + 等距)边长
+    private let gap: CGFloat = 14       // 方格之间(边到边)
+    private let hPad: CGFloat = 14      // 跟原生菜单项 leading 内缩对齐
+    private let vPad: CGFloat = 7
+    private let ringGap: CGFloat = 3    // 环跟方格的间隙
+    private let corner: CGFloat = 3     // 方格圆角
+
+    init(currentSize: NSSize?, onPick: @escaping (NSSize) -> Void) {
+        self.currentSize = currentSize
+        self.onPick = onPick
+        super.init(frame: .zero)
+        let n = CGFloat(presets.count)
+        let width = hPad * 2 + n * cell + (n - 1) * gap
+        let height = vPad * 2 + cell + (ringGap + 2) * 2   // 上下给环留位置
+        frame = NSRect(x: 0, y: 0, width: width, height: height)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func centerX(_ i: Int) -> CGFloat {
+        hPad + cell / 2 + CGFloat(i) * (cell + gap)
+    }
+
+    /// 方格按预设实际尺寸等比缩放:最大的预设占满 cell,其余按宽度比例缩小,
+    /// 但留个下限免得最小预设缩成一个点。
+    private func glyphSide(_ i: Int) -> CGFloat {
+        let maxW = presets.map(\.size.width).max() ?? 1
+        let ratio = presets[i].size.width / maxW
+        return max(cell * ratio, cell * 0.6)
+    }
+
+    private func index(at p: NSPoint) -> Int? {
+        let half = (cell + gap) / 2   // 命中区放宽到方格间隙的一半
+        for i in presets.indices where abs(p.x - centerX(i)) <= half { return i }
+        return nil
+    }
+
+    /// 当前窗口尺寸是否落在某预设的 1pt 容差内 —— 命中则该方格带强调环。
+    private func isSelected(_ i: Int) -> Bool {
+        guard let cur = currentSize else { return false }
+        let s = presets[i].size
+        return abs(cur.width - s.width) < 1 && abs(cur.height - s.height) < 1
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let cy = bounds.midY
+        for i in presets.indices {
+            let cx = centerX(i)
+            let side = glyphSide(i)
+            let rect = NSRect(x: cx - side / 2, y: cy - side / 2, width: side, height: side)
+            let box = NSBezierPath(roundedRect: rect, xRadius: corner, yRadius: corner)
+
+            // 方格底:浅填充 + 描边,跟颜色行的实心圆点视觉重量相当。
+            NSColor.labelColor.withAlphaComponent(0.10).setFill()
+            box.fill()
+            NSColor.labelColor.withAlphaComponent(0.55).setStroke()
+            box.lineWidth = 1
+            box.stroke()
+
+            // 选中 = 强调色环;否则 hover = 浅色环。选中优先(选中且 hover 时不叠 hover 环)。
+            if isSelected(i) {
+                strokeRing(cx: cx, cy: cy, side: side, color: .controlAccentColor, lineWidth: 2)
+            } else if i == hovered {
+                strokeRing(cx: cx, cy: cy, side: side, color: NSColor.labelColor.withAlphaComponent(0.4), lineWidth: 1.5)
+            }
+        }
+    }
+
+    private func strokeRing(cx: CGFloat, cy: CGFloat, side: CGFloat, color: NSColor, lineWidth: CGFloat) {
+        let r = side / 2 + ringGap
+        let rect = NSRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
+        color.setStroke()
+        let path = NSBezierPath(roundedRect: rect, xRadius: corner + ringGap, yRadius: corner + ringGap)
+        path.lineWidth = lineWidth
+        path.stroke()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for ta in trackingAreas { removeTrackingArea(ta) }
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    private func updateHover(_ event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        let idx = index(at: p)
+        if idx != hovered { hovered = idx; needsDisplay = true }
+    }
+
+    override func mouseEntered(with event: NSEvent) { updateHover(event) }
+    override func mouseMoved(with event: NSEvent) { updateHover(event) }
+    override func mouseExited(with event: NSEvent) {
+        if hovered != nil { hovered = nil; needsDisplay = true }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        if let idx = index(at: p) {
+            onPick(presets[idx].size)
         }
         enclosingMenuItem?.menu?.cancelTracking()
     }

@@ -21,10 +21,18 @@ struct FloatingNoteView: View {
     let onDelete: () -> Void
     let onArchive: () -> Void
     let onToggleCollapse: () -> Void
+    let onPickSize: (NSSize) -> Void
 
     private var palette: StickyPalette {
         guard !note.isDeleted, note.managedObjectContext != nil else { return .yellow }
         return StickyPalette.from(index: note.colorIndex)
+    }
+
+    /// 尺寸预设行的「当前尺寸」高亮依据:存档的展开 W/H(折叠态也存的是展开尺寸)。
+    /// 没存过就 nil,尺寸行不高亮任何预设。
+    private var currentSize: NSSize? {
+        guard !note.isDeleted, note.managedObjectContext != nil, note.hasSavedFrame else { return nil }
+        return NSSize(width: note.frameW, height: note.frameH)
     }
 
     /// 设置开了 fade,且当前窗确实失焦了,才进入毛玻璃态。
@@ -136,12 +144,14 @@ struct FloatingNoteView: View {
                 isCollapsed: note.isCollapsed,
                 stripHeight: stripHeight,
                 reminderDate: note.reminderDate,
+                currentSize: currentSize,
                 onClose: onClose,
                 onPickColor: { picked in
                     note.colorIndex = picked.rawValue
                     note.updatedAt = Date()
                     try? context.save()
                 },
+                onPickSize: onPickSize,
                 onToggleCollapse: onToggleCollapse,
                 onDelete: onDelete,
                 onArchive: onArchive,

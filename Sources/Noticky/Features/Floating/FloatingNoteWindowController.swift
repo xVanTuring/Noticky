@@ -105,8 +105,12 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// 给 stack/tile 用的批量动画 setFrame。`window.animator()` 自带平滑过渡。
     /// 期间 `isAnimating = true`,windowDidMove/Resize 跳过 onUserMoveEnded
     /// 调度,避免自动 reflow 自己触发自己。
-    func animateFrame(_ frame: NSRect) {
-        guard let w = window else { return }
+    ///
+    /// `completion` 在动画结束、`isAnimating` 清零之后再跑 —— 调用方(如尺寸预设
+    /// resize)可以在这里安全触发 reflow:此时 `currentFrame` 已是最终尺寸,reflow
+    /// 读到的是切换后的大小,不会拿到动画中途的帧。
+    func animateFrame(_ frame: NSRect, completion: (() -> Void)? = nil) {
+        guard let w = window else { completion?(); return }
         isAnimating = true
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.28
@@ -117,6 +121,7 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
             // 加一拍延迟,等最后一次 windowDidMove 跑完再清 flag。
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 self?.isAnimating = false
+                completion?()
             }
         })
     }
@@ -147,6 +152,9 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
                 },
                 onToggleCollapse: { [weak self] in
                     self?.toggleCollapse()
+                },
+                onPickSize: { [weak self] size in
+                    self?.applyPresetSize(size)
                 }
             )
             .environment(\.managedObjectContext, context)
@@ -209,6 +217,42 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
         f.size.height = Self.collapsedHeight
         f.origin.y = topY - Self.collapsedHeight
         w.setFrame(f, display: true)
+    }
+
+    /// ⋯ 菜单的尺寸预设:把窗口尺寸切到选中的预设。**左上角锚定**(minX 不动、
+    /// 顶边 maxY 不动),宽高往右下长/缩 —— 跟用户从右下角拖 resize 的直觉一致。
+    ///
+    /// 折叠态特殊处理:高度被锁在 collapsedHeight,所以只动画**宽度**,并把预设的
+    /// W/H 写进存档(`frameW/frameH` 存的就是「展开尺寸」),下次展开时用新尺寸。
+    /// 展开态直接动画到预设全尺寸并存档。两条路径都走 `animateFrame`(它在动画期间
+    /// 置 isAnimating,windowDidResize 不会把这次程序化 resize 误当用户拖动去 reflow)。
+    func applyPresetSize(_ size: NSSize) {
+        guard let w = window, let context = note.managedObjectContext else { return }
+        guard !isAnimating else { return }
+        let current = w.frame
+        let topY = current.maxY
+
+        if note.isCollapsed {
+            // 存档展开尺寸 = 新预设;可见高度保持折叠,只动画宽度(左上角锚定)。
+            note.frameX = Double(current.minX)
+            note.frameY = Double(topY) - size.height
+            note.frameW = Double(size.width)
+            note.frameH = Double(size.height)
+            note.hasSavedFrame = true
+            try? context.save()
+            let target = NSRect(x: current.minX, y: topY - Self.collapsedHeight,
+                                width: size.width, height: Self.collapsedHeight)
+            animateFrame(target) { [weak self] in self?.onUserMoveEnded() }
+        } else {
+            let target = NSRect(x: current.minX, y: topY - size.height,
+                                width: size.width, height: size.height)
+            // animateFrame 不写库;立刻存一次目标尺寸(debounced save 之后会再确认一次)。
+            note.setSavedFrame(target)
+            try? context.save()
+            // 动画到位后触发 reflow —— tile/stack 模式下其它窗按新尺寸重新对齐。
+            // normal 模式 onUserMoveEnded 是 no-op。
+            animateFrame(target) { [weak self] in self?.onUserMoveEnded() }
+        }
     }
 
     /// 双击标题 / ⋯ 菜单:折叠 ↔ 展开。带平滑动画,顶边锚定(top edge 不动)。
