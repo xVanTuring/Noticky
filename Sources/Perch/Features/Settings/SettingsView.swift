@@ -995,6 +995,17 @@ struct ICloudTab: View {
                     monitor.refreshAccountStatus()
                 }
             } catch {
+                // "a Core Data error occurred" 是外层泛化 message,真正的 CloudKit
+                // 原因藏在 NSError 的 userInfo / NSUnderlyingError 链里。完整打到
+                // stderr(/tmp/perch.log)方便定位(例如 Bad Container / 未登录 iCloud)。
+                var ns = error as NSError
+                NSLog("Perch initSchema FAILED: %@ (%@ #%d) userInfo=%@",
+                      ns.localizedDescription, ns.domain, ns.code, ns.userInfo as NSDictionary)
+                while let under = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    NSLog("Perch initSchema  ↳ underlying: %@ (%@ #%d) userInfo=%@",
+                          under.localizedDescription, under.domain, under.code, under.userInfo as NSDictionary)
+                    ns = under
+                }
                 let desc = (error as NSError).localizedDescription
                 DispatchQueue.main.async {
                     schemaInitMessage = L.t(.iCloudInitSchemaFailed, desc)
