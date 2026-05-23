@@ -9,6 +9,50 @@
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
     <item>
+      <title>v2.0.0</title>
+      <pubDate>Sat, 23 May 2026 12:43:30 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description xml:lang="en"><![CDATA[
+<h3>Noticky is now Perch</h3>
+<p>Noticky has a new name, a new look, and a new home — meet <strong>Perch</strong>. Your notes come along for the ride.</p>
+<h4>What changed</h4>
+<ul>
+<li><strong>New name &amp; icon.</strong> Noticky is now Perch, with a fresh menu bar icon — a little bird perched on a branch.</li>
+<li><strong>Same app, same notes.</strong> Everything you know is still here. This is a rename, not a rewrite.</li>
+</ul>
+<h4>Upgrading from Noticky — please read</h4>
+<ul>
+<li><strong>Perch is a separate app.</strong> Because of the rename, your existing Noticky won't auto-update to Perch. Download Perch once from the link below, then you can move the old Noticky to the Trash.</li>
+<li><strong>Your notes are imported automatically.</strong> The first time you open Perch, it brings over all your notes and groups from Noticky (duplicates are skipped), then asks whether to keep or delete the old Noticky data — <em>Keep</em> is the default, so nothing is removed unless you choose to.</li>
+<li><strong>iCloud sync starts fresh.</strong> Perch uses a new iCloud container, so previously synced data doesn't carry over on its own. Your local notes are imported as above; turn on iCloud in Settings to sync from here.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.4.0...v2.0.0">https://github.com/xVanTuring/Perch/compare/v1.4.0...v2.0.0</a></p>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.0.0">View full release on GitHub →</a></p>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+<h3>Noticky 现已更名为 Perch</h3>
+<p>Noticky 换了新名字、新图标、新家 —— 它现在叫 <strong>Perch</strong>（栖息）。你的便签会一起搬过来。</p>
+<h4>主要变化</h4>
+<ul>
+<li><strong>全新名字与图标。</strong> Noticky 现已更名为 Perch，菜单栏也换上了新图标 —— 一只栖在枝头的小鸟。</li>
+<li><strong>还是那个 app、那些便签。</strong> 你熟悉的一切都在，这只是改名，不是重写。</li>
+</ul>
+<h4>从 Noticky 升级 —— 请阅读</h4>
+<ul>
+<li><strong>Perch 是一个独立的 app。</strong> 由于改名，你现有的 Noticky 不会自动更新到 Perch。请通过下方链接下载一次 Perch，之后即可把旧的 Noticky 移到废纸篓。</li>
+<li><strong>你的便签会自动导入。</strong> 首次打开 Perch 时，它会把 Noticky 里的所有便签和分组带过来（自动跳过重复项），然后询问你要保留还是删除旧的 Noticky 数据 —— 默认是「保留」，不主动选择就不会删除任何东西。</li>
+<li><strong>iCloud 同步会重新开始。</strong> Perch 使用了新的 iCloud 容器，之前云端同步的数据不会自动迁移。你的本地便签会按上面的方式导入；在 设置 里开启 iCloud 即可从现在重新同步。</li>
+</ul>
+<hr>
+<p><strong>完整更新日志</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.4.0...v2.0.0">https://github.com/xVanTuring/Perch/compare/v1.4.0...v2.0.0</a></p>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.0.0">在 GitHub 查看完整更新 →</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v2.0.0/Perch-2.0.0.zip" length="13822690" type="application/octet-stream" sparkle:edSignature="GRIk5GV92nImvo6c8La2uDkTXG26Xj5qK5ZDePJ9Eh9dSkT2FzuU+smXLhzQdWZK2zxfwCf5pIojCXExE0XYDw==" />
+    </item>
+    <item>
       <title>v1.4.0</title>
       <pubDate>Sat, 23 May 2026 10:38:30 +0000</pubDate>
       <sparkle:version>11</sparkle:version>
