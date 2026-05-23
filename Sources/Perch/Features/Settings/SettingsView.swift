@@ -515,6 +515,12 @@ struct ShortcutsTab: View {
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .resizeNoteCycle)
                 }
+                // 悬浮置顶:一键翻转全局 Float on Top,默认未绑定。
+                HStack {
+                    Text(L.t(.shortcutToggleFloatOnTop))
+                    Spacer()
+                    KeyboardShortcuts.Recorder(for: .toggleFloatOnTop)
+                }
             }
 
             // menu / window 派发的快捷键。短期内不打算让用户改 —— 它们是 macOS

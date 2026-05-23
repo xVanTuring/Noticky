@@ -83,6 +83,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.floating.cycleKeyWindowSize()
         }
 
+        // 一键翻转全局「悬浮置顶」(默认未绑定,用户在 Settings 里录)。等同
+        // 菜单栏 Float on Top —— setFloatOnTop 内部会同步所有已开浮窗的层级,
+        // 菜单项的勾选态下次打开菜单时自然刷新。
+        KeyboardShortcuts.onKeyDown(for: .toggleFloatOnTop) { [weak self] in
+            guard let self else { return }
+            self.floating.setFloatOnTop(!self.floating.floatOnTop)
+        }
+
         restorePinnedNotes(in: context)
         // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)
         // 在启动时一气呵成,而不是一边 spawn 一边 reflow 一边再 reflow。

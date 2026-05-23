@@ -21,4 +21,10 @@ extension KeyboardShortcuts.Name {
     /// AppDelegate,实际循环走 `FloatingNotesRegistry.cycleKeyWindowSize()`
     /// (焦点不在浮窗上则 no-op)。
     static let resizeNoteCycle = Self("resizeNoteCycle")
+
+    /// 切换全局「悬浮置顶」开关(等同菜单栏的 Float on Top / ⋯ 菜单)。一键
+    /// 翻转所有浮窗的窗口层级 + 跨 Space 行为。**默认不绑定** —— 同样为了不跟
+    /// 别的 App 抢稀缺的全局热键,让用户自己在 Settings → Shortcuts 里录。按下
+    /// 时的处理在 AppDelegate,实际翻转走 `FloatingNotesRegistry.setFloatOnTop`。
+    static let toggleFloatOnTop = Self("toggleFloatOnTop")
 }
