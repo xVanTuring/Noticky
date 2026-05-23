@@ -43,9 +43,21 @@ final class SpotlightIndexer {
                        object: container.persistentStoreCoordinator)
     }
 
-    @objc private func dataChanged() { scheduleReconcile(delay: 1.5) }
+    /// **两个通知来自不同线程**:`.NSManagedObjectContextDidSave` 在做存盘的线程
+    /// (viewContext = 主线程)发,`.NSPersistentStoreRemoteChange` 在 Core Data
+    /// 自己的后台队列发。两者都进 `scheduleReconcile` 去读写 `debounce` 这个
+    /// `DispatchWorkItem?` —— 不同线程并发改同一个引用类型属性会损坏其引用计数,
+    /// 表现为 `EXC_BAD_ACCESS`(pointer authentication failure)。**统一切回主线程**
+    /// 再调度,让 `debounce` 的 cancel/赋值/asyncAfter 全部串行发生在主线程。
+    /// (一次存盘 = 一次 didSave + 一次 remote change,正好会撞上,所以是"有时"才崩。)
+    @objc private func dataChanged() {
+        DispatchQueue.main.async { [weak self] in
+            self?.scheduleReconcile(delay: 1.5)
+        }
+    }
 
-    /// 防抖:连续打字会触发一连串 didSave,合并成一次 reconcile。
+    /// 防抖:连续打字会触发一连串 didSave,合并成一次 reconcile。**只在主线程调用**
+    /// (见 `dataChanged`)。
     private func scheduleReconcile(delay: TimeInterval) {
         debounce?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.reconcile() }
