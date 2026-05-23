@@ -88,7 +88,7 @@
           <li data-i18n="f.float.li1"><b>Free</b> — place anywhere on screen.</li>
           <li data-i18n="f.float.li2"><b>Stack</b> — cascade; selecting a note slides it to the bottom for full visibility.</li>
           <li data-i18n="f.float.li3"><b>Tile</b> — auto-arranged grid; drag a note to reorder.</li>
-          <li data-i18n="f.float.li4">Float-on-top, double-click to collapse, inactive-note fade — all toggleable.</li>
+          <li data-i18n="f.float.li4">Float-on-top (toggle from the menu bar or bind a global shortcut), double-click to collapse, inactive-note fade.</li>
         </ul>
       </div>
       <div class="feature-media">
@@ -138,23 +138,28 @@
 
     <article class="feature">
       <div class="feature-text">
-        <h2 data-i18n="f.md.title">Plain text or Markdown</h2>
-        <p data-i18n="f.md.body">Write in plain text or Markdown — a native NSTextView editor, nothing proprietary. One tap toggles between the editable source and a rendered view.</p>
+        <h2 data-i18n="f.md.title">Live Markdown editor</h2>
+        <p data-i18n="f.md.body">Markdown styles itself inline as you type — no mode switch, no double-click to edit. The surface you edit is the one you read. Plain text works just as well; no markup, no styling.</p>
         <ul>
-          <li data-i18n="f.md.li1"><b>Edit view</b> — your raw text / Markdown, fully selectable and portable.</li>
-          <li data-i18n="f.md.li2"><b>Rendered view</b> — headings, lists, task checkboxes, code blocks (via Textual).</li>
-          <li data-i18n="f.md.li3">Global font size (12–24), applied live to every open window.</li>
+          <li data-i18n="f.md.li1"><b>WYSIWYG</b> — headings, bold, lists, and quotes render as you type.</li>
+          <li data-i18n="f.md.li2">Syntax-highlighted code blocks, inline images, and LaTeX math.</li>
+          <li data-i18n="f.md.li3"><b>Task lists</b> — <code>- [ ]</code> checkboxes with a live completion ring on the title bar.</li>
+          <li data-i18n="f.md.li4">Global font size (12–24), applied live to every open window.</li>
         </ul>
       </div>
       <div class="feature-media">
-        <img src="screenshots/markdown-editor.png" alt="Perch editing a Markdown note — headings, task list, fenced code in the source view" width="2024" height="1424" loading="lazy">
+        <img src="screenshots/markdown-editor.png" alt="Perch editing a Markdown note — headings, task list, and fenced code" width="2024" height="1424" loading="lazy">
       </div>
     </article>
 
     <div class="grid">
       <div class="card">
         <h3 data-i18n="g.manager.title">Manager window</h3>
-        <p data-i18n="g.manager.body">A native sidebar — groups, Ungrouped, Trash. Drag notes into groups, full-text search, right-click rename/move, and multi-select bulk actions.</p>
+        <p data-i18n="g.manager.body">A native sidebar — groups, Ungrouped, Archive, Trash. Drag notes into groups, full-text search, right-click rename/move, and multi-select bulk actions.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="g.tasks.title">All Tasks in one place</h3>
+        <p data-i18n="g.tasks.body">A built-in view that gathers every unchecked task from across your notes, grouped by note. Check one off and it writes straight back to the source — open windows update live. A completed parent stays visible while a sub-task is still open, so nested to-dos keep their context.</p>
       </div>
       <div class="card">
         <h3 data-i18n="g.trash.title">Soft delete &amp; Trash</h3>
@@ -211,7 +216,7 @@
     <nav class="footer-links">
       <a href="https://github.com/xVanTuring/Perch" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/xVanTuring/Perch/releases" target="_blank" rel="noopener" data-i18n="dl.all">All releases</a>
-      <a href="https://github.com/gonzalezreal/textual" target="_blank" rel="noopener">Textual</a>
+      <a href="https://github.com/xVanTuring/swift-markdown-engine" target="_blank" rel="noopener">swift-markdown-engine</a>
       <a href="https://github.com/sindresorhus/KeyboardShortcuts" target="_blank" rel="noopener">KeyboardShortcuts</a>
     </nav>
   </div>

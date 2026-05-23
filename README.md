@@ -30,7 +30,8 @@ icon — it lives in the menu bar and stays out of the way until you need it.
 - The **Pin** flag doubles as "auto-restore on next launch" — quitting the app
   doesn't lose your working set.
 - Each note remembers its own window position and size.
-- **Float on top** (menubar toggle) keeps every floating note above other windows.
+- **Float on top** keeps every floating note above other windows — toggle it from
+  the menu bar or bind a global shortcut (Settings → Shortcuts).
 - Double-click the title bar to collapse (toggleable in Settings).
 - Inactive notes fade for less visual noise (toggleable in Settings).
 
@@ -44,11 +45,13 @@ icon — it lives in the menu bar and stays out of the way until you need it.
 </p>
 
 ### Editor
-- Plain text and Markdown modes.
-- Markdown rendering via [gonzalezreal/Textual](https://github.com/gonzalezreal/textual),
-  with one-tap toggle between rendered view and edit mode.
+- **Live WYSIWYG Markdown** — formatting is styled inline as you type (headings,
+  bold/italic, lists, quotes); no mode switching, no double-click to edit. Plain
+  text just works too — no markup means no styling.
+- Syntax-highlighted code blocks, inline images, and LaTeX math.
+- **Task lists** (`- [ ]` / `- [x]`) show a live completion pie on the note's
+  title bar and in the Manager list.
 - Global font size (12–24, applied live to every open window).
-- New notes can start in edit mode or stay rendered, your choice.
 
 ### Quick Capture (global hotkey)
 - Default `⌘⇧N`, customizable in Settings → Shortcuts
@@ -62,12 +65,21 @@ icon — it lives in the menu bar and stays out of the way until you need it.
   whitelisted apps.
 
 ### Manager window
-- Sidebar: All Notes / your custom groups / Ungrouped / Trash.
+- Sidebar: All Notes / your custom groups / Ungrouped / All Tasks / Archive / Trash.
 - Drag-and-drop notes into groups (multi-select drag follows the selection).
 - Full-text search.
 - Create / rename / move groups via right-click.
 - Multi-select bulk operations: change color, pin/unpin, open as floating
   (capped at 8 to avoid screen clutter).
+
+### All Tasks
+- A built-in view (Manager sidebar, above Archive) that gathers every unchecked
+  task from across all your notes into one list, grouped by source note.
+- Check a task off there and it writes straight back to the source note — any
+  open window for that note updates live.
+- Respects sub-task hierarchy: a completed parent stays visible (dimmed) while it
+  still has open children, so nested to-dos keep their context.
+- Click a note's heading to jump straight to it.
 
 ### Trash
 - Deletions are soft — items go to Trash.
@@ -106,7 +118,8 @@ icon — it lives in the menu bar and stays out of the way until you need it.
 
 ## Acknowledgements
 
-- [gonzalezreal/Textual](https://github.com/gonzalezreal/textual) — Markdown rendering.
+- [xVanTuring/swift-markdown-engine](https://github.com/xVanTuring/swift-markdown-engine) —
+  the live WYSIWYG Markdown editor (code highlighting via HighlighterSwift, math via SwiftMath).
 - [sindresorhus/KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) —
   global hotkey recording and persistence.
 

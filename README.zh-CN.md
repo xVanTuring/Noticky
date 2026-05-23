@@ -28,7 +28,8 @@ Perch 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻
   - **Tile** 平铺，拖动后按位置自动重排
 - 「**Pin**」属性兼任「下次启动自动恢复」标记，关 App 不丢现场。
 - 每个便签记住自己的窗口位置与尺寸。
-- **Float on top**（菜单栏切换）让所有浮窗常驻最上层。
+- **Float on top** 让所有浮窗常驻最上层 —— 可在菜单栏切换，也可在
+  Settings → Shortcuts 绑定一个全局快捷键。
 - 双击标题栏可折叠（可在 Settings 关）。
 - 失焦半透明（可在 Settings 关）。
 
@@ -42,11 +43,12 @@ Perch 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻
 </p>
 
 ### 编辑器
-- 纯文本和 Markdown 双模式。
-- Markdown 走 [gonzalezreal/Textual](https://github.com/gonzalezreal/textual) 渲染，
-  支持「渲染态 ↔ 编辑态」一键切换。
+- **所见即所得 Markdown** —— 边打字边内联渲染（标题、粗斜、列表、引用），
+  无「渲染态 ↔ 编辑态」切换，也不需要双击进编辑态。写纯文本也照常 ——
+  没有标记就没有样式。
+- 代码块语法高亮、内联图片、LaTeX 数学公式。
+- **任务清单**（`- [ ]` / `- [x]`）在便签标题栏和管理列表里显示实时完成度饼图。
 - 全局字号可调（12–24，实时同步到所有打开窗口）。
-- 新建便签可选直接进编辑态或先停在渲染态。
 
 ### 全局快捷键速记（Quick Capture）
 - 默认 `⌘⇧N`，可在 Settings → Shortcuts 自定义
@@ -58,11 +60,19 @@ Perch 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻
 - 白名单按 App 配置，选中文本读取仅对白名单内 App 启用。
 
 ### 中央管理窗口（Manager）
-- 侧栏：All Notes / 自定义分组 / Ungrouped / Trash。
+- 侧栏：All Notes / 自定义分组 / Ungrouped / All Tasks / Archive / Trash。
 - 拖拽便签到分组（多选拖动跟随 selection）。
 - 全文搜索。
 - 分组重命名 / 新建 / 右键移动。
 - 多选批量改色 / 批量 Pin/Unpin / 批量打开为浮窗（≤ 8 防糊屏）。
+
+### 全部任务（All Tasks）
+- 管理窗口侧栏内置一项（在 Archive 上方），把所有笔记里未勾选的任务汇总到
+  一处，按来源笔记分组。
+- 在这里勾掉任务会**直接回写**源笔记 —— 该笔记若有打开的浮窗会实时同步。
+- 尊重子任务层级：父任务已完成但子任务还没完成时，父任务仍（置灰）保留，
+  嵌套待办不丢上下文。
+- 点笔记标题即可跳到那条笔记。
 
 ### 回收站
 - 删除走软删除，进 Trash。
@@ -97,7 +107,8 @@ Perch 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻
 
 ## 致谢
 
-- [gonzalezreal/Textual](https://github.com/gonzalezreal/textual) — Markdown 渲染。
+- [xVanTuring/swift-markdown-engine](https://github.com/xVanTuring/swift-markdown-engine) —
+  所见即所得 Markdown 编辑器（代码高亮走 HighlighterSwift，公式走 SwiftMath）。
 - [sindresorhus/KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) —
   全局快捷键的录制与持久化。
 
