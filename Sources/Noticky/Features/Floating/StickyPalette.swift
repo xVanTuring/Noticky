@@ -17,6 +17,21 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         StickyPalette(rawValue: index) ?? .yellow
     }
 
+    /// 存进 `SettingsKey.defaultColorIndex` 表示「随机默认色」的哨兵值 —— 取一个
+    /// 不在 0..5(合法 rawValue)内的值。新建便签时 `resolveDefault` 看到它就每张
+    /// 随机挑一个颜色。
+    static let randomSentinel = -1
+
+    /// 把 `defaultColorIndex` 解析成一个具体颜色:命中合法 rawValue(0..5)直接用;
+    /// 等于随机哨兵或任何越界值,都随机挑一个 —— 所以「随机」是在**每次新建**时
+    /// 现摇,而不是固定某色。
+    static func resolveDefault(_ index: Int) -> StickyPalette {
+        if let p = StickyPalette(rawValue: Int16(truncatingIfNeeded: index)) {
+            return p
+        }
+        return allCases.randomElement() ?? .yellow
+    }
+
     /// 用在 Menu / 列表里展示色名。LocKey 走 Localization.swift 集中翻译。
     var locKey: LocKey {
         switch self {

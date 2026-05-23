@@ -106,7 +106,7 @@ enum LocKey: String {
     case captureWhitelistTitle, captureWhitelistHint
 
     // Settings Notes
-    case notesDefaultColor, notesFontSize, notesDefaultSize, notesStartInEditMode
+    case notesDefaultColor, notesDefaultColorRandom, notesFontSize, notesDefaultSize, notesStartInEditMode
     case notesStartInEditModeDesc
     case notesExperimental, notesExperimentalEngine, notesExperimentalEngineDesc
     case noteSizeSmall, noteSizeMedium, noteSizeLarge
@@ -296,6 +296,7 @@ enum L {
         .captureWhitelistHint: "Examples: com.tencent.xinWeChat, com.microsoft.VSCode",
 
         .notesDefaultColor: "Default color",
+        .notesDefaultColorRandom: "Random (a new color each note)",
         .notesFontSize: "Editor font size",
         .notesDefaultSize: "Default window size",
         .notesStartInEditMode: "Open notes in edit mode",
@@ -524,6 +525,7 @@ enum L {
         .captureWhitelistHint: "常见示例:com.tencent.xinWeChat、com.microsoft.VSCode",
 
         .notesDefaultColor: "默认颜色",
+        .notesDefaultColorRandom: "随机(每张便签换一个颜色)",
         .notesFontSize: "编辑器字号",
         .notesDefaultSize: "默认窗口尺寸",
         .notesStartInEditMode: "打开便签直接进入编辑态",

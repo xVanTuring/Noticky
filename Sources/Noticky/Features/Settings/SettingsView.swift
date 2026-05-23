@@ -559,6 +559,8 @@ struct NotesTab: View {
     var body: some View {
         Form {
             // 颜色:6 圆点 HStack。点中带 accent ring,跟浮窗 ⋯ 菜单的颜色 picker 一致。
+            // 末尾多一个「随机」选项 —— 彩色渐变圆 + shuffle 图标,选中时每张新建
+            // 便签现摇一个颜色。
             LabeledContent(L.t(.notesDefaultColor)) {
                 HStack(spacing: 8) {
                     ForEach(StickyPalette.allCases) { palette in
@@ -579,6 +581,32 @@ struct NotesTab: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    let isRandom = defaultColorIndex == StickyPalette.randomSentinel
+                    Button {
+                        defaultColorIndex = StickyPalette.randomSentinel
+                    } label: {
+                        Circle()
+                            .fill(AngularGradient(
+                                colors: StickyPalette.allCases.map(\.color) + [StickyPalette.allCases[0].color],
+                                center: .center
+                            ))
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Image(systemName: "shuffle")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .shadow(radius: 1)
+                            )
+                            .overlay(
+                                Circle().stroke(
+                                    isRandom ? Color.accentColor : Color.black.opacity(0.15),
+                                    lineWidth: isRandom ? 2 : 1
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help(L.t(.notesDefaultColorRandom))
                 }
             }
 
