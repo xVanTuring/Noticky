@@ -14,4 +14,11 @@ extension KeyboardShortcuts.Name {
         "quickCapture",
         default: .init(.n, modifiers: [.command, .shift])
     )
+
+    /// 在预设尺寸间循环切换当前 key 浮窗便签:小 → 中 → 大 → 小(见 `DefaultNoteSize`)。
+    /// 一个键搞定三档,不占三个全局热键槽。**默认不绑定** —— 全局热键稀缺且容易
+    /// 跟别的 App 撞,让用户在 Settings → Shortcuts 里自己录。按下时的处理在
+    /// AppDelegate,实际循环走 `FloatingNotesRegistry.cycleKeyWindowSize()`
+    /// (焦点不在浮窗上则 no-op)。
+    static let resizeNoteCycle = Self("resizeNoteCycle")
 }

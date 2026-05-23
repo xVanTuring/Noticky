@@ -73,6 +73,17 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// tile 时读当前 frame 决定每张笔记占多大。
     var currentFrame: NSRect? { window?.frame }
 
+    /// 当前「逻辑尺寸」(展开态的 W/H):展开时就是窗口 frame 尺寸;折叠时窗口
+    /// 高度被锁在 collapsedHeight,改读存档的展开 W/H(没存过则 nil)。给快捷键
+    /// 循环尺寸判断当前落在哪个预设用。
+    var currentExpandedSize: NSSize? {
+        guard let w = window else { return nil }
+        if note.isCollapsed {
+            return note.hasSavedFrame ? NSSize(width: note.frameW, height: note.frameH) : nil
+        }
+        return w.frame.size
+    }
+
     /// stack 时按 cascade 顺序重排 z-order 用。`orderFront(nil)` 不改 key,只调
     /// z 层 —— 多个浮窗依次调一遍后,最后一个就在最前。
     ///

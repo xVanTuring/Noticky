@@ -511,6 +511,12 @@ struct ShortcutsTab: View {
                     Spacer()
                     KeyboardShortcuts.Recorder(for: .quickCapture)
                 }
+                // 浮窗尺寸:一个键循环 小 → 中 → 大,默认未绑定,作用于当前 key 浮窗。
+                HStack {
+                    Text(L.t(.shortcutResizeCycle))
+                    Spacer()
+                    KeyboardShortcuts.Recorder(for: .resizeNoteCycle)
+                }
             }
 
             // menu / window 派发的快捷键。短期内不打算让用户改 —— 它们是 macOS
@@ -526,7 +532,7 @@ struct ShortcutsTab: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 420)
+        .frame(width: 480, height: 470)
     }
 
     private func row(action: String, shortcut: String) -> some View {

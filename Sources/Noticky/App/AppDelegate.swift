@@ -71,6 +71,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.handleCaptureHotKey()
         }
 
+        // 一个键在 小 → 中 → 大 → 小 间循环切换当前 key 浮窗尺寸(默认未绑定,
+        // 用户在 Settings 里录)。复用 ⋯ 菜单的 DefaultNoteSize 预设,行为一致。
+        KeyboardShortcuts.onKeyDown(for: .resizeNoteCycle) { [weak self] in
+            self?.floating.cycleKeyWindowSize()
+        }
+
         restorePinnedNotes(in: context)
         // pinned 全部恢复完再 applyLayout —— 这样上次保存的布局模式(stack/tile)
         // 在启动时一气呵成,而不是一边 spawn 一边 reflow 一边再 reflow。

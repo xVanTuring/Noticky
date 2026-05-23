@@ -94,6 +94,7 @@ enum LocKey: String {
     case shortcutQuickCapture, shortcutManageNotes, shortcutOpenSettings
     case shortcutNewNote, shortcutCloseWindow, shortcutDeleteNote
     case shortcutQuit, shortcutsRoadmap
+    case shortcutResizeCycle
 
     // Settings Permissions
     case permissionAccessibilityTitle, permissionAccessibilityDesc
@@ -274,6 +275,7 @@ enum L {
         .shortcutDeleteNote: "Delete Floating Note",
         .shortcutQuit: "Quit",
         .shortcutsRoadmap: "Customizing shortcuts is on the roadmap.",
+        .shortcutResizeCycle: "Cycle Note Size (S → M → L)",
 
         .permissionAccessibilityTitle: "Accessibility",
         .permissionAccessibilityDesc: "Required so ⌘⇧N can read the selected text from the frontmost app and prefill it into a new sticky.",
@@ -501,6 +503,7 @@ enum L {
         .shortcutDeleteNote: "删除当前便签(浮窗)",
         .shortcutQuit: "退出",
         .shortcutsRoadmap: "自定义快捷键将在后续版本支持。",
+        .shortcutResizeCycle: "循环切换便签尺寸(小 → 中 → 大)",
 
         .permissionAccessibilityTitle: "辅助功能",
         .permissionAccessibilityDesc: "按 ⌘⇧N 时读取当前 App 选中的文字,自动填入新便签。",

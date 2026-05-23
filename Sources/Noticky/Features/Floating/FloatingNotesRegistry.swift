@@ -145,6 +145,26 @@ final class FloatingNotesRegistry {
         floatOnTop ? [.canJoinAllSpaces, .fullScreenAuxiliary] : []
     }
 
+    /// 在预设尺寸间循环切换当前 key 的浮窗便签:小 → 中 → 大 → 小。走 controller
+    /// 的 `applyPresetSize`(顶左锚定动画 + 折叠态特殊处理 + 动画结束触发 tile/stack
+    /// reflow),跟 ⋯ 菜单里点尺寸预设完全一致。焦点不在任何浮窗上(NSApp.keyWindow
+    /// 是别的窗或 nil)就 no-op —— 全局热键在别处按下时不该乱动浮窗。
+    ///
+    /// 当前命中哪个预设按 1pt 容差比;命中第 i 个就切到第 (i+1) 个;尺寸是用户手动
+    /// 拖出来的非预设值(谁都不命中)则从第一个(小)开始。
+    func cycleKeyWindowSize() {
+        guard let key = NSApp.keyWindow,
+              let wc = windows.values.first(where: { $0.matches(window: key) })
+        else { return }
+        let presets = DefaultNoteSize.allCases.map(\.size)
+        let current = wc.currentExpandedSize
+        let idx = current.flatMap { cur in
+            presets.firstIndex { abs($0.width - cur.width) < 1 && abs($0.height - cur.height) < 1 }
+        }
+        let next = idx.map { ($0 + 1) % presets.count } ?? 0
+        wc.applyPresetSize(presets[next])
+    }
+
     /// 切换布局模式,持久化并立刻生效。设到 `.normal` 不会动当前位置,只是停止
     /// 后续 auto reflow,用户从此可以自由拖。
     func setLayoutMode(_ mode: LayoutMode) {
