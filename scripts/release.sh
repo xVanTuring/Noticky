@@ -438,7 +438,8 @@ channel_line = f"      <sparkle:channel>{prerelease}</sparkle:channel>\n" if pre
 def md_to_html(md):
     def inline(s):
         s = html.escape(s, quote=False)
-        s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
+        s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)   # bold first…
+        s = re.sub(r'\*([^*\n]+?)\*', r'<em>\1</em>', s)          # …then *italic*
         s = re.sub(r'`(.+?)`', r'<code>\1</code>', s)
         s = re.sub(r'(https?://[^\s<]+)', r'<a href="\1">\1</a>', s)  # bare URLs → links
         return s
