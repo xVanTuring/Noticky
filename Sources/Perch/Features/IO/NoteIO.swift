@@ -8,8 +8,8 @@ import UniformTypeIdentifiers
 /// toolbar / 右键菜单)只负责弹 panel 和把结果传过来。
 ///
 /// **格式选择:**
-/// - 单条导出:`.md` 文件,内容直接写 note.content。Markdown 跟我们 Textual 渲染
-///   一致,任意编辑器都能开。
+/// - 单条导出:`.md` 文件,内容直接写 note.content。就是标准 Markdown,
+///   任意编辑器都能开。
 /// - 多条 / 整库 Markdown 导出:一个文件夹,里面每条便签一个 `.md`,文件名用
 ///   displayTitle(经过 Markdown 标记剥离 + 文件名安全字符 sanitize)。
 /// - 整库导出 / 导入:单个独立 `.sqlite`。用当前 schema **新建一个干净 store**

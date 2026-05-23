@@ -106,9 +106,7 @@ enum LocKey: String {
     case captureWhitelistTitle, captureWhitelistHint
 
     // Settings Notes
-    case notesDefaultColor, notesDefaultColorRandom, notesFontSize, notesDefaultSize, notesStartInEditMode
-    case notesStartInEditModeDesc
-    case notesExperimental, notesExperimentalEngine, notesExperimentalEngineDesc
+    case notesDefaultColor, notesDefaultColorRandom, notesFontSize, notesDefaultSize
     case noteSizeSmall, noteSizeMedium, noteSizeLarge
 
     // Settings iCloud Sync
@@ -305,11 +303,6 @@ enum L {
         .notesDefaultColorRandom: "Random (a new color each note)",
         .notesFontSize: "Editor font size",
         .notesDefaultSize: "Default window size",
-        .notesStartInEditMode: "Open notes in edit mode",
-        .notesStartInEditModeDesc: "When you open a note, jump straight into the editable source view instead of the rendered Markdown preview.",
-        .notesExperimental: "Experimental",
-        .notesExperimentalEngine: "WYSIWYG Markdown editor",
-        .notesExperimentalEngineDesc: "Replace the preview/source two-mode editor with a live editor that styles Markdown inline as you type (headings, bold, lists, code, images, math). No double-click to edit. Restart any open note window to apply.",
         .noteSizeSmall: "Small (240×240)",
         .noteSizeMedium: "Medium (280×280)",
         .noteSizeLarge: "Large (360×360)",
@@ -544,11 +537,6 @@ enum L {
         .notesDefaultColorRandom: "随机(每张便签换一个颜色)",
         .notesFontSize: "编辑器字号",
         .notesDefaultSize: "默认窗口尺寸",
-        .notesStartInEditMode: "打开便签直接进入编辑态",
-        .notesStartInEditModeDesc: "打开便签时直接显示可编辑的 Markdown 源码,而不是先看渲染预览。",
-        .notesExperimental: "实验性",
-        .notesExperimentalEngine: "所见即所得 Markdown 编辑器",
-        .notesExperimentalEngineDesc: "用边打字边内联渲染的实时编辑器(标题/粗斜/列表/代码/图片/公式)替代「预览 ↔ 源码」双态编辑器,无需双击进编辑态。重新打开已开的便签窗口生效。",
         .noteSizeSmall: "小 (240×240)",
         .noteSizeMedium: "中 (280×280)",
         .noteSizeLarge: "大 (360×360)",

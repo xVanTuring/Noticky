@@ -7,9 +7,6 @@ options:
   groupSortPosition: top
 
 packages:
-  Textual:
-    url: https://github.com/gonzalezreal/textual
-    from: "0.3.1"
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.0.0"
@@ -25,9 +22,8 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle.git
     from: "2.9.1"
-  # 实验性 WYSIWYG Markdown 引擎(自维护 fork)。仓库只有 main 分支、无 semver
-  # tag,所以 pin 到 branch: main —— 每次 xcodegen / resolve 会拉最新。仅给
-  # Settings → Notes 里的「实验性」开关用,默认关。三个 product:
+  # WYSIWYG Markdown 引擎(自维护 fork)—— 全 app 唯一的便签编辑器后端。
+  # 仓库无 semver tag,pin 到具体 commit。三个 product:
   #   - MarkdownEngine          核心 TextKit2 编辑器(零外部依赖)
   #   - MarkdownEngineCodeBlocks  HighlighterSwift 代码高亮 turnkey bridge
   #   - MarkdownEngineLatex       SwiftMath LaTeX turnkey bridge
@@ -84,7 +80,6 @@ targets:
       # 必须手动加回来,否则 Xcode 编译时找不到 CFBundleIconName 指向的资源。
       - Sources/Perch/Resources/Assets.xcassets
     dependencies:
-      - package: Textual
       - package: KeyboardShortcuts
       - package: Sparkle
         product: Sparkle

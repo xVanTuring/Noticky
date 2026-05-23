@@ -3,14 +3,12 @@ import MarkdownEngine
 import MarkdownEngineCodeBlocks
 import MarkdownEngineLatex
 
-/// 实验性 WYSIWYG Markdown 编辑器。
+/// WYSIWYG Markdown 编辑器 —— 全 app 唯一的便签编辑器(浮窗 + 管理窗口详情都用它)。
 ///
-/// 用自维护的 `swift-markdown-engine`(TextKit 2 backed)替代 `MarkdownNoteEditor`
-/// 的「渲染态 ↔ 源码态」双态模型 —— 这里是**单一可编辑面**:边打字边内联渲染
-/// 标题/粗斜/列表/代码块/图片/数学公式,不需要双击切编辑态。
-///
-/// 仅在 Settings → Notes →「实验性」开关打开时由 `MarkdownNoteEditor` 选用,
-/// 默认走旧的 Textual 双态实现。
+/// 用自维护的 `swift-markdown-engine`(TextKit 2 backed)做**单一可编辑面**:
+/// 边打字边内联渲染标题/粗斜/列表/代码块/图片/数学公式,没有「渲染态 ↔ 源码态」
+/// 的切换,也不需要双击进编辑态。早先基于 Textual 的双态编辑器(以及那个实验性
+/// 开关)已移除。
 ///
 /// 代码高亮 / LaTeX 用 engine 自带的 turnkey bridge(`HighlighterSwiftBridge`
 /// 走 HighlighterSwift,`SwiftMathBridge` 走 SwiftMath),不用我们这边自己写

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// 管理窗口的 SwiftUI 根视图。两栏 NavigationSplitView:
 ///   sidebar  → 「All Notes」+ 各分组 + 「Ungrouped」,各自可展开/折叠的笔记列表
-///   detail   → 选中笔记的渲染内容(Textual),空选中态显示提示
+///   detail   → 选中笔记的所见即所得编辑器,空选中态显示提示
 struct ManagerView: View {
     let floating: FloatingNotesRegistry
 
@@ -974,10 +974,10 @@ private struct NoteDetailView: View {
                 Rectangle()
                     .fill(StickyPalette.from(index: note.colorIndex).backgroundFill)
                     .ignoresSafeArea()
-                // 直接复用 MarkdownNoteEditor 的双态(渲染 ↔ 编辑),管理窗口
-                // 既能看也能改,跟浮窗里的体验一致。Open as Sticky 行为通过
-                // sidebar 行右键菜单走,不再用大按钮占地方。
-                MarkdownNoteEditor(
+                // 复用浮窗同一个所见即所得编辑器,管理窗口里既能看也能改,
+                // 体验跟浮窗一致。Open as Sticky 行为通过 sidebar 行右键菜单走,
+                // 不再用大按钮占地方。
+                MarkdownEngineNoteEditor(
                     text: Binding(
                         get: { note.content },
                         set: { newValue in

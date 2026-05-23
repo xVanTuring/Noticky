@@ -87,7 +87,7 @@ struct FloatingNoteView: View {
             if foldState.animating || !note.isCollapsed {
                 VStack(spacing: 0) {
                     Spacer().frame(height: FloatingNoteWindowController.collapsedHeight)
-                    MarkdownNoteEditor(
+                    MarkdownEngineNoteEditor(
                         text: Binding(
                             get: { note.content },
                             set: { newValue in
@@ -137,7 +137,7 @@ struct FloatingNoteView: View {
 
             // 顶部 hover 工具条独立成一个 struct,**自己拥有 hovering @State** ——
             // hover 状态切换只让这个子 struct 重渲染,不会沿父链冒泡触发整个
-            // FloatingNoteView 重渲染。否则任何鼠标进出窗都会让 MarkdownNoteEditor
+            // FloatingNoteView 重渲染。否则任何鼠标进出窗都会让 MarkdownEngineNoteEditor
             // 的 NSTextView updateNSView 被调,扰动中文 IME 的 marked text(拼音)。
             HoverToolbar(
                 palette: palette,

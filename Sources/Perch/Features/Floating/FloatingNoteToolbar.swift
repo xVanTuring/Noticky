@@ -108,7 +108,7 @@ struct TitleDoubleClickHit: NSViewRepresentable {
 }
 
 /// 浮窗顶部 hover 工具条 + 全窗 hover 检测。`@State hovering` 在这里独立持有,
-/// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownNoteEditor 重渲染。
+/// 状态变化不会冒泡到 FloatingNoteView,从而不让 MarkdownEngineNoteEditor 重渲染。
 ///
 /// 按钮一律 hover-only:鼠标进入浮窗才显示 × / 铃铛 / ⋯,移出即隐藏 ——
 /// 折叠态和展开态行为一致(`isCollapsed` 仍传入,只用于 ⋯ 菜单里折叠/展开项的

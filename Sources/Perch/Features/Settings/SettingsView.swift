@@ -21,8 +21,6 @@ enum SettingsKey {
     static let defaultColorIndex = "Noticky.defaultColorIndex"   // Int (0..5,对应 StickyPalette)
     static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
     static let defaultNoteSize = "Noticky.defaultNoteSize"       // String raw,DefaultNoteSize enum
-    static let startInEditMode = "Noticky.startInEditMode"       // Bool,新便签直接进编辑态(默认 false:渲染态)
-    static let experimentalMarkdownEngine = "Noticky.experimentalMarkdownEngine" // Bool,实验性 WYSIWYG 引擎(默认 false:Textual 双态)
 
     /// iCloud 同步开关。改这个值后必须重启 Perch —— PersistenceController
     /// 在 init 时一次性读 + 决定走 NSPersistentContainer 还是
@@ -552,8 +550,6 @@ struct NotesTab: View {
     @AppStorage(SettingsKey.defaultColorIndex) private var defaultColorIndex: Int = 0
     @AppStorage(SettingsKey.noteFontSize) private var noteFontSize: Int = 14
     @AppStorage(SettingsKey.defaultNoteSize) private var defaultNoteSizeRaw: String = DefaultNoteSize.medium.rawValue
-    @AppStorage(SettingsKey.startInEditMode) private var startInEditMode: Bool = false
-    @AppStorage(SettingsKey.experimentalMarkdownEngine) private var experimentalEngine: Bool = false
     @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
@@ -610,7 +606,7 @@ struct NotesTab: View {
                 }
             }
 
-            // 字号:Stepper 12..24。新建 / 已打开的编辑器都会通过 PlainTextEditor
+            // 字号:Stepper 12..24。新建 / 已打开的编辑器都会通过 MarkdownEngineNoteEditor
             // 的 @AppStorage + updateNSView 同步刷新。
             Stepper(value: $noteFontSize, in: 12...24, step: 1) {
                 LabeledContent(L.t(.notesFontSize)) {
@@ -627,30 +623,10 @@ struct NotesTab: View {
             }
             .pickerStyle(.menu)
             .id(loc.current)  // 见 GeneralTab 的 sort picker 同样原因
-
-            Toggle(isOn: $startInEditMode) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L.t(.notesStartInEditMode))
-                    Text(L.t(.notesStartInEditModeDesc))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section(L.t(.notesExperimental)) {
-                Toggle(isOn: $experimentalEngine) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L.t(.notesExperimentalEngine))
-                        Text(L.t(.notesExperimentalEngineDesc))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 480, height: 460)
+        .frame(width: 480, height: 300)
     }
 }
 
