@@ -425,8 +425,13 @@ def md_to_html(md):
         s = html.escape(s, quote=False)
         s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
         s = re.sub(r'`(.+?)`', r'<code>\1</code>', s)
+        s = re.sub(r'(https?://[^\s<]+)', r'<a href="\1">\1</a>', s)  # bare URLs → links
         return s
     out, in_list = [], False
+    def close_list():
+        nonlocal in_list
+        if in_list:
+            out.append('</ul>'); in_list = False
     for raw in md.splitlines():
         line = raw.rstrip()
         heading = re.match(r'^(#{1,6})\s+(.*)$', line)
@@ -435,16 +440,17 @@ def md_to_html(md):
             if not in_list:
                 out.append('<ul>'); in_list = True
             out.append(f'<li>{inline(bullet.group(1))}</li>')
-            continue
-        if in_list:
-            out.append('</ul>'); in_list = False
-        if heading:
+        elif re.match(r'^([-*_])\1{2,}\s*$', line):   # --- *** ___ → rule
+            close_list(); out.append('<hr>')
+        elif heading:
+            close_list()
             lvl = min(len(heading.group(1)) + 1, 6)  # bump so top-level "#" isn't huge
             out.append(f'<h{lvl}>{inline(heading.group(2))}</h{lvl}>')
         elif line:
-            out.append(f'<p>{inline(line)}</p>')
-    if in_list:
-        out.append('</ul>')
+            close_list(); out.append(f'<p>{inline(line)}</p>')
+        else:
+            close_list()
+    close_list()
     return '\n'.join(out)
 
 with open(notes_md_file, 'r', encoding='utf-8') as f:
