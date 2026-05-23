@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- C: origami / paper bird — facets separated by thin transparent gaps (fold lines) -->
+  <g fill="#000">
+    <!-- head + beak -->
+    <path d="M41 16 L53 23 L41.5 25.2 L37.5 20 Z"/>
+    <!-- upper wing -->
+    <path d="M14 25 L38.5 19.5 L26.5 35.5 Z"/>
+    <!-- body wedge -->
+    <path d="M37.5 20.5 L41 25.5 L33 44 L12 42.5 L27.5 36.5 Z"/>
+    <!-- tail -->
+    <path d="M11 43.5 L32.5 45 L19 53 Z"/>
+  </g>
+</svg>

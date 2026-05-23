@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- F: ultra-minimal soaring bird (two-stroke gull mark) -->
+  <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 38 C18 26 26 26 32 33 C38 26 46 26 54 38"/>
+  </g>
+</svg>

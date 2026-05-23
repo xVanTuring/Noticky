@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- D: plump round songbird, 3/4 view, cute -->
+  <g fill="#000">
+    <path fill-rule="evenodd" d="M40 14
+             C49 16 54 24 53 33
+             C52 44 44 51 33 51
+             C20 51 12 42 13 31
+             C14 22 20 17 27 15.5
+             L20 11
+             C24 10.5 28 11 31 12.5
+             C34 11.5 37 12 40 14 Z
+             M23.9 27 A2 2 0 1 1 20 27 A2 2 0 1 1 23.9 27 Z"/>
+    <!-- beak -->
+    <path d="M13.2 30 L4 31 L13.6 35 Z"/>
+    <!-- feet -->
+    <path d="M28 51 L27 57 M36 51 L37 57" stroke="#000" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+</svg>

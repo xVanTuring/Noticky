@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- E: bird head, looking up-right, with a small crest -->
+  <g fill="#000">
+    <path fill-rule="evenodd" d="M22 13
+             C24 11 27 11 28 14
+             C36 14 45 21 47 30
+             C47.2 31 47.2 32 47 33
+             C46 41 39 47 30 47
+             C18 47 11 39 12 28
+             C12.6 21 16 16 21 14
+             Z
+             M33 27 A2.4 2.4 0 1 1 28.2 27 A2.4 2.4 0 1 1 33 27 Z"/>
+    <!-- beak -->
+    <path d="M46.5 29 L60 28 L46.8 35 Z"/>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- A: songbird perched on a branch (literal "perch") -->
+  <g fill="#000">
+    <!-- body + head + tail, with eye as a true transparent hole (evenodd) -->
+    <path fill-rule="evenodd" d="M14 25
+             C14 16 21 11 28 12
+             C33 12.5 36 15 37.5 18
+             L53 40
+             C54 41.5 53 43.5 51 43
+             L40 40
+             C39 43 36 45.5 31 45.8
+             C22 46.3 14 40 14 30
+             Z
+             M23.8 23 A1.9 1.9 0 1 1 20 23 A1.9 1.9 0 1 1 23.8 23 Z"/>
+    <!-- beak -->
+    <path d="M14.5 24 L4 23 L14 30 Z"/>
+    <!-- legs -->
+    <path d="M26 45.5 L25 53 M32 45.8 L33 53" stroke="#000" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- branch -->
+    <rect x="8" y="52.5" width="48" height="3.2" rx="1.6"/>
+  </g>
+</svg>

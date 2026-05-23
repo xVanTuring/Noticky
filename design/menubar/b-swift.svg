@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- B: swift / swallow in flight, swept wings -->
+  <g fill="#000">
+    <path d="M32 14
+             C30 22 24 30 12 36
+             C22 35 27 33 31 30
+             C30 36 28 42 23 50
+             C31 44 34 39 35 33
+             C37 39 41 44 50 49
+             C45 41 43 35 42 30
+             C46 33 50 35 56 36
+             C46 30 38 23 35 14
+             C34.4 12 32.6 12 32 14
+             Z"/>
+  </g>
+</svg>

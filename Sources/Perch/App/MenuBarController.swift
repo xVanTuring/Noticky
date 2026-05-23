@@ -81,14 +81,16 @@ final class MenuBarController: NSObject {
     /// 点击高亮)。有待处理更新时,改用非模板合成图:符号染成 labelColor + 右上
     /// 角一个橙点 —— 模板图会把整张统一染色丢掉橙色,所以这里必须非模板。
     private static func statusImage(updateBadge: Bool, for button: NSStatusBarButton) -> NSImage? {
-        guard let base = NSImage(systemSymbolName: "note.text", accessibilityDescription: "Perch") else {
+        guard let base = NSImage(named: "MenubarBird") else {
             return nil
         }
+        // 自绘的栖枝小鸟(template image,菜单栏按浅/深色自动染色)。PDF 矢量,
+        // 固定到菜单栏惯用的 18pt 见方;橙点角标尺寸也跟着这个 size 走。
+        base.isTemplate = true
+        base.size = NSSize(width: 18, height: 18)
         guard updateBadge else {
-            base.isTemplate = true
             return base
         }
-        base.isTemplate = true
         let appearance = button.effectiveAppearance
         let size = base.size
         let image = NSImage(size: size, flipped: false) { rect in
