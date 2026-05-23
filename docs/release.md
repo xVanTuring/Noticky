@@ -95,7 +95,7 @@ the key can't sign).
 
 iCloud + Push Notifications entitlements force `xcodebuild` to demand
 a profile even for direct Developer ID distribution. The profile must
-be named exactly **"Perch Developer ID"** — `scripts/ExportOptions.plist`
+be named exactly **"Perch Profile"** — `scripts/ExportOptions.plist`
 looks it up by name.
 
 Create at <https://developer.apple.com/account/resources/profiles/add>:
@@ -103,7 +103,7 @@ Create at <https://developer.apple.com/account/resources/profiles/add>:
 1. Distribution → Developer ID
 2. App ID = `tech.xvanturing.Perch`
 3. Pick the Developer ID Application cert (T8F5T6HKG8)
-4. Profile name = `Perch Developer ID` (exact match)
+4. Profile name = `Perch Profile` (exact match)
 5. Generate → Download → double-click to install
 
 ### 5. Sparkle EdDSA key

@@ -119,12 +119,12 @@ dist/v1.0.0/
    缺失则到 Xcode → Settings → Accounts → Manage Certificates →
    `+` → Developer ID Application 安装，或让 Admin 颁发并发 `.p12` 给你。
 
-2. **Developer ID 配置文件**，名字必须是 `Perch Developer ID`
+2. **Developer ID 配置文件**，名字必须是 `Perch Profile`
    （`scripts/ExportOptions.plist` 按名字 lookup）。
 
    到 https://developer.apple.com/account/resources/profiles/add 创建：
    Distribution → Developer ID → App ID `tech.xvanturing.Perch` →
-   选 Developer ID Application 证书 → 命名 `Perch Developer ID` →
+   选 Developer ID Application 证书 → 命名 `Perch Profile` →
    Generate → Download → 双击安装。
 
    > 因为 entitlements 里有 iCloud + Push Notifications，Xcode 强制要 profile，

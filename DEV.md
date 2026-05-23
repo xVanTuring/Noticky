@@ -130,12 +130,12 @@ Full step-by-step, one-time setup, and troubleshooting live in
    If missing: Xcode → Settings → Accounts → Manage Certificates →
    `+` → Developer ID Application, or have an Admin issue + share the `.p12`.
 
-2. **Developer ID provisioning profile** named exactly `Perch Developer ID`
+2. **Developer ID provisioning profile** named exactly `Perch Profile`
    (`scripts/ExportOptions.plist` looks it up by name).
 
    Create it at https://developer.apple.com/account/resources/profiles/add:
    Distribution → Developer ID → App ID `tech.xvanturing.Perch` →
-   pick the Developer ID Application cert → name it `Perch Developer ID` →
+   pick the Developer ID Application cert → name it `Perch Profile` →
    Generate → Download → double-click to install.
 
    > Required because the entitlements include iCloud + Push Notifications,

@@ -38,7 +38,7 @@ cd "$ROOT"
 # ── Project constants ───────────────────────────────────────────────
 TEAM_ID="T8F5T6HKG8"
 NOTARY_PROFILE="${NOTARY_PROFILE:-noticky-notary}"
-PROVISIONING_PROFILE_NAME="Perch Developer ID"
+PROVISIONING_PROFILE_NAME="Perch Profile"
 SCHEME="Perch"
 PROJECT="Perch.xcodeproj"
 PRODUCT="Perch"
