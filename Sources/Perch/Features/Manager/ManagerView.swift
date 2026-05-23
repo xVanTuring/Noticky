@@ -35,8 +35,11 @@ struct ManagerView: View {
     /// state 切。点击其它任何 note 会把这个清回 false(由 onChange 处理)。
     @State private var viewingTrash: Bool = false
     /// 进 Archive 视图。跟 viewingTrash 一样独立于 List selection,且与
-    /// viewingTrash 互斥(三个视图状态:选中笔记 / 回收站 / 归档)。
+    /// viewingTrash 互斥(视图状态:选中笔记 / 全部任务 / 回收站 / 归档)。
     @State private var viewingArchive: Bool = false
+    /// 进 All Tasks 视图(跨笔记的未完成待办聚合)。同样独立于 List selection,
+    /// 与上面几个互斥。
+    @State private var viewingTasks: Bool = false
     @State private var search: String = ""
     @AppStorage(SettingsKey.noteSort) private var noteSortRaw: String = NoteSort.dateEdited.rawValue
     /// 重命名分组用的状态:点 "Rename" 后存住目标 group + 当前名,alert 用 TextField
@@ -155,15 +158,30 @@ struct ManagerView: View {
             // 会塌成 0,显式撑满。
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: selection) { _, new in
-                // 选中任何 note 时立刻退出 Trash / Archive 视图。
+                // 选中任何 note 时立刻退出 Tasks / Trash / Archive 视图。
+                // (All Tasks 里点分组头跳笔记也走这条路径退出该视图。)
                 if !new.isEmpty {
+                    viewingTasks = false
                     viewingTrash = false
                     viewingArchive = false
                 }
             }
 
             Divider()
-            // 归档入口 —— 跟回收站并列在底部。两个视图状态互斥。
+            // 全部任务入口 —— 放在归档上面。跨笔记聚合所有未完成待办。
+            BottomSidebarRow(
+                icon: "checklist",
+                title: L.t(.tasksTitle),
+                count: TaskAggregator.openTaskCount(from: allNotes),
+                active: viewingTasks,
+                onTap: {
+                    viewingTasks = true
+                    viewingArchive = false
+                    viewingTrash = false
+                    selection = []
+                }
+            )
+            // 归档入口 —— 跟回收站并列在底部。各视图状态互斥。
             BottomSidebarRow(
                 icon: "archivebox",
                 title: L.t(.archiveTitle),
@@ -171,6 +189,7 @@ struct ManagerView: View {
                 active: viewingArchive,
                 onTap: {
                     viewingArchive = true
+                    viewingTasks = false
                     viewingTrash = false
                     selection = []
                 }
@@ -182,6 +201,7 @@ struct ManagerView: View {
                 active: viewingTrash,
                 onTap: {
                     viewingTrash = true
+                    viewingTasks = false
                     viewingArchive = false
                     selection = []
                 }
@@ -194,7 +214,11 @@ struct ManagerView: View {
 
     private var detail: some View {
         Group {
-            if viewingTrash {
+            if viewingTasks {
+                // 点分组头 → 设 selection 跳到那条笔记;selection 的 onChange
+                // 会把 viewingTasks 清回 false,自动切到笔记详情。
+                TasksDetailView(onSelectNote: { note in selection = [note.id] })
+            } else if viewingTrash {
                 TrashDetailView(floating: floating)
             } else if viewingArchive {
                 ArchiveDetailView(floating: floating)

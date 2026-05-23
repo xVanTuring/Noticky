@@ -206,3 +206,99 @@ extension Note {
         return s
     }
 }
+
+// MARK: - Task extraction & write-back (All Tasks 聚合视图用)
+
+extension Note {
+    /// 从一条笔记里解析出的单个任务行,带足够信息支持层级展示与回写。
+    /// `lineIndex` + `rawLine` 一起做回写定位(下标优先,失配时退回按整行
+    /// 文本匹配);`indent` 建父子树。仅 All Tasks 聚合视图消费 —— 浮窗/管理
+    /// 列表的进度饼仍走轻量的 `taskProgress`。
+    struct ParsedTask: Equatable {
+        var lineIndex: Int
+        var indent: Int
+        var rawLine: String
+        var label: String
+        var isDone: Bool
+    }
+
+    /// 按文档顺序扫出本笔记所有任务行(平铺)。无任务返回 []。行切分用 "\n"
+    /// (跟 `toggledTaskContent` 一致,保证 `lineIndex` 在解析与回写两侧对齐)。
+    var parsedTasks: [ParsedTask] {
+        let lines = content.components(separatedBy: "\n")
+        var out: [ParsedTask] = []
+        for (i, line) in lines.enumerated() {
+            guard let p = Self.scanTask(line) else { continue }
+            out.append(ParsedTask(
+                lineIndex: i, indent: p.indent, rawLine: line,
+                label: p.label, isDone: p.isDone
+            ))
+        }
+        return out
+    }
+
+    /// 翻转某行任务的勾选态,返回新的整段 content;定位失败返回 nil(调用方据此
+    /// 不写库)。优先用 `lineIndex`(前提是该行仍等于 `expectedRaw`),失配则全局
+    /// 找等于 `expectedRaw` 的行 —— 应对回写前笔记在别处被编辑导致的行号漂移。
+    static func toggledTaskContent(_ content: String, lineIndex: Int,
+                                   expectedRaw: String, setDone: Bool) -> String? {
+        var lines = content.components(separatedBy: "\n")
+        let targetIndex: Int? =
+            (lines.indices.contains(lineIndex) && lines[lineIndex] == expectedRaw)
+            ? lineIndex
+            : lines.firstIndex(of: expectedRaw)
+        guard let idx = targetIndex,
+              let flipped = toggledLine(lines[idx], setDone: setDone) else { return nil }
+        lines[idx] = flipped
+        return lines.joined(separator: "\n")
+    }
+
+    /// 扫一行:是任务项 → (缩进列数, 是否勾选, 勾选记号 String.Index, 标签);否则
+    /// nil。缩进按 space=1、tab=4 归一,只用于建层级时的单调度量。容忍行首缩进、
+    /// `-`/`*`/`+` 三种 bullet,勾选记号大小写不敏感 —— 跟 `taskCheckState` 同口径。
+    private static func scanTask(_ line: String)
+        -> (indent: Int, isDone: Bool, markIndex: String.Index, label: String)? {
+        var idx = line.startIndex
+        var indent = 0
+        while idx < line.endIndex {
+            let c = line[idx]
+            if c == " " { indent += 1 }
+            else if c == "\t" { indent += 4 }
+            else { break }
+            idx = line.index(after: idx)
+        }
+        guard idx < line.endIndex else { return nil }
+        let bullet = line[idx]
+        guard bullet == "-" || bullet == "*" || bullet == "+" else { return nil }
+        idx = line.index(after: idx)
+        // bullet 后必须至少一个空白,否则 `-[x]` 不算(也排除普通连字符行)。
+        guard idx < line.endIndex, line[idx] == " " || line[idx] == "\t" else { return nil }
+        while idx < line.endIndex, line[idx] == " " || line[idx] == "\t" {
+            idx = line.index(after: idx)
+        }
+        guard idx < line.endIndex, line[idx] == "[" else { return nil }
+        idx = line.index(after: idx)
+        guard idx < line.endIndex else { return nil }
+        let markIndex = idx
+        let mark = line[markIndex]
+        idx = line.index(after: idx)
+        guard idx < line.endIndex, line[idx] == "]" else { return nil }
+        let isDone: Bool
+        switch mark {
+        case " ":      isDone = false
+        case "x", "X": isDone = true
+        default:       return nil
+        }
+        let afterClose = line.index(after: idx)
+        let label = String(line[afterClose...]).trimmingCharacters(in: .whitespaces)
+        return (indent, isDone, markIndex, label)
+    }
+
+    /// 翻转单行任务的勾选记号,缩进/bullet/标签原样保留。非任务行返回 nil。
+    private static func toggledLine(_ line: String, setDone: Bool) -> String? {
+        guard let p = scanTask(line) else { return nil }
+        var out = line
+        out.replaceSubrange(p.markIndex...p.markIndex, with: setDone ? "x" : " ")
+        return out
+    }
+}

@@ -193,6 +193,9 @@ enum LocKey: String {
     case archiveMoveToTrash
     case managerArchive, managerArchiveCount, managerUnarchive
     case floatArchive
+
+    // All Tasks(跨笔记的未完成任务聚合)
+    case tasksTitle, tasksEmpty, tasksEmptyDesc
 }
 
 /// 字符串查找器。`L.t(.foo)` 取无参数版本;`L.t(.foo, args)` 取 `String(format:)` 版本。
@@ -444,7 +447,11 @@ enum L {
         .managerArchive: "Archive",
         .managerArchiveCount: "Archive %d Notes",
         .managerUnarchive: "Unarchive",
-        .floatArchive: "Archive note"
+        .floatArchive: "Archive note",
+
+        .tasksTitle: "All Tasks",
+        .tasksEmpty: "No open tasks",
+        .tasksEmptyDesc: "Unchecked tasks from all your notes show up here. Add a checklist (- [ ] …) to any note and it appears."
     ]
 
     private static let zh: [LocKey: String] = [
@@ -679,6 +686,10 @@ enum L {
         .managerArchive: "归档",
         .managerArchiveCount: "归档 %d 条便签",
         .managerUnarchive: "取消归档",
-        .floatArchive: "归档便签"
+        .floatArchive: "归档便签",
+
+        .tasksTitle: "全部任务",
+        .tasksEmpty: "没有未完成的任务",
+        .tasksEmptyDesc: "所有笔记里未勾选的任务都会汇总到这里。在任意笔记里写个清单(- [ ] …)就会出现。"
     ]
 }
