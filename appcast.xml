@@ -14,12 +14,12 @@
       <sparkle:version>11</sparkle:version>
       <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[
+      <description xml:lang="en"><![CDATA[
 <h3>What's New</h3>
 <h4>Note Colors</h4>
 <ul>
 <li>New <strong>Rainbow (炫彩)</strong> color — a vivid rainbow gradient for your stickies. The note background uses a soft, readable version while pickers show the vivid one.</li>
-<li><strong>Random default color</strong> — set Default color to *Random* in Settings → Notes and every new note picks its own color.</li>
+<li><strong>Random default color</strong> — set Default color to <em>Random</em> in Settings → Notes and every new note picks its own color.</li>
 </ul>
 <h4>Resizing</h4>
 <ul>
@@ -40,7 +40,33 @@
 </ul>
 <hr>
 <p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0</a></p>
-<p><a href="https://github.com/xVanTuring/Noticky/releases/tag/v1.4.0">View full release on GitHub →</a></p>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+<h3>更新内容</h3>
+<h4>便签颜色</h4>
+<ul>
+<li>新增<strong>炫彩</strong>配色 —— 给便签来一抹鲜艳的彩虹渐变。便签背景用柔和、易读的版本，颜色选择器里则显示鲜艳版。</li>
+<li><strong>随机默认色</strong> —— 在 设置 → 便签 里把默认颜色设为「随机」，每张新便签都会自动挑一个颜色。</li>
+</ul>
+<h4>尺寸调整</h4>
+<ul>
+<li><strong>⋯ 菜单里的预设尺寸</strong> —— 像切换颜色一样，一键把浮窗便签切到 小 / 中 / 大。切换后平铺、堆叠布局会自动重新对齐。</li>
+<li><strong>尺寸循环快捷键</strong> —— 在 设置 → 快捷键 里指定一个全局快捷键，循环切换当前便签的 小 → 中 → 大。</li>
+</ul>
+<h4>任务</h4>
+<ul>
+<li><strong>任务进度饼</strong> —— 含复选框的便签会在标题栏和管理列表里显示一个完成度饼图。</li>
+</ul>
+<h4>底层改进</h4>
+<ul>
+<li>Noticky 现在会确保<strong>只运行一个实例</strong>，再次启动只会唤起已有窗口，而不是再开一个副本。</li>
+</ul>
+<h4>问题修复</h4>
+<ul>
+<li>修复了一个<strong>偶发崩溃</strong> —— 在保存便签的操作（例如折叠便签）时可能触发，根因是 Spotlight 索引的数据竞争。</li>
+</ul>
+<hr>
+<p><strong>完整更新日志</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0</a></p>
       ]]></description>
       <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.4.0/Noticky-1.4.0.zip" length="13818336" type="application/octet-stream" sparkle:edSignature="LlSIGvJPQsbyjYmP72XlvNAW4aGGQXn+MktdbRU6FgszxAFE8g0Pf6GAc14uI96BRgzHeEdkpR0sBJwijwI0Cw==" />
     </item>
