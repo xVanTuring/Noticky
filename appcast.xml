@@ -9,6 +9,42 @@
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
     <item>
+      <title>v1.4.0</title>
+      <pubDate>Sat, 23 May 2026 10:38:30 +0000</pubDate>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<h3>What's New</h3>
+<h4>Note Colors</h4>
+<ul>
+<li>New <strong>Rainbow (炫彩)</strong> color — a vivid rainbow gradient for your stickies. The note background uses a soft, readable version while pickers show the vivid one.</li>
+<li><strong>Random default color</strong> — set Default color to *Random* in Settings → Notes and every new note picks its own color.</li>
+</ul>
+<h4>Resizing</h4>
+<ul>
+<li><strong>Preset sizes in the ⋯ menu</strong> — switch a floating note between Small / Medium / Large with a single click, just like changing color. Tile and Stack layouts re-align automatically afterward.</li>
+<li><strong>Cycle-size shortcut</strong> — assign a global shortcut in Settings → Shortcuts to cycle the focused note through Small → Medium → Large.</li>
+</ul>
+<h4>Tasks</h4>
+<ul>
+<li><strong>Task progress pie</strong> — notes containing checkboxes now show a completion pie on the sticky title bar and in the manager list.</li>
+</ul>
+<h4>Under the Hood</h4>
+<ul>
+<li>Noticky now enforces a <strong>single running instance</strong>, so launching it again just surfaces the existing app instead of starting a second copy.</li>
+</ul>
+<h4>Bug Fixes</h4>
+<ul>
+<li>Fixed an <strong>intermittent crash</strong> that could happen on actions that save a note (e.g. collapsing a sticky), caused by a data race in Spotlight indexing.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0</a></p>
+<p><a href="https://github.com/xVanTuring/Noticky/releases/tag/v1.4.0">View full release on GitHub →</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.4.0/Noticky-1.4.0.zip" length="13818336" type="application/octet-stream" sparkle:edSignature="LlSIGvJPQsbyjYmP72XlvNAW4aGGQXn+MktdbRU6FgszxAFE8g0Pf6GAc14uI96BRgzHeEdkpR0sBJwijwI0Cw==" />
+    </item>
+    <item>
       <title>v1.3.3</title>
       <pubDate>Fri, 22 May 2026 08:41:28 +0000</pubDate>
       <sparkle:version>10</sparkle:version>
