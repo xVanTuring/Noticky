@@ -4,7 +4,7 @@
      xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Noticky</title>
-    <link>https://github.com/xVanTuring/Noticky</link>
+    <link>https://github.com/xVanTuring/Perch</link>
     <description>Updates for Noticky, a native macOS sticky-note app.</description>
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
@@ -39,7 +39,7 @@
 <li>Fixed an <strong>intermittent crash</strong> that could happen on actions that save a note (e.g. collapsing a sticky), caused by a data race in Spotlight indexing.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Perch/compare/v1.3.3...v1.4.0</a></p>
       ]]></description>
       <description xml:lang="zh"><![CDATA[
 <h3>更新内容</h3>
@@ -66,9 +66,9 @@
 <li>修复了一个<strong>偶发崩溃</strong> —— 在保存便签的操作（例如折叠便签）时可能触发，根因是 Spotlight 索引的数据竞争。</li>
 </ul>
 <hr>
-<p><strong>完整更新日志</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Noticky/compare/v1.3.3...v1.4.0</a></p>
+<p><strong>完整更新日志</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.3.3...v1.4.0">https://github.com/xVanTuring/Perch/compare/v1.3.3...v1.4.0</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.4.0/Noticky-1.4.0.zip" length="13818336" type="application/octet-stream" sparkle:edSignature="LlSIGvJPQsbyjYmP72XlvNAW4aGGQXn+MktdbRU6FgszxAFE8g0Pf6GAc14uI96BRgzHeEdkpR0sBJwijwI0Cw==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.4.0/Noticky-1.4.0.zip" length="13818336" type="application/octet-stream" sparkle:edSignature="LlSIGvJPQsbyjYmP72XlvNAW4aGGQXn+MktdbRU6FgszxAFE8g0Pf6GAc14uI96BRgzHeEdkpR0sBJwijwI0Cw==" />
     </item>
     <item>
       <title>v1.3.3</title>
@@ -83,9 +83,9 @@
 <li>Rewrote Spotlight indexing to use <strong>manual <code>CSSearchableIndex</code></strong> — fixes cases where notes were not appearing in Spotlight results on some macOS configurations.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.2...v1.3.3">https://github.com/xVanTuring/Noticky/compare/v1.3.2...v1.3.3</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.3.2...v1.3.3">https://github.com/xVanTuring/Perch/compare/v1.3.2...v1.3.3</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.3/Noticky-1.3.3.zip" length="13775470" type="application/octet-stream" sparkle:edSignature="B/yuM6OhhaZYvE4LJmUJRXa1LQsyzFs/gbpamqmwfa9QFjklIxQNBNr9eGPbSW4PusvihVHTrSD37esQlUnUBg==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.3.3/Noticky-1.3.3.zip" length="13775470" type="application/octet-stream" sparkle:edSignature="B/yuM6OhhaZYvE4LJmUJRXa1LQsyzFs/gbpamqmwfa9QFjklIxQNBNr9eGPbSW4PusvihVHTrSD37esQlUnUBg==" />
     </item>
     <item>
       <title>v1.3.2</title>
@@ -100,9 +100,9 @@
 <li>Notes are now <strong>indexed in macOS Spotlight</strong>. Search for any note from Spotlight and click the result to open it directly in Noticky.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.1...v1.3.2">https://github.com/xVanTuring/Noticky/compare/v1.3.1...v1.3.2</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.3.1...v1.3.2">https://github.com/xVanTuring/Perch/compare/v1.3.1...v1.3.2</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.2/Noticky-1.3.2.zip" length="13769561" type="application/octet-stream" sparkle:edSignature="LwfeoEo9BJed15hCE2bQeiMkHfzdTsDSK/5ArOqj1M3BVGgCnbduKGEQWVzppWRH8xL+ipP9Wo++BUclfXtmDw==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.3.2/Noticky-1.3.2.zip" length="13769561" type="application/octet-stream" sparkle:edSignature="LwfeoEo9BJed15hCE2bQeiMkHfzdTsDSK/5ArOqj1M3BVGgCnbduKGEQWVzppWRH8xL+ipP9Wo++BUclfXtmDw==" />
     </item>
     <item>
       <title>v1.3.1</title>
@@ -126,9 +126,9 @@
 <li>Fixed the reminder bell icon overlapping long note titles.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.3.0...v1.3.1">https://github.com/xVanTuring/Noticky/compare/v1.3.0...v1.3.1</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.3.0...v1.3.1">https://github.com/xVanTuring/Perch/compare/v1.3.0...v1.3.1</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.1/Noticky-1.3.1.zip" length="13761263" type="application/octet-stream" sparkle:edSignature="tHcjViqd4CnqXczFyuQu0hHwnQROpCuLmYOVrbgXWAJTCSZPclmPM3tWk7AwT8OqEf8ISztnJfNSSSw83kjGAA==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.3.1/Noticky-1.3.1.zip" length="13761263" type="application/octet-stream" sparkle:edSignature="tHcjViqd4CnqXczFyuQu0hHwnQROpCuLmYOVrbgXWAJTCSZPclmPM3tWk7AwT8OqEf8ISztnJfNSSSw83kjGAA==" />
     </item>
     <item>
       <title>v1.3.0</title>
@@ -156,9 +156,9 @@
 <li>Fixed: pinned notes imported from a backup now correctly appear as floating windows immediately after import.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.3...v1.3.0">https://github.com/xVanTuring/Noticky/compare/v1.2.3...v1.3.0</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.2.3...v1.3.0">https://github.com/xVanTuring/Perch/compare/v1.2.3...v1.3.0</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.3.0/Noticky-1.3.0.zip" length="13742094" type="application/octet-stream" sparkle:edSignature="8VI7P2EEaHfeEjfySZ8byDEqCNWERKv9NbyMzMgWzobefpM6kd0VTSUUt5c3DFJaID/Umdb+9iV02Gw9VYsIBg==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.3.0/Noticky-1.3.0.zip" length="13742094" type="application/octet-stream" sparkle:edSignature="8VI7P2EEaHfeEjfySZ8byDEqCNWERKv9NbyMzMgWzobefpM6kd0VTSUUt5c3DFJaID/Umdb+9iV02Gw9VYsIBg==" />
     </item>
     <item>
       <title>v1.2.3</title>
@@ -177,9 +177,9 @@
 <li>Optional <strong>note-count badge</strong> on the menu bar icon. Choose between: off, count all notes, or count only visible notes. Configure it in Settings.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.2...v1.2.3">https://github.com/xVanTuring/Noticky/compare/v1.2.2...v1.2.3</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.2.2...v1.2.3">https://github.com/xVanTuring/Perch/compare/v1.2.2...v1.2.3</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.3/Noticky-1.2.3.zip" length="8117608" type="application/octet-stream" sparkle:edSignature="BgY6RumQ5UBweCq8fJex7gBGYZkv1ARCpuw8tm/ZLMxij+nsHswt6sdyUzR8pl0aJY1RV4ieG/tHh9KHPH1QBg==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.2.3/Noticky-1.2.3.zip" length="8117608" type="application/octet-stream" sparkle:edSignature="BgY6RumQ5UBweCq8fJex7gBGYZkv1ARCpuw8tm/ZLMxij+nsHswt6sdyUzR8pl0aJY1RV4ieG/tHh9KHPH1QBg==" />
     </item>
     <item>
       <title>v1.2.2</title>
@@ -199,9 +199,9 @@
 <li>Fresh <strong>graphite + cream-paper</strong> icon — a cleaner, more timeless look that fits right in on macOS.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.1...v1.2.2">https://github.com/xVanTuring/Noticky/compare/v1.2.1...v1.2.2</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.2.1...v1.2.2">https://github.com/xVanTuring/Perch/compare/v1.2.1...v1.2.2</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.2/Noticky-1.2.2.zip" length="8085523" type="application/octet-stream" sparkle:edSignature="85fBkIhTa0poWXax49lh0wOavAH8/kmA6FnvzQI8l3lPE2xYFuiG/hhdBHCeEOUFSmRwk53njTY2Th8UtUtACA==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.2.2/Noticky-1.2.2.zip" length="8085523" type="application/octet-stream" sparkle:edSignature="85fBkIhTa0poWXax49lh0wOavAH8/kmA6FnvzQI8l3lPE2xYFuiG/hhdBHCeEOUFSmRwk53njTY2Th8UtUtACA==" />
     </item>
     <item>
       <title>v1.2.1</title>
@@ -217,9 +217,9 @@
 <li>Removed the per-note display pin in favor of the unified <strong>Move All</strong> action in the menu bar, keeping the interface cleaner.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/compare/v1.2.0...v1.2.1">https://github.com/xVanTuring/Noticky/compare/v1.2.0...v1.2.1</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v1.2.0...v1.2.1">https://github.com/xVanTuring/Perch/compare/v1.2.0...v1.2.1</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.1/Noticky-1.2.1.zip" length="8159119" type="application/octet-stream" sparkle:edSignature="PHe79hSTgwdTTASsrFucXzMgeNjP92vy35PFauoXDMNPbUmDMnExnkEJ2vGPrP3T+t+qN6Yx0q0eSFIUpZCuDA==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.2.1/Noticky-1.2.1.zip" length="8159119" type="application/octet-stream" sparkle:edSignature="PHe79hSTgwdTTASsrFucXzMgeNjP92vy35PFauoXDMNPbUmDMnExnkEJ2vGPrP3T+t+qN6Yx0q0eSFIUpZCuDA==" />
     </item>
     <item>
       <title>v1.2.0</title>
@@ -242,9 +242,9 @@
 <li>Rebuilt the manager sidebar using <strong>NSOutlineView</strong> for native macOS drag-and-drop reordering and grouping.</li>
 </ul>
 <hr>
-<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Noticky/commits/v1.2.0">https://github.com/xVanTuring/Noticky/commits/v1.2.0</a></p>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/commits/v1.2.0">https://github.com/xVanTuring/Perch/commits/v1.2.0</a></p>
       ]]></description>
-      <enclosure url="https://github.com/xVanTuring/Noticky/releases/download/v1.2.0/Noticky-1.2.0.zip" length="8149000" type="application/octet-stream" sparkle:edSignature="MELoC/dVSQAPejT5J/ZN5wNMZN4XntWUo/nGCXtMuZgNSdu1B3EeAY3DROoZR8h1D+dJbSeHLDM053k2lu44DA==" />
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v1.2.0/Noticky-1.2.0.zip" length="8149000" type="application/octet-stream" sparkle:edSignature="MELoC/dVSQAPejT5J/ZN5wNMZN4XntWUo/nGCXtMuZgNSdu1B3EeAY3DROoZR8h1D+dJbSeHLDM053k2lu44DA==" />
     </item>
     <!-- END-ITEMS -->
   </channel>

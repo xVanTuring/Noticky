@@ -187,7 +187,7 @@ Allow ~5–15 min: build is fast, notarization waits on Apple's queue.
 **Sparkle 2** ships in-place updates after the first install. See
 [`Sources/Perch/Features/Updater/UpdaterService.swift`](Sources/Perch/Features/Updater/UpdaterService.swift)
 + `Settings → Updates`. Appcast feed:
-`https://raw.githubusercontent.com/xVanTuring/Noticky/main/appcast.xml`.
+`https://raw.githubusercontent.com/xVanTuring/Perch/main/appcast.xml`.
 EdDSA public key lives in `project.yml`'s `SUPublicEDKey`; private key in
 login keychain (`https://sparkle-project.org`).  Never regenerate the key
 after the first Sparkle-enabled build ships — existing installs will

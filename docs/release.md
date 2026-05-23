@@ -73,7 +73,7 @@ gh auth login
 ```
 
 Pick `github.com` → HTTPS or SSH → web flow. Must have push +
-release-create permissions on `xVanTuring/Noticky`.
+release-create permissions on `xVanTuring/Perch`.
 
 ### 3. Developer ID Application certificate
 

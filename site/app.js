@@ -112,7 +112,7 @@
   }
 
   // ---- Resolve the latest release: real .dmg URL + version label. ----
-  fetch("https://api.github.com/repos/xVanTuring/Noticky/releases/latest", {
+  fetch("https://api.github.com/repos/xVanTuring/Perch/releases/latest", {
     headers: { "Accept": "application/vnd.github+json" }
   })
     .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })

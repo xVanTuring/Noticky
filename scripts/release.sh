@@ -42,10 +42,10 @@ PROVISIONING_PROFILE_NAME="Perch Developer ID"
 SCHEME="Perch"
 PROJECT="Perch.xcodeproj"
 PRODUCT="Perch"
-# Repo + appcast feed stay on xVanTuring/Noticky so existing installs keep
+# Repo + appcast feed stay on xVanTuring/Perch so existing installs keep
 # polling the same SUFeedURL — see Info.plist. (Bundle id changed to
 # tech.xvanturing.Perch, but the update feed location is independent.)
-GH_REPO="xVanTuring/Noticky"
+GH_REPO="xVanTuring/Perch"
 APPCAST="appcast.xml"
 INFO_PLIST="Sources/Perch/Resources/Info.plist"
 EXPORT_OPTIONS="scripts/ExportOptions.plist"

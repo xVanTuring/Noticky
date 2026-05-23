@@ -125,7 +125,7 @@ targets:
         # Appcast feed 托管在 GitHub repo 的 main 分支:每次 release.sh
         # 跑完会 commit + push 更新后的 appcast.xml。Sparkle 默认从
         # raw.githubusercontent.com 这个 URL 拉取。
-        SUFeedURL: "https://raw.githubusercontent.com/xVanTuring/Noticky/main/appcast.xml"
+        SUFeedURL: "https://raw.githubusercontent.com/xVanTuring/Perch/main/appcast.xml"
         # 默认定期检查间隔(秒)。用户在 Settings → Updates 改了之后,Sparkle
         # 把新值持久化到自己的 defaults domain,这里只是首次安装的初值(每天)。
         SUScheduledCheckInterval: 86400

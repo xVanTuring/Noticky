@@ -33,7 +33,7 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/xVanTuring/Noticky/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/xVanTuring/Perch/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>g3SCjADYsXhMN5/4hnQZ7eOawvtVoGJJsS5CFew15WQ=</string>
 	<key>SUScheduledCheckInterval</key>

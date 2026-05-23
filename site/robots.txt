@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://xvanturing.github.io/Noticky/sitemap.xml
+Sitemap: https://xvanturing.github.io/Perch/sitemap.xml
