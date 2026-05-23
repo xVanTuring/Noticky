@@ -85,9 +85,10 @@ final class MenuBarController: NSObject {
             return nil
         }
         // 自绘的栖枝小鸟(template image,菜单栏按浅/深色自动染色)。PDF 矢量,
-        // 固定到菜单栏惯用的 18pt 见方;橙点角标尺寸也跟着这个 size 走。
+        // 固定到 22pt 见方(基本顶满菜单栏内容区,与邻居图标视觉等高);
+        // 橙点角标尺寸也跟着这个 size 走。
         base.isTemplate = true
-        base.size = NSSize(width: 18, height: 18)
+        base.size = NSSize(width: 22, height: 22)
         guard updateBadge else {
             return base
         }
