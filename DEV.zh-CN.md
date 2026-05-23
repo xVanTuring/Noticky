@@ -1,8 +1,8 @@
-# Noticky — 开发文档
+# Perch — 开发文档
 
 [English](./DEV.md) · 简体中文
 
-开发指南：构建、运行与发布 Noticky。产品介绍见 [README.zh-CN.md](./README.zh-CN.md)；
+开发指南：构建、运行与发布 Perch。产品介绍见 [README.zh-CN.md](./README.zh-CN.md)；
 更深入的架构讲解与重复踩过的坑见 [CLAUDE.md](./CLAUDE.md)。
 
 ---
@@ -17,7 +17,7 @@ AppKit 外壳 + SwiftUI 内容（`NSHostingController` 桥接），Core Data 持
 - 模型版本化：`Persistence/Schema/SchemaV{N}.swift` + `CoreDataSchema` 注册表，
   `SchemaVersion.current` 指向当前版本。
 - 加载失败时**不再静默销毁** — 会把 sqlite + shm + wal 三件套备份到
-  `~/Desktop/Noticky-Recovery-{ts}/` 后弹出 NSAlert 再退出。
+  `~/Desktop/Perch-Recovery-{ts}/` 后弹出 NSAlert 再退出。
 
 为什么用 AppKit 外壳而不是 SwiftUI App、为什么不用 `.xcdatamodeld`、重复踩过的坑等，
 见 [CLAUDE.md](./CLAUDE.md)。
@@ -35,8 +35,8 @@ AppKit 外壳 + SwiftUI 内容（`NSHostingController` 桥接），Core Data 持
 ## 项目结构
 
 ```
-Sources/Noticky/
-├─ App/                  # NotickyApp（自定义 main）、AppDelegate、MenuBarController
+Sources/Perch/
+├─ App/                  # PerchApp（自定义 main）、AppDelegate、MenuBarController
 ├─ Persistence/          # PersistenceController、Note、NoteGroup
 │  └─ Schema/            # 版本化 Core Data schema
 ├─ Features/
@@ -56,25 +56,25 @@ project.yml              # xcodegen 项目定义
 ## 构建与运行（开发）
 
 ```sh
-# 1. 生成 Noticky.xcodeproj（.xcodeproj 不入库，每次拉代码或加文件后都要跑）
+# 1. 生成 Perch.xcodeproj（.xcodeproj 不入库，每次拉代码或加文件后都要跑）
 xcodegen
 
 # 2. Debug 构建
-xcodebuild -project Noticky.xcodeproj -scheme Noticky -configuration Debug build
+xcodebuild -project Perch.xcodeproj -scheme Perch -configuration Debug build
 
 # 3. 直接跑产物（保留 stderr，方便调菜单栏 App）
 APP=$(find ~/Library/Developer/Xcode/DerivedData \
-    -path "*Noticky*/Build/Products/Debug/Noticky.app/Contents/MacOS/Noticky" \
+    -path "*Perch*/Build/Products/Debug/Perch.app/Contents/MacOS/Perch" \
     | head -1)
-pkill -f "Noticky.app/Contents/MacOS/Noticky" 2>/dev/null
-"$APP" > /tmp/noticky.log 2>&1 &
+pkill -f "Perch.app/Contents/MacOS/Perch" 2>/dev/null
+"$APP" > /tmp/perch.log 2>&1 &
 disown
 
 # 4. 退出（走 applicationShouldTerminate，会持久化窗口现场）
-osascript -e 'tell application "Noticky" to quit'
+osascript -e 'tell application "Perch" to quit'
 ```
 
-直接在 Xcode 里 `⌘R` 也行，但 Debug 时建议走命令行 — 方便 tail `/tmp/noticky.log`，
+直接在 Xcode 里 `⌘R` 也行，但 Debug 时建议走命令行 — 方便 tail `/tmp/perch.log`，
 菜单栏 App 在 Console.app / `log show` 里 NSLog 抓不到。
 
 ---
@@ -97,9 +97,9 @@ DEBUG build 在 Settings → iCloud Sync 暴露两个 CloudKit / migration 工�
 
 ```
 dist/v1.0.0/
-├─ Noticky.app
-├─ Noticky-1.0.0.zip
-└─ Noticky-1.0.0.dmg
+├─ Perch.app
+├─ Perch-1.0.0.zip
+└─ Perch-1.0.0.dmg
 ```
 
 脚本是幂等的，重跑安全。整个链路 5–15 分钟（公证排队为主）。
@@ -119,12 +119,12 @@ dist/v1.0.0/
    缺失则到 Xcode → Settings → Accounts → Manage Certificates →
    `+` → Developer ID Application 安装，或让 Admin 颁发并发 `.p12` 给你。
 
-2. **Developer ID 配置文件**，名字必须是 `Noticky Developer ID`
+2. **Developer ID 配置文件**，名字必须是 `Perch Developer ID`
    （`scripts/ExportOptions.plist` 按名字 lookup）。
 
    到 https://developer.apple.com/account/resources/profiles/add 创建：
-   Distribution → Developer ID → App ID `tech.xvanturing.Noticky` →
-   选 Developer ID Application 证书 → 命名 `Noticky Developer ID` →
+   Distribution → Developer ID → App ID `tech.xvanturing.Perch` →
+   选 Developer ID Application 证书 → 命名 `Perch Developer ID` →
    Generate → Download → 双击安装。
 
    > 因为 entitlements 里有 iCloud + Push Notifications，Xcode 强制要 profile，
@@ -153,13 +153,13 @@ dist/v1.0.0/
 
 ```sh
 # 挂 DMG → 拖到 /Applications → 首次右键 Open
-open dist/v1.0.0/Noticky-1.0.0.dmg
+open dist/v1.0.0/Perch-1.0.0.dmg
 
 # 验证版本 / 快捷键 / Settings 能开
 # 没问题就打 tag 推上游
 git tag v1.0.0
 git push --tags
-# 然后把 Noticky-1.0.0.dmg 上传到 GitHub Releases 或自有渠道
+# 然后把 Perch-1.0.0.dmg 上传到 GitHub Releases 或自有渠道
 ```
 
 ### 修改版本号

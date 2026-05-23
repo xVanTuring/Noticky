@@ -51,7 +51,7 @@ timer。时长 `foldDuration` 0.38s(可调)。
 
 ## 涉及文件
 
-`Sources/Noticky/Features/Floating/FloatingNoteWindow.swift`
+`Sources/Perch/Features/Floating/FloatingNoteWindow.swift`
 - `FloatingNoteWindowController`:持有 `NSWindow`(`StickyPanel`,borderless),
   内容是 `NSHostingController`(SwiftUI `FloatingNoteView`)。
 - 折叠入口:`toggleCollapse()`(双击标题 / ⋯ 菜单都走这条,已用日志确认)。

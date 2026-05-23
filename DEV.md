@@ -1,8 +1,8 @@
-# Noticky — Development
+# Perch — Development
 
 English · [简体中文](./DEV.zh-CN.md)
 
-Developer guide: building, running, and releasing Noticky. For the product
+Developer guide: building, running, and releasing Perch. For the product
 overview see [README.md](./README.md); for deep architectural rationale and
 recurring gotchas see [CLAUDE.md](./CLAUDE.md).
 
@@ -10,7 +10,7 @@ recurring gotchas see [CLAUDE.md](./CLAUDE.md).
 
 ## Architecture
 
-Noticky uses an AppKit shell with SwiftUI content (bridged via
+Perch uses an AppKit shell with SwiftUI content (bridged via
 `NSHostingController`), backed by Core Data, with optional
 `NSPersistentCloudKitContainer` for cross-device sync. No Dock icon, lives in
 the menu bar (`LSUIElement`).
@@ -19,8 +19,8 @@ the menu bar (`LSUIElement`).
   (`shouldInferMappingModelAutomatically`).
 - Versioned model: `Persistence/Schema/SchemaV{N}.swift` + a `CoreDataSchema`
   registry, with `SchemaVersion.current` pointing at the active version.
-- On store load failure, Noticky **never silently nukes the database** — it
-  backs up the sqlite + shm + wal triple to `~/Desktop/Noticky-Recovery-{ts}/`,
+- On store load failure, Perch **never silently nukes the database** — it
+  backs up the sqlite + shm + wal triple to `~/Desktop/Perch-Recovery-{ts}/`,
   shows a critical NSAlert, and quits.
 
 For why an AppKit shell instead of pure SwiftUI App, why a programmatic Core
@@ -40,7 +40,7 @@ Data model instead of `.xcdatamodeld`, and recurring gotchas, see
 ## Project layout
 
 ```
-Sources/Noticky/
+Sources/Perch/
 ├─ App/                  # Entry point (custom main), AppDelegate, MenuBarController
 ├─ Persistence/          # PersistenceController, Note, NoteGroup
 │  └─ Schema/            # Versioned Core Data schemas
@@ -61,27 +61,27 @@ project.yml              # xcodegen project definition
 ## Build & run (development)
 
 ```sh
-# 1. Generate Noticky.xcodeproj (.xcodeproj is gitignored, regenerate after
+# 1. Generate Perch.xcodeproj (.xcodeproj is gitignored, regenerate after
 #    pulling or after adding/moving files).
 xcodegen
 
 # 2. Debug build
-xcodebuild -project Noticky.xcodeproj -scheme Noticky -configuration Debug build
+xcodebuild -project Perch.xcodeproj -scheme Perch -configuration Debug build
 
 # 3. Run the binary directly so we can capture stderr (helpful for menubar apps)
 APP=$(find ~/Library/Developer/Xcode/DerivedData \
-    -path "*Noticky*/Build/Products/Debug/Noticky.app/Contents/MacOS/Noticky" \
+    -path "*Perch*/Build/Products/Debug/Perch.app/Contents/MacOS/Perch" \
     | head -1)
-pkill -f "Noticky.app/Contents/MacOS/Noticky" 2>/dev/null
-"$APP" > /tmp/noticky.log 2>&1 &
+pkill -f "Perch.app/Contents/MacOS/Perch" 2>/dev/null
+"$APP" > /tmp/perch.log 2>&1 &
 disown
 
 # 4. Quit cleanly (so applicationShouldTerminate runs and persists window state)
-osascript -e 'tell application "Noticky" to quit'
+osascript -e 'tell application "Perch" to quit'
 ```
 
 `⌘R` from Xcode works too, but during development the CLI workflow is preferred —
-it makes `tail /tmp/noticky.log` viable, which matters because LSUIElement apps
+it makes `tail /tmp/perch.log` viable, which matters because LSUIElement apps
 have flaky output in Console.app / `log show`.
 
 ---
@@ -107,9 +107,9 @@ DMG → notarize DMG → staple. Output lands in `dist/v<VERSION>/`:
 
 ```
 dist/v1.0.0/
-├─ Noticky.app
-├─ Noticky-1.0.0.zip
-└─ Noticky-1.0.0.dmg
+├─ Perch.app
+├─ Perch-1.0.0.zip
+└─ Perch-1.0.0.dmg
 ```
 
 The script is idempotent — re-runs are safe. Total wall time is ~5–15 minutes
@@ -130,12 +130,12 @@ Full step-by-step, one-time setup, and troubleshooting live in
    If missing: Xcode → Settings → Accounts → Manage Certificates →
    `+` → Developer ID Application, or have an Admin issue + share the `.p12`.
 
-2. **Developer ID provisioning profile** named exactly `Noticky Developer ID`
+2. **Developer ID provisioning profile** named exactly `Perch Developer ID`
    (`scripts/ExportOptions.plist` looks it up by name).
 
    Create it at https://developer.apple.com/account/resources/profiles/add:
-   Distribution → Developer ID → App ID `tech.xvanturing.Noticky` →
-   pick the Developer ID Application cert → name it `Noticky Developer ID` →
+   Distribution → Developer ID → App ID `tech.xvanturing.Perch` →
+   pick the Developer ID Application cert → name it `Perch Developer ID` →
    Generate → Download → double-click to install.
 
    > Required because the entitlements include iCloud + Push Notifications,
@@ -166,12 +166,12 @@ After it completes:
 
 ```sh
 # Mount the DMG → drag to /Applications → right-click Open the first time
-open dist/v1.0.0/Noticky-1.0.0.dmg
+open dist/v1.0.0/Perch-1.0.0.dmg
 
 # Sanity-check version / hotkey / Settings, then tag and push
 git tag v1.0.0
 git push --tags
-# Then upload Noticky-1.0.0.dmg to GitHub Releases or your distribution channel.
+# Then upload Perch-1.0.0.dmg to GitHub Releases or your distribution channel.
 ```
 
 ### Bumping the version

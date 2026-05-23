@@ -1,4 +1,4 @@
-# Noticky 待办清单
+# Perch 待办清单
 
 完成一项后改 `[ ]` → `[x]`(保留行,git 历史可追)。每项后括号是简要动机/难度 hint。
 
@@ -29,7 +29,7 @@
 - [ ] **Developer ID 代码签名** + **notarytool 公证**(目前 Debug 直接跑)
 - [ ] **DMG 打包脚本**
 - [ ] **Sparkle 自更新框架**
-- [ ] **Mac App Store 版本**:需要把 AX 抓取重做成独立 XPC service,因为 MAS 强制 sandbox(`Noticky.entitlements:13` 注释)
+- [ ] **Mac App Store 版本**:需要把 AX 抓取重做成独立 XPC service,因为 MAS 强制 sandbox(`Perch.entitlements:13` 注释)
 
 ## D. 已知 polish / 非功能 bug
 

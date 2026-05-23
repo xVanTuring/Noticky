@@ -1,10 +1,10 @@
-# Noticky
+# Perch
 
 [English](./README.md) · 简体中文
 
 > macOS 原生便签应用 — 菜单栏常驻、全局快捷键速记、多窗浮窗、Markdown、iCloud 同步。
 
-Noticky 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻菜单栏，
+Perch 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常驻菜单栏，
 不打扰你，需要时随手一记。
 
 <p align="center">
@@ -84,7 +84,7 @@ Noticky 是一款 macOS 15+ 原生便签 / 速记工具。无 Dock 图标，常�
 
 ### 数据安全
 - 加载失败时**不再静默销毁** — 会把数据备份到
-  `~/Desktop/Noticky-Recovery-{ts}/` 后弹出提示再退出，库损坏也不丢笔记。
+  `~/Desktop/Perch-Recovery-{ts}/` 后弹出提示再退出，库损坏也不丢笔记。
 - 跨版本数据迁移自动且常开。
 
 ---

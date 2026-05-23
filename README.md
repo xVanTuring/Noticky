@@ -1,10 +1,10 @@
-# Noticky
+# Perch
 
 English · [简体中文](./README.zh-CN.md)
 
 > Native macOS sticky notes — menubar-resident, global hotkey capture, multi-window floats, Markdown, iCloud sync.
 
-Noticky is a native sticky-notes / quick-capture app for macOS 15+. No Dock
+Perch is a native sticky-notes / quick-capture app for macOS 15+. No Dock
 icon — it lives in the menu bar and stays out of the way until you need it.
 
 <p align="center">
@@ -91,8 +91,8 @@ icon — it lives in the menu bar and stays out of the way until you need it.
   can be forced in Settings → General.
 
 ### Data safety
-- On store load failure, Noticky **never silently nukes the database** — it backs
-  up your data to `~/Desktop/Noticky-Recovery-{ts}/`, shows a critical alert, and
+- On store load failure, Perch **never silently nukes the database** — it backs
+  up your data to `~/Desktop/Perch-Recovery-{ts}/`, shows a critical alert, and
   quits, so a corrupt store never costs you your notes.
 - Data migration across app updates is automatic and always on.
 

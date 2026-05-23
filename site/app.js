@@ -24,7 +24,7 @@
     "f.tile.body": "Tile 模式把所有打开的便签自动排成网格，拖动一个，其余自动让位 —— 整块白板一目了然。",
 
     "f.menu.title": "一切，一键之遥",
-    "f.menu.body": "Noticky 常驻菜单栏 —— 无 Dock 图标、无主菜单噪音。一键新建便签、查看最近便签、Show/Hide All、打开管理窗口、切换布局与设置。",
+    "f.menu.body": "Perch 常驻菜单栏 —— 无 Dock 图标、无主菜单噪音。一键新建便签、查看最近便签、Show/Hide All、打开管理窗口、切换布局与设置。",
     "f.menu.li1": "菜单里直接列出最近便签 —— 一点即跳。",
     "f.menu.li2": "<b>Show / Hide All Stickies</b> 一次性收起或唤回整个工作集。",
     "f.menu.li3": "100% 原生 AppKit + SwiftUI —— 快、轻，无 Electron。",
@@ -57,12 +57,12 @@
     "g.l10n.body": "内置英文与简体中文。默认跟随系统语言，也可在 Settings → General 强制指定。",
 
     "g.safety.title": "数据安全优先",
-    "g.safety.body": "存储加载失败时 Noticky 绝不静默销毁 —— 会把 sqlite/shm/wal 三件套备份到桌面并弹窗提示后再退出。",
+    "g.safety.body": "存储加载失败时 Perch 绝不静默销毁 —— 会把 sqlite/shm/wal 三件套备份到桌面并弹窗提示后再退出。",
 
     "g.oss.title": "免费且开源",
     "g.oss.body": "已签名、已公证、完全开源。通过 Sparkle 自动更新。macOS 15+。",
 
-    "dl.title": "获取 Noticky",
+    "dl.title": "获取 Perch",
     "dl.body": "免费开源。下载已签名、已公证的构建 —— 之后会自动更新。",
     "dl.all": "全部版本"
   };

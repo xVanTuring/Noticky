@@ -11,7 +11,7 @@ Any change to `release.sh` must preserve these.
 1. **User-triggered only.** Releases start with a human running
    `./scripts/release.sh <version>`. Never auto-trigger.
 2. **Bump → build-verify → commit.** After bumping `project.yml` and
-   regenerating `Sources/Noticky/Resources/Info.plist` via `xcodegen`,
+   regenerating `Sources/Perch/Resources/Info.plist` via `xcodegen`,
    run a Debug `xcodebuild` to confirm the bumped sources compile. Only
    commit if the build succeeds. On failure, restore both files
    (`git checkout --`) + re-run `xcodegen` and exit non-zero. Never
@@ -39,16 +39,16 @@ For a given version `X.Y.Z` (optionally with `--prerelease beta`):
 
 - A `release: bump to X.Y.Z (build N)` commit on `main`
 - An annotated tag `vX.Y.Z` (or `vX.Y.Z-beta`)
-- A `Noticky.app` Developer-ID signed (team `T8F5T6HKG8`) and
+- A `Perch.app` Developer-ID signed (team `T8F5T6HKG8`) and
   notarized + stapled by Apple
 - Two GitHub release assets:
-  - `Noticky-X.Y.Z[-beta].zip` — Sparkle update channel + manual download
-  - `Noticky-X.Y.Z[-beta].dmg` — drag-to-Applications installer
+  - `Perch-X.Y.Z[-beta].zip` — Sparkle update channel + manual download
+  - `Perch-X.Y.Z[-beta].dmg` — drag-to-Applications installer
 - A new `<item>` at the top of `appcast.xml`, committed in a follow-up
   `appcast: vX.Y.Z` commit
 
 In-place updates use **Sparkle 2** (see
-[`Sources/Noticky/Features/Updater/UpdaterService.swift`](../Sources/Noticky/Features/Updater/UpdaterService.swift)).
+[`Sources/Perch/Features/Updater/UpdaterService.swift`](../Sources/Perch/Features/Updater/UpdaterService.swift)).
 First-launch users still download the DMG; from that build forward,
 Sparkle handles all updates.
 
@@ -95,15 +95,15 @@ the key can't sign).
 
 iCloud + Push Notifications entitlements force `xcodebuild` to demand
 a profile even for direct Developer ID distribution. The profile must
-be named exactly **"Noticky Developer ID"** — `scripts/ExportOptions.plist`
+be named exactly **"Perch Developer ID"** — `scripts/ExportOptions.plist`
 looks it up by name.
 
 Create at <https://developer.apple.com/account/resources/profiles/add>:
 
 1. Distribution → Developer ID
-2. App ID = `tech.xvanturing.Noticky`
+2. App ID = `tech.xvanturing.Perch`
 3. Pick the Developer ID Application cert (T8F5T6HKG8)
-4. Profile name = `Noticky Developer ID` (exact match)
+4. Profile name = `Perch Developer ID` (exact match)
 5. Generate → Download → double-click to install
 
 ### 5. Sparkle EdDSA key
@@ -118,7 +118,7 @@ Generate it once on this machine:
 
 ```sh
 xcodegen
-xcodebuild -project Noticky.xcodeproj -scheme Noticky -derivedDataPath .build/release -resolvePackageDependencies
+xcodebuild -project Perch.xcodeproj -scheme Perch -derivedDataPath .build/release -resolvePackageDependencies
 .build/release/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
 ```
 
@@ -127,7 +127,7 @@ The tool prints the public key. Copy that string and paste it into
 
 ```sh
 xcodegen
-git add project.yml Sources/Noticky/Resources/Info.plist
+git add project.yml Sources/Perch/Resources/Info.plist
 git commit -m "sparkle: set EdDSA public key"
 git push
 ```
@@ -142,7 +142,7 @@ rm sparkle_ed_private_key.pem
 ```
 
 ⚠️ **Never regenerate the key after the first release ships.** Already-
-installed copies of Noticky carry the old public key and will reject
+installed copies of Perch carry the old public key and will reject
 updates signed with a different private key — recovery requires shipping
 a one-time "manual download only" build with a fresh `SUPublicEDKey`
 and telling all existing users to install it by hand.
@@ -198,7 +198,7 @@ bump.
 2. **Bump version in `project.yml`** — set `CFBundleShortVersionString`,
    increment `CFBundleVersion`.
 3. **Regenerate xcodeproj** via `xcodegen` (writes
-   `Sources/Noticky/Resources/Info.plist`).
+   `Sources/Perch/Resources/Info.plist`).
 4. **Verify Debug build** — `xcodebuild -configuration Debug build`.
    On failure: revert `project.yml` + `Info.plist`, re-run `xcodegen`,
    exit non-zero. No commit is created.
@@ -206,10 +206,10 @@ bump.
 6. **Post-commit clean check** — second `git status --porcelain` guard.
 7. **Push `main`**.
 8. **Archive** the Release configuration into
-   `.build/release/Noticky.xcarchive` (Apple Development auto-signing
+   `.build/release/Perch.xcarchive` (Apple Development auto-signing
    at archive time).
 9. **`-exportArchive`** with `scripts/ExportOptions.plist` re-signs the
-   bundle as Developer ID and exports `Noticky.app` to
+   bundle as Developer ID and exports `Perch.app` to
    `.build/release/export/`.
 10. **Verify signature** with `codesign --verify --deep --strict`.
 11. **Zip** the app with
