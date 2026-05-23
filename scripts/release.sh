@@ -13,6 +13,19 @@
 #   ./scripts/release.sh 1.2.0 --notes-file CHANGELOG-1.2.0.md
 #   ./scripts/release.sh 1.2.0 --dry-run
 #
+# Bilingual notes: a --notes-file may carry several language sections delimited
+# by "<!-- lang:xx -->" lines, e.g.
+#     <!-- lang:en -->
+#     ## What's New
+#     ...
+#     <!-- lang:zh -->
+#     ## 更新内容
+#     ...
+# Each section becomes a localized <description xml:lang="xx"> in the appcast
+# (Sparkle shows the user's language). On GitHub the markers are invisible HTML
+# comments, so the same file doubles as the stacked release body. No markers =
+# one unlocalized description (back-compat).
+#
 # See docs/release.md for one-time machine setup.
 
 set -euo pipefail
@@ -46,8 +59,10 @@ Usage: $(basename "$0") <version> [--prerelease <suffix>] [--notes-file <path>] 
   <version>          CFBundleShortVersionString, e.g. 1.2.0
   --prerelease X     Mark as pre-release; tag becomes v<version>-<X>,
                      appcast item gets <sparkle:channel>X</sparkle:channel>.
-  --notes-file PATH  File whose contents become the GitHub release body
-                     (default: gh --generate-notes from commit messages).
+  --notes-file PATH  File whose contents become the GitHub release body AND the
+                     inline appcast notes (default: gh --generate-notes from
+                     commit messages). May be bilingual via "<!-- lang:xx -->"
+                     section markers (see header comment).
   --dry-run          Bump version + verify Debug build + commit locally,
                      but skip push / archive / release.
 EOF
@@ -453,20 +468,41 @@ def md_to_html(md):
     close_list()
     return '\n'.join(out)
 
+# ── Localized notes: split on "<!-- lang:xx -->" markers ────────────
+# A bilingual notes file looks like:
+#     <!-- lang:en -->
+#     ## What's New
+#     ...
+#     <!-- lang:zh -->
+#     ## 更新内容
+#     ...
+# Each section becomes its own <description xml:lang="xx"> and Sparkle shows
+# the one matching the user's language. No markers → a single unlocalized
+# <description> (back-compat, and what the commit-subject fallback produces).
+# On GitHub the markers are invisible HTML comments, so the same file doubles
+# as the (stacked) GitHub release body.
+def split_langs(md):
+    parts = re.split(r'(?im)^[ \t]*<!--[ \t]*lang:([a-z]{2})[ \t]*-->[ \t]*$', md)
+    if len(parts) == 1:
+        return [(None, md)]            # no markers
+    it = iter(parts[1:])               # parts[0] = preamble before first marker
+    return [(lang.lower(), chunk) for lang, chunk in zip(it, it) if chunk.strip()]
+
+# "View full release on GitHub" footer, localized to the section's language.
+FOOTER = {'en': 'View full release on GitHub →', 'zh': '在 GitHub 查看完整更新 →'}
+
+def build_description(lang, chunk):
+    notes_html = md_to_html(chunk)
+    foot = FOOTER.get(lang or 'en', FOOTER['en'])
+    notes_html += f'\n<p><a href="{html.escape(notes_link)}">{foot}</a></p>'
+    notes_html = notes_html.replace(']]>', ']]&gt;')   # CDATA can't hold "]]>"
+    lang_attr = f' xml:lang="{lang}"' if lang else ''
+    return (f"      <description{lang_attr}><![CDATA[\n"
+            f"{notes_html}\n"
+            "      ]]></description>\n")
+
 with open(notes_md_file, 'r', encoding='utf-8') as f:
-    notes_html = md_to_html(f.read())
-
-# Footer link to the full GitHub release page (Sparkle opens it in the browser).
-notes_html += f'\n<p><a href="{html.escape(notes_link)}">View full release on GitHub →</a></p>'
-
-# CDATA must not contain the literal "]]>"; neutralize just in case.
-notes_html = notes_html.replace(']]>', ']]&gt;')
-
-description = (
-    "      <description><![CDATA[\n"
-    f"{notes_html}\n"
-    "      ]]></description>\n"
-)
+    description = "".join(build_description(l, c) for l, c in split_langs(f.read()))
 
 item = (
     "    <item>\n"
