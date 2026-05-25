@@ -57,6 +57,7 @@ enum LocKey: String {
     case menuNewNote, menuShowAllStickies, menuHideAllStickies
     case menuManageAllNotes, menuSettings, menuFloatOnTop, menuLayout, menuQuit
     case menuMoveAllToDisplay
+    case menuDisplay
     case menuUpdateAvailable
 
     // Layout modes
@@ -224,6 +225,7 @@ enum L {
         .menuSettings: "Settings…", .menuFloatOnTop: "Float on Top",
         .menuLayout: "Layout", .menuQuit: "Quit Perch",
         .menuMoveAllToDisplay: "Move All Stickies to Display",
+        .menuDisplay: "Display",
         .menuUpdateAvailable: "Update to %@ available…",
 
         .layoutFree: "Free Layout", .layoutStack: "Stack", .layoutTile: "Tile",
@@ -459,6 +461,7 @@ enum L {
         .menuSettings: "设置…", .menuFloatOnTop: "悬浮置顶",
         .menuLayout: "布局", .menuQuit: "退出 Perch",
         .menuMoveAllToDisplay: "将所有便签移到显示器",
+        .menuDisplay: "显示",
         .menuUpdateAvailable: "有新版本 %@ 可更新…",
 
         .layoutFree: "自由布局", .layoutStack: "堆叠", .layoutTile: "平铺",

@@ -408,10 +408,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 但跨版本启动时旧库里可能存在 pinned + trashed 的脏数据,这里挡一下。
         // 归档会清 isPinned,理论上不会被 fetch 到;显式加 isArchived == false
         // 兜旧库/跨设备同步残留的脏数据(pinned + archived)。
-        request.predicate = NSPredicate(
-            format: "isPinned == %@ AND isTrashed == %@ AND isArchived == %@",
-            NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
-        )
+        var predicates = [
+            NSPredicate(
+                format: "isPinned == %@ AND isTrashed == %@ AND isArchived == %@",
+                NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
+            )
+        ]
+        // 上次用「显示 → 分组」切到某个分组的话(plan A 记忆),启动只恢复该分组
+        // 的浮窗。分组已被删 → 过滤器失效,清掉它回退到恢复全部 pinned。
+        if let filterID = floating.activeGroupFilterID {
+            let groupRequest = NSFetchRequest<NoteGroup>(entityName: "NoteGroup")
+            groupRequest.predicate = NSPredicate(format: "id == %@", filterID as CVarArg)
+            groupRequest.fetchLimit = 1
+            if let group = try? context.fetch(groupRequest).first {
+                predicates.append(NSPredicate(format: "group == %@", group))
+            } else {
+                floating.setActiveGroupFilter(nil)
+            }
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         // V4 起按持久化的 displayOrder 升序恢复浮窗顺序(stack 层叠 / tile 排列
         // 次序跨重启保持)。displayOrder 全 0 的库(V3→V4 迁移后首启动、或从未
         // 重排过)退化为 updatedAt 倒序 —— 与旧行为一致,观感不变。

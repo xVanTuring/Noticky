@@ -222,6 +222,12 @@ final class MenuBarController: NSObject {
 
         menu.addItem(.separator())
 
+        // 「显示」子菜单:显示全部 / 隐藏全部,再加上各分组的快速切换入口。
+        let displayItem = NSMenuItem(title: L.t(.menuDisplay), action: nil, keyEquivalent: "")
+        displayItem.image = NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: nil)
+        let displaySub = NSMenu(title: "Display")
+        displaySub.autoenablesItems = false
+
         // 显示所有便签:fetch 所有未删笔记,逐条 spawn / bringToFront。
         // 库里没未删笔记时 disabled。
         let showAllStickies = NSMenuItem(
@@ -232,7 +238,9 @@ final class MenuBarController: NSObject {
         showAllStickies.target = self
         showAllStickies.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
         showAllStickies.isEnabled = !notes.isEmpty
-        menu.addItem(showAllStickies)
+        // 「显示所有便签」兼作"不过滤"的单选项:没有分组过滤时打勾。
+        showAllStickies.state = (floating.activeGroupFilterID == nil) ? .on : .off
+        displaySub.addItem(showAllStickies)
 
         // 隐藏所有便签:把当前可见的浮窗 orderOut(不释放 wc、不清 isPinned)。
         // 没有可见浮窗时 disabled。
@@ -244,7 +252,32 @@ final class MenuBarController: NSObject {
         hideAllStickies.target = self
         hideAllStickies.image = NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)
         hideAllStickies.isEnabled = floating.hasVisibleWindow
-        menu.addItem(hideAllStickies)
+        displaySub.addItem(hideAllStickies)
+
+        // 各分组:点击后先隐藏全部再只显示该分组下的活跃笔记,用于快速切换。
+        // 空分组(没有活跃笔记)disabled —— 点了等于只隐藏全部,容易误解。
+        let groups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
+        if !groups.isEmpty {
+            displaySub.addItem(.separator())
+            for group in groups {
+                let activeCount = group.notes.filter { !$0.isTrashed && !$0.isArchived }.count
+                let item = NSMenuItem(
+                    title: group.name,
+                    action: #selector(showGroupOnly(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = group.objectID
+                item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+                item.isEnabled = activeCount > 0
+                // 当前生效的分组打勾(跟「显示所有便签」组成一组单选)。
+                item.state = (floating.activeGroupFilterID == group.id) ? .on : .off
+                displaySub.addItem(item)
+            }
+        }
+
+        displayItem.submenu = displaySub
+        menu.addItem(displayItem)
 
         let showAll = NSMenuItem(
             title: L.t(.menuManageAllNotes),
@@ -348,6 +381,12 @@ final class MenuBarController: NSObject {
         floating.hideAll()
     }
 
+    @objc private func showGroupOnly(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? NSManagedObjectID,
+              let group = try? context.existingObject(with: id) as? NoteGroup else { return }
+        floating.showOnly(group: group)
+    }
+
     @objc private func setLayoutMode(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
               let mode = LayoutMode(rawValue: raw) else { return }
@@ -401,8 +440,9 @@ final class MenuBarController: NSObject {
             item.title = String(title.prefix(50))
         }
 
-        // 已 pin(浮窗打开中)的笔记打个勾,直观看到当前显示状态。
-        item.state = note.isPinned ? .on : .off
+        // 当前有可见浮窗的笔记打个勾,直观看到当前显示状态。用真实可见性而非
+        // isPinned —— hideAll / 分组切换藏起来的窗 isPinned 还是 true,但不该再打勾。
+        item.state = floating.isVisible(note: note) ? .on : .off
         return item
     }
 

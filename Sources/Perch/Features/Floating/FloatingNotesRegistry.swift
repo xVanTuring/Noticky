@@ -71,6 +71,26 @@ final class FloatingNotesRegistry {
         return LayoutMode(rawValue: raw) ?? .normal
     }()
 
+    /// 当前生效的「分组过滤器」:被选中分组的 id;nil = 不过滤(显示全部)。
+    /// menubar「显示 → 分组」切换时写,启动 restore 时读 —— 只恢复「该分组 ∩
+    /// pinned」的浮窗,实现跨重启记忆。「显示所有便签」清掉它,回到恢复全部
+    /// pinned。持久化在 UserDefaults(key 见 `activeGroupFilterKey`)。
+    private static let activeGroupFilterKey = "Noticky.activeGroupFilter"
+    private(set) var activeGroupFilterID: UUID? = {
+        let raw = UserDefaults.standard.string(forKey: FloatingNotesRegistry.activeGroupFilterKey) ?? ""
+        return UUID(uuidString: raw)
+    }()
+
+    /// 写入并持久化分组过滤器。nil = 清除(回到显示全部)。
+    func setActiveGroupFilter(_ id: UUID?) {
+        activeGroupFilterID = id
+        if let id {
+            UserDefaults.standard.set(id.uuidString, forKey: Self.activeGroupFilterKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.activeGroupFilterKey)
+        }
+    }
+
     /// menubar 入口:把所有当前打开的浮窗都移到给定 UUID 的显示器。屏不存在
     /// 直接 no-op。一次性动作 —— 不持久化,关掉浮窗再开仍按 savedFrame 摆。
     /// `floatOnTop=on` 时浮窗跨 Space,但跨屏要主动 setFrame。
@@ -197,7 +217,9 @@ final class FloatingNotesRegistry {
         let stepY: CGFloat = 36
         let rightX = visible.maxX - margin
 
-        let cascadeWCs = displayOrder.compactMap { windows[$0] }
+        // 只排当前可见的窗 —— hideAll / 分组切换藏起来的窗不该占 cascade 槽位,
+        // 否则它们占了顶部几格,真正可见的那几张被挤到 cascade 最下方。
+        let cascadeWCs = displayOrder.compactMap { windows[$0] }.filter { $0.isWindowVisible }
         guard !cascadeWCs.isEmpty else { return }
 
         let firstTopY = visible.maxY - margin
@@ -233,7 +255,8 @@ final class FloatingNotesRegistry {
         var rowMaxH: CGFloat = 0
         var anyInRow = false
 
-        let tileWCs = displayOrder.compactMap { windows[$0] }
+        // 同 stack:只平铺可见窗,隐藏的不占位(见「切换分组」)。
+        let tileWCs = displayOrder.compactMap { windows[$0] }.filter { $0.isWindowVisible }
         for wc in tileWCs {
             guard let frame = wc.currentFrame else { continue }
             let w = frame.width
@@ -288,6 +311,13 @@ final class FloatingNotesRegistry {
         windows.values.contains { $0.isWindowVisible }
     }
 
+    /// 给定笔记当前是否有「可见」的浮窗(已 spawn 且没被 orderOut)。菜单里的
+    /// 笔记列表据此打勾 —— hideAll / 分组切换后藏起来的窗 isPinned 仍为 true,
+    /// 但不该再显示成"正在显示",所以用真实可见性而非 isPinned。
+    func isVisible(note: Note) -> Bool {
+        windows[note.objectID]?.isWindowVisible ?? false
+    }
+
     /// 把所有当前 spawn 的浮窗 orderOut。**不走 close()** —— 不释放 wc、不触发
     /// windowWillClose、不清 isPinned,只是视觉上藏起来。再调 showAll() 一键现身。
     func hideAll() {
@@ -300,6 +330,8 @@ final class FloatingNotesRegistry {
     /// 已 spawn 的会被 bringToFront(把 hidden 的也带回来);没 spawn 的 spawn。
     /// menubar "Show All Stickies" 的入口,语义是"把库里所有便签都显示出来"。
     func showAll(in context: NSManagedObjectContext) {
+        // 「显示所有便签」= 取消分组过滤,下次启动恢复全部 pinned。
+        setActiveGroupFilter(nil)
         let request = NSFetchRequest<Note>(entityName: "Note")
         // 不显示归档笔记 —— "显示所有便签" 只针对活跃笔记。
         request.predicate = NSPredicate(
@@ -313,6 +345,22 @@ final class FloatingNotesRegistry {
             // 的也变可见);新的走 spawn,会自动设 isPinned = true 进入 displayOrder。
             show(note: note)
         }
+    }
+
+    /// 快速切换到某个分组:先把当前可见的浮窗全部 orderOut(走 hideAll,
+    /// 不释放 wc、不清 isPinned —— 只是藏起来),再把该分组下的活跃笔记
+    /// (未删除、未归档)显示出来。已 spawn 的会被 bringToFront 带回可见,
+    /// 没 spawn 的 spawn。menubar「显示 → 分组」的入口,语义是「只看这个分组」。
+    func showOnly(group: NoteGroup) {
+        // 记住当前分组 —— 下次启动 restore 只恢复这一组(见 AppDelegate)。
+        setActiveGroupFilter(group.id)
+        hideAll()
+        for note in group.notesSortedByPin where !note.isTrashed && !note.isArchived {
+            show(note: note)
+        }
+        // show() 对「已开但刚被藏起来」的窗只 bringToFront,不触发 reflow;只有新
+        // spawn 才会 reflow。统一在这里按当前模式重排一次,让这组从顶部干净排列。
+        applyLayout()
     }
 
     // MARK: 模式回调 ---------------------------------------------------------
@@ -548,6 +596,8 @@ final class FloatingNotesRegistry {
         for wc in windows.values { wc.close() }
         windows.removeAll()
         displayOrder.removeAll()
+        // 分组要被一并删光,残留的过滤器 id 会变野指针 —— 顺手清掉。
+        setActiveGroupFilter(nil)
 
         // note 不带任何 predicate —— 三态(活跃 / 归档 / 回收站)全要。
         let notes = (try? context.fetch(NSFetchRequest<Note>(entityName: "Note"))) ?? []
