@@ -17,6 +17,9 @@ enum SettingsKey {
     /// 菜单栏图标右侧数字徽标的显示模式(String raw,MenuBarCountMode enum)。
     static let menuBarCount = "Noticky.menuBarCount"
 
+    /// 托盘菜单笔记列表的分组方式(String raw,MenuGroupingMode enum,默认 none)。
+    static let menuGrouping = "Noticky.menuGrouping"
+
     // 新建便签默认行为
     static let defaultColorIndex = "Noticky.defaultColorIndex"   // Int (0..5,对应 StickyPalette)
     static let noteFontSize = "Noticky.noteFontSize"             // Int (12..24,编辑态 NSTextView 字号)
@@ -163,6 +166,31 @@ enum MenuBarCountMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// 托盘菜单笔记列表的分组方式。
+/// - `none`:一个平铺列表,不分组(默认)。
+/// - `sections`:按分组分段,段头用 `NSMenuItem.sectionHeader`(非交互小标题),
+///   笔记仍在同一层级,适合分组少、想一眼扫完的场景。
+/// - `submenu`:每个分组收成一个子菜单,鼠标悬停展开;未分组的笔记留在顶层,
+///   适合分组多、想保持菜单短的场景。
+enum MenuGroupingMode: String, CaseIterable, Identifiable {
+    case none
+    case sections
+    case submenu
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none:     return L.t(.menuGroupingNone)
+        case .sections: return L.t(.menuGroupingSections)
+        case .submenu:  return L.t(.menuGroupingSubmenu)
+        }
+    }
+
+    static func from(_ raw: String) -> MenuGroupingMode {
+        MenuGroupingMode(rawValue: raw) ?? .none
+    }
+}
+
 // MARK: - General -------------------------------------------------------------
 
 struct GeneralTab: View {
@@ -171,6 +199,7 @@ struct GeneralTab: View {
     @AppStorage(SettingsKey.menuBarCount) private var menuBarCountRaw: String = MenuBarCountMode.none.rawValue
     @AppStorage(SettingsKey.fadeWhenInactive) private var fadeWhenInactive: Bool = true
     @AppStorage(SettingsKey.doubleClickTitleToCollapse) private var doubleClickToCollapse: Bool = false
+    @AppStorage(SettingsKey.menuGrouping) private var menuGroupingRaw: String = MenuGroupingMode.none.rawValue
     @AppStorage(SettingsKey.trashRetentionDays) private var trashRetentionDays: Int = TrashRetention.defaultDays
     @ObservedObject private var loc = LocalizationManager.shared
 
@@ -203,6 +232,16 @@ struct GeneralTab: View {
             }
             .pickerStyle(.menu)
             .id("menuBarCountPicker.\(loc.current.rawValue)")  // 同 sort picker:唯一前缀 + 语言后缀
+
+            // 托盘菜单笔记列表的分组方式:平铺 / 分段 / 子菜单。默认平铺。
+            // @AppStorage 落 UserDefaults,MenuBarController 下次 buildMenu 即读新值。
+            Picker(L.t(.generalMenuGrouping), selection: $menuGroupingRaw) {
+                ForEach(MenuGroupingMode.allCases) { mode in
+                    Text(mode.label).tag(mode.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+            .id("menuGroupingPicker.\(loc.current.rawValue)")  // 同其它 Picker:语言切换重建
 
             // 语言:跟随系统 / English / 简体中文。setLanguage 是 @Published,
             // 切换瞬间所有订阅 LocalizationManager 的 view 重渲染,无需重启。

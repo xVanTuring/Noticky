@@ -215,8 +215,14 @@ final class MenuBarController: NSObject {
         }
         if !notes.isEmpty {
             menu.addItem(.separator())
-            for note in notes {
-                menu.addItem(noteMenuItem(note))
+            // Settings → General「菜单内分组方式」:平铺 / 分段 / 子菜单。
+            switch MenuGroupingMode.from(UserDefaults.standard.string(forKey: SettingsKey.menuGrouping) ?? "") {
+            case .none:
+                for note in notes { menu.addItem(noteMenuItem(note)) }
+            case .sections:
+                appendSectionedNotes(notes, to: menu)
+            case .submenu:
+                appendSubmenuNotes(notes, to: menu)
             }
         }
 
@@ -413,6 +419,61 @@ final class MenuBarController: NSObject {
         // 我们自己的 AppKit SettingsWindowController(NSTabViewController + 动画 resize)。
         // 跟 AppDelegate 装的主菜单 ⌘, 殊途同归。
         settings.showWindow()
+    }
+
+    /// 把已排序的 `notes`(pinned 优先 + 当前 NoteSort)按分组分桶。各组内保持
+    /// 原相对顺序;分组本身按 NoteGroup.sortOrder 排;空组(无活跃笔记)略过。
+    /// 返回 (有笔记的分组 → 其笔记, 未分组笔记)。
+    private func partitionByGroup(_ notes: [Note]) -> (groups: [(NoteGroup, [Note])], ungrouped: [Note]) {
+        var byGroup: [NSManagedObjectID: [Note]] = [:]
+        var ungrouped: [Note] = []
+        for note in notes {
+            if let group = note.group {
+                byGroup[group.objectID, default: []].append(note)
+            } else {
+                ungrouped.append(note)
+            }
+        }
+        let sortedGroups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
+        let groups: [(NoteGroup, [Note])] = sortedGroups.compactMap { group in
+            guard let groupNotes = byGroup[group.objectID], !groupNotes.isEmpty else { return nil }
+            return (group, groupNotes)
+        }
+        return (groups, ungrouped)
+    }
+
+    /// 分段模式:同一层级按分组分段,段头用 macOS 14+ 的 `.sectionHeader`
+    /// (非交互,系统画成小标题)。未分组的归到末尾「未分组」段。
+    private func appendSectionedNotes(_ notes: [Note], to menu: NSMenu) {
+        let (groups, ungrouped) = partitionByGroup(notes)
+        for (group, groupNotes) in groups {
+            menu.addItem(.sectionHeader(title: group.name))
+            for note in groupNotes { menu.addItem(noteMenuItem(note)) }
+        }
+        if !ungrouped.isEmpty {
+            menu.addItem(.sectionHeader(title: L.t(.managerUngrouped)))
+            for note in ungrouped { menu.addItem(noteMenuItem(note)) }
+        }
+    }
+
+    /// 子菜单模式:每个分组收成一个子菜单(folder 图标 + 名字),鼠标悬停展开。
+    /// 未分组的笔记留在顶层(常用,少展开一层);两边都有时插一条分隔线区分。
+    /// 没有任何分组时退化为纯平铺,跟「平铺」模式一致。
+    private func appendSubmenuNotes(_ notes: [Note], to menu: NSMenu) {
+        let (groups, ungrouped) = partitionByGroup(notes)
+        for (group, groupNotes) in groups {
+            let parent = NSMenuItem(title: group.name, action: nil, keyEquivalent: "")
+            parent.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+            let sub = NSMenu(title: group.name)
+            sub.autoenablesItems = false
+            for note in groupNotes { sub.addItem(noteMenuItem(note)) }
+            parent.submenu = sub
+            menu.addItem(parent)
+        }
+        if !ungrouped.isEmpty {
+            if !groups.isEmpty { menu.addItem(.separator()) }
+            for note in ungrouped { menu.addItem(noteMenuItem(note)) }
+        }
     }
 
     private func noteMenuItem(_ note: Note) -> NSMenuItem {

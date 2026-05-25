@@ -82,6 +82,8 @@ enum LocKey: String {
     case generalLanguage
     case generalMenuBarCount
     case menuBarCountNone, menuBarCountTotal, menuBarCountActive
+    case generalMenuGrouping
+    case menuGroupingNone, menuGroupingSections, menuGroupingSubmenu
     case generalTrashRetention, generalTrashRetentionDesc
     // General → 数据(危险区:清空全部内容)
     case generalDataSection, generalClearAll, generalClearAllDesc
@@ -258,6 +260,10 @@ enum L {
         .menuBarCountNone: "Don't show",
         .menuBarCountTotal: "All notes",
         .menuBarCountActive: "Shown stickies",
+        .generalMenuGrouping: "Note grouping in menu",
+        .menuGroupingNone: "Flat list",
+        .menuGroupingSections: "Sections",
+        .menuGroupingSubmenu: "Submenus",
         .generalTrashRetention: "Keep deleted notes for %d days",
         .generalTrashRetentionDesc: "Notes in Trash are permanently removed after this many days. Range 7-365.",
         .generalDataSection: "Data",
@@ -494,6 +500,10 @@ enum L {
         .menuBarCountNone: "不显示",
         .menuBarCountTotal: "全部数量",
         .menuBarCountActive: "激活显示数量",
+        .generalMenuGrouping: "菜单内分组方式",
+        .menuGroupingNone: "平铺列表",
+        .menuGroupingSections: "分段显示",
+        .menuGroupingSubmenu: "子菜单",
         .generalTrashRetention: "回收站保留 %d 天",
         .generalTrashRetentionDesc: "进入回收站的便签超过设定天数后会被永久删除。范围 7-365 天。",
         .generalDataSection: "数据",
