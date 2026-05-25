@@ -29,8 +29,8 @@ packages:
   #   - MarkdownEngineLatex       SwiftMath LaTeX turnkey bridge
   # 后两者把 HighlighterSwift / SwiftMath 作为传递依赖带进来。
   MarkdownEngine:
-    url: https://github.com/xVanTuring/swift-markdown-engine
-    branch: 56a6676541282822012a7ffd5852d117e475a230
+    url: https://github.com/nodes-app/swift-markdown-engine
+    branch: 0.5.0
 
 settings:
   base:
