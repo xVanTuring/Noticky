@@ -9,6 +9,48 @@
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
     <item>
+      <title>v2.1.0</title>
+      <pubDate>Mon, 25 May 2026 11:22:45 +0000</pubDate>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description xml:lang="en"><![CDATA[
+<h3>What's New</h3>
+<h4>New Features</h4>
+<ul>
+<li><strong>All Tasks view</strong> — A new "All Tasks" entry in the manager sidebar gathers every open to-do (<code>- [ ]</code>) from across all your notes into one place, grouped by source note. Check one off and it writes straight back to the original note; sub-tasks keep their nesting.</li>
+<li><strong>Quick group switching from the menu bar</strong> — A new <strong>Display</strong> submenu lets you show just one group's notes with a single click, hiding everything else — perfect for jumping between contexts. Your choice is remembered across launches.</li>
+<li><strong>Tray menu grouping</strong> — Settings → General now lets you organize the menu bar note list as a flat list (default), grouped <strong>sections</strong>, or collapsible <strong>submenus</strong>.</li>
+<li><strong>Global shortcut for Float on Top</strong> — Record your own hotkey in Settings → Shortcuts to toggle Float on Top from anywhere.</li>
+</ul>
+<h4>Improvements</h4>
+<ul>
+<li><strong>One unified editor</strong> — The note editor is now the live WYSIWYG Markdown editor everywhere, with inline styling, code, images, math, and task lists. The old two-mode (render/source) editor and its experimental settings toggles have been retired.</li>
+</ul>
+<hr>
+<p><strong>Full Changelog</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v2.0.1...v2.1.0">https://github.com/xVanTuring/Perch/compare/v2.0.1...v2.1.0</a></p>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.1.0">View full release on GitHub →</a></p>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+<h3>更新内容</h3>
+<h4>新功能</h4>
+<ul>
+<li><strong>All Tasks 任务总览</strong> —— 管理窗口侧边栏新增「All Tasks」入口，把所有便签里未完成的待办（<code>- [ ]</code>）汇总到一处，按来源便签分组。勾选后会直接写回原便签；子任务保留层级关系。</li>
+<li><strong>菜单栏快速切换分组</strong> —— 新增「显示」子菜单，点一下即可只显示某个分组的便签、隐藏其余，方便在不同场景间切换。所选分组会在下次启动时记住。</li>
+<li><strong>托盘菜单分组</strong> —— 设置 → 通用 中可选择菜单栏便签列表的组织方式：平铺列表（默认）、<strong>分组标题</strong>，或可折叠的<strong>子菜单</strong>。</li>
+<li><strong>Float on Top 全局快捷键</strong> —— 在 设置 → 快捷键 中自定义热键，随时切换「置顶」。</li>
+</ul>
+<h4>优化</h4>
+<ul>
+<li><strong>统一的编辑器</strong> —— 便签编辑器现在统一为实时 WYSIWYG Markdown 编辑器，支持行内样式、代码、图片、数学公式和任务列表。旧的双模式（渲染/源码）编辑器及相关实验性设置开关已移除。</li>
+</ul>
+<hr>
+<p><strong>完整更新日志</strong>: <a href="https://github.com/xVanTuring/Perch/compare/v2.0.1...v2.1.0">https://github.com/xVanTuring/Perch/compare/v2.0.1...v2.1.0</a></p>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.1.0">在 GitHub 查看完整更新 →</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v2.1.0/Perch-2.1.0.zip" length="8242104" type="application/octet-stream" sparkle:edSignature="fTlYrGmSJ1MTGoiVmb7740SqCgO35+ioQo5A2J0o7qMHV8Wi1yhv1C4gFyVkFzpSpXL5RuZcYIbt7N43ryQQCg==" />
+    </item>
+    <item>
       <title>v2.0.1</title>
       <pubDate>Sat, 23 May 2026 13:15:40 +0000</pubDate>
       <sparkle:version>13</sparkle:version>
