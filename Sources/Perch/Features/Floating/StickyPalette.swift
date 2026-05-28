@@ -92,8 +92,8 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
     //
     // 两套彩虹色环:`vivid` 给选择器色块(高饱和,显眼);非 vivid 给便签背景
     // (低饱和淡彩,跟现有 6 个柔和色一脉相承,正文文字仍可读)。都是 dynamic
-    // NSColor,深浅色各一版。SwiftUI(`AngularGradient`)与 AppKit(`NSGradient` /
-    // `CAGradientLayer`)共用同一组色。
+    // NSColor,深浅色各一版。SwiftUI 走 `MeshGradient`(中心放柔和中性色,避免
+    // AngularGradient 的尖锐汇聚点);AppKit 小图标走 `NSGradient` 线性扫一遍。
 
     private static func dyn(_ l: (Double, Double, Double), _ d: (Double, Double, Double)) -> NSColor {
         NSColor(name: nil) { appearance in
@@ -126,20 +126,44 @@ enum StickyPalette: Int16, CaseIterable, Identifiable {
         }
     }
 
-    /// SwiftUI 角度渐变(首色补到末尾,环形闭合不留接缝)。
-    func angularGradient(vivid: Bool) -> AngularGradient {
-        let colors = Self.rainbowStops(vivid: vivid).map { Color(nsColor: $0) }
-        return AngularGradient(colors: colors + [colors[0]], center: .center)
+    /// SwiftUI 3x3 网格渐变。相比 `AngularGradient`,中心点用一个柔和中性色,
+    /// 避免 6 色全挤到 1 像素时产生的尖锐汇聚点。周围 8 点按顺时针铺彩虹色,
+    /// 顶/底缺位用相邻两色 mix 填(pink = red⊕purple, indigo = blue⊕purple),
+    /// 让色环过渡均匀。
+    func meshGradient(vivid: Bool) -> MeshGradient {
+        let stops = Self.rainbowStops(vivid: vivid).map { Color(nsColor: $0) }
+        let r = stops[0], o = stops[1], y = stops[2]
+        let g = stops[3], b = stops[4], p = stops[5]
+        let pink = r.mix(with: p, by: 0.5)
+        let indigo = b.mix(with: p, by: 0.5)
+        // 中心点: 浅色模式接近暖白,深色模式给一个中性灰紫,刚好融化掉原本的尖点。
+        let centerColor = Color(nsColor: Self.dyn(
+            vivid ? (0.98, 0.95, 0.97) : (1.00, 0.98, 0.98),
+            vivid ? (0.46, 0.40, 0.50) : (0.38, 0.34, 0.42)
+        ))
+        return MeshGradient(
+            width: 3, height: 3,
+            points: [
+                [0, 0],   [0.5, 0],   [1, 0],
+                [0, 0.5], [0.5, 0.5], [1, 0.5],
+                [0, 1],   [0.5, 1],   [1, 1],
+            ],
+            colors: [
+                r,    o,           y,
+                pink, centerColor, g,
+                p,    indigo,      b,
+            ]
+        )
     }
 
-    /// SwiftUI 便签背景填充:纯色返回实色;炫彩返回**柔和**角度渐变(正文可读)。
+    /// SwiftUI 便签背景填充:纯色返回实色;炫彩返回**柔和**网格渐变(正文可读)。
     var backgroundFill: AnyShapeStyle {
-        isRainbow ? AnyShapeStyle(angularGradient(vivid: false)) : AnyShapeStyle(color)
+        isRainbow ? AnyShapeStyle(meshGradient(vivid: false)) : AnyShapeStyle(color)
     }
 
-    /// SwiftUI 色块/选择器/细色条填充:纯色返回实色;炫彩返回**鲜艳**角度渐变。
+    /// SwiftUI 色块/选择器/细色条填充:纯色返回实色;炫彩返回**鲜艳**网格渐变。
     var swatchFill: AnyShapeStyle {
-        isRainbow ? AnyShapeStyle(angularGradient(vivid: true)) : AnyShapeStyle(color)
+        isRainbow ? AnyShapeStyle(meshGradient(vivid: true)) : AnyShapeStyle(color)
     }
 
     /// AppKit:用本色填充给定 path。纯色直接 setFill;炫彩用 `NSGradient` 斜扫一遍
