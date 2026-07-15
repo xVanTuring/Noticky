@@ -226,6 +226,14 @@ struct ManagerView: View {
                let id = selection.first,
                let note = allNotes.first(where: { $0.id == id && !$0.isDeleted }) {
                 NoteDetailView(note: note, floating: floating)
+                    // 关键:强制按 note.id 绑定详情子树 identity。
+                    // 管理页全程复用同一棵 SwiftUI 树 + 同一个编辑器实例,
+                    // 底层 swift-markdown-engine 的 NSTextView Coordinator 只在
+                    // makeCoordinator 时捕获一次回写 binding、updateNSView 从不刷新它。
+                    // 少了这个 .id,切到笔记 B 后打字会经「仍指向笔记 A」的旧 binding
+                    // 写回 → 覆盖 A 的正文(串笔记 + A 丢失)。加上 .id 后切 note 会重建
+                    // 子树 → 重新 makeCoordinator → 回写 binding 对准当前笔记。
+                    .id(note.id)
             } else if selection.count > 1 {
                 ContentUnavailableView(
                     L.t(.managerMultiSelected, selection.count),
