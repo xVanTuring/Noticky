@@ -400,7 +400,7 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func hideAllStickiesAction() {
-        floating.hideAll()
+        floating.hideAllGroups(in: context)
     }
 
     @objc private func toggleGroupVisibility(_ sender: NSMenuItem) {

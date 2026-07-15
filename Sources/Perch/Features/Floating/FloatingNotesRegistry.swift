@@ -390,6 +390,18 @@ final class FloatingNotesRegistry {
         }
     }
 
+    /// 「隐藏所有便签」菜单入口:把所有分组(含未分组)一并加入隐藏集合,再
+    /// orderOut 全部浮窗。与 `showAll`(清空隐藏集合)对称 —— 让菜单勾选状态跟
+    /// 实际可见性始终一致(隐藏后「显示所有便签」不再打勾、各组也不打勾),并
+    /// 跨重启记忆(启动不恢复任何 pinned)。再点「显示所有便签」或勾回某组即恢复。
+    func hideAllGroups(in context: NSManagedObjectContext) {
+        let groups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
+        hiddenGroupIDs = Set(groups.map(\.id))
+        hiddenGroupIDs.insert(Self.ungroupedSentinel)
+        persistHiddenGroups()
+        hideAll()
+    }
+
     /// 显示**所有未删除的笔记**为浮窗 —— 不管之前 pinned 与否、是否已被关闭过。
     /// 已 spawn 的会被 bringToFront(把 hidden 的也带回来);没 spawn 的 spawn。
     /// menubar "Show All Stickies" 的入口,语义是"把库里所有便签都显示出来"。
