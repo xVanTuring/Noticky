@@ -213,16 +213,24 @@ final class MenuBarController: NSObject {
                 return lhs.displayTitle.localizedStandardCompare(rhs.displayTitle) == .orderedAscending
             }
         }
-        if !notes.isEmpty {
+        // #1:Manager 右键分组「在菜单栏隐藏」的分组,其笔记不列进托盘菜单列表。
+        // 未分组恒显示。注意:这只影响下面的**笔记列表**,与 #4 的「显示」子菜单
+        // (浮窗显隐)彼此独立 —— Display 子菜单仍照常列出全部分组。
+        let menuHiddenGroups = MenuHiddenGroups.ids()
+        let listedNotes = menuHiddenGroups.isEmpty ? notes : notes.filter { note in
+            guard let gid = note.group?.id else { return true }
+            return !menuHiddenGroups.contains(gid)
+        }
+        if !listedNotes.isEmpty {
             menu.addItem(.separator())
             // Settings → General「菜单内分组方式」:平铺 / 分段 / 子菜单。
             switch MenuGroupingMode.from(UserDefaults.standard.string(forKey: SettingsKey.menuGrouping) ?? "") {
             case .none:
-                for note in notes { menu.addItem(noteMenuItem(note)) }
+                for note in listedNotes { menu.addItem(noteMenuItem(note)) }
             case .sections:
-                appendSectionedNotes(notes, to: menu)
+                appendSectionedNotes(listedNotes, to: menu)
             case .submenu:
-                appendSubmenuNotes(notes, to: menu)
+                appendSubmenuNotes(listedNotes, to: menu)
             }
         }
 
@@ -263,8 +271,11 @@ final class MenuBarController: NSObject {
         // 各分组:勾选切换该组便签的显示/隐藏(多选,可多组同时显示)。勾上=显示、
         // 取消=隐藏。空分组(没有活跃笔记)disabled —— 无可显示的便签。
         let groups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
-        // 顺手剔除隐藏集合里已被删掉的分组 id,免得残留(见 pruneHiddenGroups)。
-        floating.pruneHiddenGroups(existing: Set(groups.map(\.id)))
+        // 顺手剔除两套隐藏集合里已被删掉的分组 id,免得残留。
+        // (#4 浮窗显隐 hiddenGroupIDs;#1 菜单列表隐藏 MenuHiddenGroups。)
+        let liveGroupIDs = Set(groups.map(\.id))
+        floating.pruneHiddenGroups(existing: liveGroupIDs)
+        MenuHiddenGroups.prune(existing: liveGroupIDs)
         let ungroupedCount = notes.filter { $0.group == nil }.count
         if !groups.isEmpty || ungroupedCount > 0 {
             displaySub.addItem(.separator())

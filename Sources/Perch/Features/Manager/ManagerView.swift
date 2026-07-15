@@ -605,6 +605,13 @@ struct ManagerView: View {
             renameText = group.name
             renamingGroup = group
         })
+        // #1:在托盘菜单的笔记列表里显示/隐藏此分组(不影响桌面浮窗,那是 #4)。
+        let hiddenFromMenu = MenuHiddenGroups.isHidden(group.id)
+        menu.addItem(ClosureMenuItem(
+            title: hiddenFromMenu ? L.t(.managerShowGroupInMenu) : L.t(.managerHideGroupFromMenu)
+        ) {
+            MenuHiddenGroups.toggle(group.id)
+        })
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: L.t(.managerDeleteGroup)) {
             // 关系是 nullify:删 group 后,组里的 note 自动 ungrouped。
@@ -619,6 +626,11 @@ struct ManagerView: View {
         Button(L.t(.managerRename)) {
             renameText = group.name
             renamingGroup = group
+        }
+        // #1:在托盘菜单的笔记列表里显示/隐藏此分组(不影响桌面浮窗,那是 #4)。
+        Button(MenuHiddenGroups.isHidden(group.id)
+               ? L.t(.managerShowGroupInMenu) : L.t(.managerHideGroupFromMenu)) {
+            MenuHiddenGroups.toggle(group.id)
         }
         Divider()
         Button(L.t(.managerDeleteGroup), role: .destructive) {

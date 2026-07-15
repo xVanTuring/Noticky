@@ -159,6 +159,7 @@ enum LocKey: String {
     case managerUngrouped, managerRename, managerRenameAlertTitle, managerGroupNamePlaceholder
     case managerRenameMessage, managerNewGroupAlertTitle, managerNewGroupMessage, managerCreate
     case managerDeleteGroup
+    case managerHideGroupFromMenu, managerShowGroupInMenu
     case managerDeleteNote, managerDeleteCount
     case managerSelectNote, managerSelectNoteDesc
     case managerMultiSelected, managerMultiSelectedDesc
@@ -391,6 +392,8 @@ enum L {
         .managerNewGroupMessage: "Enter a name for the new group.",
         .managerCreate: "Create",
         .managerDeleteGroup: "Delete Group",
+        .managerHideGroupFromMenu: "Hide from Menu Bar",
+        .managerShowGroupInMenu: "Show in Menu Bar",
         .managerDeleteNote: "Delete",
         .managerDeleteCount: "Delete %d Notes",
         .managerSelectNote: "Select a note",
@@ -631,6 +634,8 @@ enum L {
         .managerNewGroupMessage: "为新分组输入一个名字。",
         .managerCreate: "创建",
         .managerDeleteGroup: "删除分组",
+        .managerHideGroupFromMenu: "在菜单栏隐藏此分组",
+        .managerShowGroupInMenu: "在菜单栏显示此分组",
         .managerDeleteNote: "删除",
         .managerDeleteCount: "删除 %d 条便签",
         .managerSelectNote: "选择一条便签",
