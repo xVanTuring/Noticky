@@ -42,9 +42,9 @@ Add these once with `gh` (run from the repo root, or add `-R xVanTuring/Perch`).
 | `KEYCHAIN_PASSWORD` | any random string (temp keychain on the runner) |
 | `PROVISIONING_PROFILE` | "Perch Profile" `.provisionprofile`, base64 |
 | `SPARKLE_ED_PRIVATE_KEY` | Sparkle EdDSA **private** key (exported, never regenerated) |
-| `ASC_API_KEY_P8` | App Store Connect API key `.p8`, base64 |
-| `ASC_API_KEY_ID` | the API Key ID (10 chars) |
-| `ASC_API_ISSUER_ID` | the API Issuer ID (UUID) |
+| `APPLE_ID` | Apple account email used for notarization |
+| `APPLE_APP_PASSWORD` | app-specific password (appleid.apple.com) |
+| `APPLE_TEAM_ID` | `T8F5T6HKG8` |
 
 ### 1–2. Developer ID Application certificate
 
@@ -105,18 +105,19 @@ gh secret set SPARKLE_ED_PRIVATE_KEY < sparkle_ed_private_key
 rm -f sparkle_ed_private_key           # don't leave the private key on disk
 ```
 
-### 6–8. App Store Connect API key (notarization)
+### 6–8. Apple ID notarization credentials
 
-App Store Connect → **Users and Access** → **Integrations** → **App Store
-Connect API** → generate a **Team key** with the **Developer** role (enough for
-notarization). Download `AuthKey_XXXXXXXXXX.p8` (**one download only**), and note
-the **Key ID** and **Issuer ID** shown on the page.
+Notarization uses your Apple ID + an **app-specific password** (the same trio
+`scripts/release.sh` uses for its local `noticky-notary` notarytool profile — no
+Admin role or API-key permission needed).
+
+Create an app-specific password at <https://appleid.apple.com> → Sign-In and
+Security → App-Specific Passwords → generate one (label it e.g. "Perch CI").
 
 ```sh
-base64 -i AuthKey_XXXXXXXXXX.p8 | gh secret set ASC_API_KEY_P8
-gh secret set ASC_API_KEY_ID    --body 'XXXXXXXXXX'
-gh secret set ASC_API_ISSUER_ID --body '00000000-0000-0000-0000-000000000000'
-rm AuthKey_XXXXXXXXXX.p8
+gh secret set APPLE_ID           --body 'you@example.com'
+gh secret set APPLE_APP_PASSWORD --body 'xxxx-xxxx-xxxx-xxxx'   # the app-specific password
+gh secret set APPLE_TEAM_ID      --body 'T8F5T6HKG8'
 ```
 
 ### Verify

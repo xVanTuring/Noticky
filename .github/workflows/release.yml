@@ -81,14 +81,12 @@ jobs:
           cp "$RUNNER_TEMP/profile.provisionprofile" "$DEST1/Perch.provisionprofile"
           cp "$RUNNER_TEMP/profile.provisionprofile" "$DEST2/Perch.provisionprofile"
 
-      - name: Write API key + Sparkle key files
+      - name: Write Sparkle private key file
         env:
-          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
-          echo "$ASC_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/asc_api_key.p8"
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_ed_private_key"
-          chmod 600 "$RUNNER_TEMP/asc_api_key.p8" "$RUNNER_TEMP/sparkle_ed_private_key"
+          chmod 600 "$RUNNER_TEMP/sparkle_ed_private_key"
 
       - name: Generate Xcode project
         run: xcodegen
@@ -103,9 +101,9 @@ jobs:
           TAG: ${{ steps.vars.outputs.tag }}
           VERSION: ${{ steps.vars.outputs.version }}
           PRERELEASE: ${{ steps.vars.outputs.prerelease }}
-          ASC_KEY_PATH: ${{ runner.temp }}/asc_api_key.p8
-          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           SPARKLE_KEY_PATH: ${{ runner.temp }}/sparkle_ed_private_key
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/ci/package_and_publish.sh

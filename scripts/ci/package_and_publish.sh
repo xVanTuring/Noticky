@@ -18,12 +18,12 @@
 # Required env:
 #   TAG              e.g. v2.2.0            (the tag being released)
 #   VERSION          e.g. 2.2.0            (CFBundleShortVersionString, no "v")
-#   PRERELEASE       "" | beta             (channel suffix; empty = stable)
-#   ASC_KEY_PATH     /path/AuthKey.p8      (App Store Connect API key)
-#   ASC_KEY_ID       10-char Key ID
-#   ASC_ISSUER_ID    Issuer UUID
-#   SPARKLE_KEY_PATH /path/sparkle_key     (EdDSA private key, generate_keys -x)
-#   GH_TOKEN         (gh auth; the workflow passes GITHUB_TOKEN)
+#   PRERELEASE         "" | beta           (channel suffix; empty = stable)
+#   APPLE_ID           Apple account email (for notarization)
+#   APPLE_APP_PASSWORD app-specific password (appleid.apple.com)
+#   APPLE_TEAM_ID      T8F5T6HKG8
+#   SPARKLE_KEY_PATH   /path/sparkle_key   (EdDSA private key, generate_keys -x)
+#   GH_TOKEN           (gh auth; the workflow passes GITHUB_TOKEN)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -44,9 +44,9 @@ SPARKLE_BIN_DIR="${BUILD_DIR}/SourcePackages/artifacts/sparkle/Sparkle/bin"
 : "${TAG:?TAG required}"
 : "${VERSION:?VERSION required}"
 PRERELEASE="${PRERELEASE:-}"
-: "${ASC_KEY_PATH:?ASC_KEY_PATH required}"
-: "${ASC_KEY_ID:?ASC_KEY_ID required}"
-: "${ASC_ISSUER_ID:?ASC_ISSUER_ID required}"
+: "${APPLE_ID:?APPLE_ID required}"
+: "${APPLE_APP_PASSWORD:?APPLE_APP_PASSWORD required}"
+: "${APPLE_TEAM_ID:?APPLE_TEAM_ID required}"
 : "${SPARKLE_KEY_PATH:?SPARKLE_KEY_PATH required}"
 
 if [[ -n "$PRERELEASE" ]]; then
@@ -73,11 +73,11 @@ rm -rf "${DIST_DIR}" "${ARCHIVE}" "${EXPORT_DIR}"
 mkdir -p "${DIST_DIR}"
 
 notary() {
-    # notarytool with the ASC API key.
+    # notarytool with Apple ID + app-specific password.
     xcrun notarytool "$@" \
-        --key "$ASC_KEY_PATH" \
-        --key-id "$ASC_KEY_ID" \
-        --issuer "$ASC_ISSUER_ID"
+        --apple-id "$APPLE_ID" \
+        --password "$APPLE_APP_PASSWORD" \
+        --team-id "$APPLE_TEAM_ID"
 }
 
 # ── Archive (Developer ID, manual signing — no cloud provisioning) ──
