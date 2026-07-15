@@ -9,6 +9,42 @@
     <language>en</language>
     <!-- BEGIN-ITEMS (release.sh inserts new entries here, newest first) -->
     <item>
+      <title>v2.2.0</title>
+      <pubDate>Wed, 15 Jul 2026 03:01:04 +0000</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>2.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description xml:lang="en"><![CDATA[
+<h4>New</h4>
+<ul>
+<li><strong>Multi-select group display</strong> — the tray "Display" menu now shows several groups' stickies at once (each group toggles on/off independently), instead of only one group at a time. "Show All Stickies" checks every group.</li>
+<li><strong>Hide groups from the menu bar</strong> — right-click a group in the manager to keep its notes out of the menu bar list. Hidden groups are marked with an icon in the sidebar.</li>
+</ul>
+<h4>Fixed</h4>
+<ul>
+<li><strong>Note content loss in the manager (important)</strong> — editing notes while switching between them in the manager window could write one note's text into another and lose the original. Fixed.</li>
+<li>Clicking a sticky no longer jumps back and forth between virtual desktops (Spaces).</li>
+<li>"Show All Stickies" no longer stays checked after "Hide All Stickies".</li>
+</ul>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.2.0">View full release on GitHub →</a></p>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+<h4>新增</h4>
+<ul>
+<li><strong>分组显示多选</strong> — 托盘「显示」菜单现在可同时显示多个分组的便签（每个分组独立勾选开/关），不再是一次只能看一组。「显示所有便签」= 全部分组勾选。</li>
+<li><strong>在菜单栏隐藏分组</strong> — 在管理窗口右键分组，即可把它的笔记从菜单栏列表里隐藏；被隐藏的分组在侧栏有图标标记。</li>
+</ul>
+<h4>修复</h4>
+<ul>
+<li><strong>管理窗口笔记内容丢失（重要）</strong> — 在管理窗口连续切换编辑不同笔记时，可能把一条笔记的内容写进另一条并覆盖原文。已修复。</li>
+<li>点击便签不再在多个虚拟桌面（Spaces）之间来回跳转。</li>
+<li>「隐藏所有便签」之后，「显示所有便签」不再错误地保持勾选。</li>
+</ul>
+<p><a href="https://github.com/xVanTuring/Perch/releases/tag/v2.2.0">在 GitHub 查看完整更新 →</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/xVanTuring/Perch/releases/download/v2.2.0/Perch-2.2.0.zip" length="8259998" type="application/octet-stream" sparkle:edSignature="LzIM37XojiRP84rZXmNTdH0uferDvZpHLkX8kBKPVcpPNJZmACr9tdUhTSfJbF094HpBensHcRdOULMvYNLKAg==" />
+    </item>
+    <item>
       <title>v2.1.0</title>
       <pubDate>Mon, 25 May 2026 11:22:45 +0000</pubDate>
       <sparkle:version>14</sparkle:version>
