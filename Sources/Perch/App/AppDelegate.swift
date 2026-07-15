@@ -414,16 +414,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSNumber(value: true), NSNumber(value: false), NSNumber(value: false)
             )
         ]
-        // 上次用「显示 → 分组」切到某个分组的话(plan A 记忆),启动只恢复该分组
-        // 的浮窗。分组已被删 → 过滤器失效,清掉它回退到恢复全部 pinned。
-        if let filterID = floating.activeGroupFilterID {
-            let groupRequest = NSFetchRequest<NoteGroup>(entityName: "NoteGroup")
-            groupRequest.predicate = NSPredicate(format: "id == %@", filterID as CVarArg)
-            groupRequest.fetchLimit = 1
-            if let group = try? context.fetch(groupRequest).first {
-                predicates.append(NSPredicate(format: "group == %@", group))
-            } else {
-                floating.setActiveGroupFilter(nil)
+        // 上次在「显示 → 分组」里隐藏了某些分组的话,启动跳过它们的 pinned 浮窗
+        // (跨重启记忆多选可见性)。先剔除隐藏集合里已被删掉的分组 id。
+        let liveGroups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
+        floating.pruneHiddenGroups(existing: Set(liveGroups.map(\.id)))
+        let hidden = floating.hiddenGroupIDs
+        if !hidden.isEmpty {
+            let hiddenGroups = liveGroups.filter { hidden.contains($0.id) }
+            if !hiddenGroups.isEmpty {
+                // 未分组(group == nil)便签:nil IN {groups} 为 false → NOT 为 true → 保留。
+                predicates.append(NSPredicate(format: "NOT (group IN %@)", hiddenGroups))
+            }
+            if hidden.contains(FloatingNotesRegistry.ungroupedSentinel) {
+                predicates.append(NSPredicate(format: "group != nil"))
             }
         }
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)

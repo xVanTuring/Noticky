@@ -244,8 +244,8 @@ final class MenuBarController: NSObject {
         showAllStickies.target = self
         showAllStickies.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
         showAllStickies.isEnabled = !notes.isEmpty
-        // 「显示所有便签」兼作"不过滤"的单选项:没有分组过滤时打勾。
-        showAllStickies.state = (floating.activeGroupFilterID == nil) ? .on : .off
+        // 「显示所有便签」= 清空隐藏集合(全部分组可见)。隐藏集合为空时打勾。
+        showAllStickies.state = floating.hiddenGroupIDs.isEmpty ? .on : .off
         displaySub.addItem(showAllStickies)
 
         // 隐藏所有便签:把当前可见的浮窗 orderOut(不释放 wc、不清 isPinned)。
@@ -260,24 +260,40 @@ final class MenuBarController: NSObject {
         hideAllStickies.isEnabled = floating.hasVisibleWindow
         displaySub.addItem(hideAllStickies)
 
-        // 各分组:点击后先隐藏全部再只显示该分组下的活跃笔记,用于快速切换。
-        // 空分组(没有活跃笔记)disabled —— 点了等于只隐藏全部,容易误解。
+        // 各分组:勾选切换该组便签的显示/隐藏(多选,可多组同时显示)。勾上=显示、
+        // 取消=隐藏。空分组(没有活跃笔记)disabled —— 无可显示的便签。
         let groups = (try? context.fetch(NoteGroup.sortedFetchRequest())) ?? []
-        if !groups.isEmpty {
+        // 顺手剔除隐藏集合里已被删掉的分组 id,免得残留(见 pruneHiddenGroups)。
+        floating.pruneHiddenGroups(existing: Set(groups.map(\.id)))
+        let ungroupedCount = notes.filter { $0.group == nil }.count
+        if !groups.isEmpty || ungroupedCount > 0 {
             displaySub.addItem(.separator())
             for group in groups {
                 let activeCount = group.notes.filter { !$0.isTrashed && !$0.isArchived }.count
                 let item = NSMenuItem(
                     title: group.name,
-                    action: #selector(showGroupOnly(_:)),
+                    action: #selector(toggleGroupVisibility(_:)),
                     keyEquivalent: ""
                 )
                 item.target = self
                 item.representedObject = group.objectID
                 item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
                 item.isEnabled = activeCount > 0
-                // 当前生效的分组打勾(跟「显示所有便签」组成一组单选)。
-                item.state = (floating.activeGroupFilterID == group.id) ? .on : .off
+                // 该组当前可见则打勾,隐藏则不打勾(多选,各组独立)。
+                item.state = floating.isGroupHidden(group.id) ? .off : .on
+                displaySub.addItem(item)
+            }
+            // 「未分组」也能单独显示/隐藏。representedObject 留空 —— handler 据此
+            // 识别为未分组(groupID = nil)。
+            if ungroupedCount > 0 {
+                let item = NSMenuItem(
+                    title: L.t(.managerUngrouped),
+                    action: #selector(toggleGroupVisibility(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.image = NSImage(systemSymbolName: "tray", accessibilityDescription: nil)
+                item.state = floating.isGroupHidden(nil) ? .off : .on
                 displaySub.addItem(item)
             }
         }
@@ -387,10 +403,14 @@ final class MenuBarController: NSObject {
         floating.hideAll()
     }
 
-    @objc private func showGroupOnly(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? NSManagedObjectID,
-              let group = try? context.existingObject(with: id) as? NoteGroup else { return }
-        floating.showOnly(group: group)
+    @objc private func toggleGroupVisibility(_ sender: NSMenuItem) {
+        // representedObject 为 group.objectID → 真实分组;为空 → 未分组(groupID nil)。
+        if let id = sender.representedObject as? NSManagedObjectID,
+           let group = try? context.existingObject(with: id) as? NoteGroup {
+            floating.toggleGroupVisibility(groupID: group.id, in: context)
+        } else {
+            floating.toggleGroupVisibility(groupID: nil, in: context)
+        }
     }
 
     @objc private func setLayoutMode(_ sender: NSMenuItem) {

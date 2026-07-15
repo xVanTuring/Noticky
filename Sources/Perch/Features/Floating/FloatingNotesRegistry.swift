@@ -71,24 +71,88 @@ final class FloatingNotesRegistry {
         return LayoutMode(rawValue: raw) ?? .normal
     }()
 
-    /// 当前生效的「分组过滤器」:被选中分组的 id;nil = 不过滤(显示全部)。
-    /// menubar「显示 → 分组」切换时写,启动 restore 时读 —— 只恢复「该分组 ∩
-    /// pinned」的浮窗,实现跨重启记忆。「显示所有便签」清掉它,回到恢复全部
-    /// pinned。持久化在 UserDefaults(key 见 `activeGroupFilterKey`)。
-    private static let activeGroupFilterKey = "Noticky.activeGroupFilter"
-    private(set) var activeGroupFilterID: UUID? = {
-        let raw = UserDefaults.standard.string(forKey: FloatingNotesRegistry.activeGroupFilterKey) ?? ""
-        return UUID(uuidString: raw)
+    /// 「分组可见性过滤器」——被**隐藏**的分组 id 集合(多选)。空集 = 全部可见
+    /// (默认)。存的是 `NoteGroup.id`;未分组便签用 `ungroupedSentinel` 代表。
+    /// menubar「显示 → 分组」勾选切换时写,启动 restore 时读 —— 跳过隐藏分组的
+    /// pinned 浮窗,实现跨重启记忆。「显示所有便签」清空它。持久化在 UserDefaults
+    /// (逗号分隔的 uuid,key 见下)。
+    ///
+    /// 注:V2.1 之前用单选 key `Noticky.activeGroupFilter`(只显示一组),语义与
+    /// 隐藏集合相反,升级不迁移 —— 旧 key 直接废弃,首次启动回到「全部可见」。
+    private static let hiddenGroupsKey = "Noticky.hiddenGroups"
+
+    /// 未分组便签在隐藏集合里的代表 id。固定常量,不会撞真实 group.id。
+    static let ungroupedSentinel = UUID(uuidString: "00000000-0000-0000-0000-0000000FACE0")!
+
+    private(set) var hiddenGroupIDs: Set<UUID> = {
+        let raw = UserDefaults.standard.string(forKey: FloatingNotesRegistry.hiddenGroupsKey) ?? ""
+        return Set(raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
     }()
 
-    /// 写入并持久化分组过滤器。nil = 清除(回到显示全部)。
-    func setActiveGroupFilter(_ id: UUID?) {
-        activeGroupFilterID = id
-        if let id {
-            UserDefaults.standard.set(id.uuidString, forKey: Self.activeGroupFilterKey)
+    private func persistHiddenGroups() {
+        if hiddenGroupIDs.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.hiddenGroupsKey)
         } else {
-            UserDefaults.standard.removeObject(forKey: Self.activeGroupFilterKey)
+            UserDefaults.standard.set(
+                hiddenGroupIDs.map(\.uuidString).joined(separator: ","),
+                forKey: Self.hiddenGroupsKey
+            )
         }
+    }
+
+    /// 某分组当前是否隐藏。传 nil = 未分组(用 sentinel 查)。
+    func isGroupHidden(_ id: UUID?) -> Bool {
+        hiddenGroupIDs.contains(id ?? Self.ungroupedSentinel)
+    }
+
+    /// 从隐藏集合里剔除已不存在的分组 id(分组被删后残留)。`ungroupedSentinel`
+    /// 恒保留。`existing` = 当前存活的真实 group.id 集合。返回是否有变化。
+    @discardableResult
+    func pruneHiddenGroups(existing: Set<UUID>) -> Bool {
+        let keep = hiddenGroupIDs.filter { $0 == Self.ungroupedSentinel || existing.contains($0) }
+        guard keep != hiddenGroupIDs else { return false }
+        hiddenGroupIDs = keep
+        persistHiddenGroups()
+        return true
+    }
+
+    /// 勾选切换某分组的可见性(多选)。传 nil = 未分组。
+    /// - 隐藏:加入隐藏集合 + orderOut 该组当前可见的浮窗(不释放 wc、不清 isPinned)。
+    /// - 显示:移出隐藏集合 + 显示该组的活跃笔记(未删未归档),并按当前模式重排。
+    func toggleGroupVisibility(groupID: UUID?, in context: NSManagedObjectContext) {
+        let key = groupID ?? Self.ungroupedSentinel
+        let notes = activeNotes(groupID: groupID, in: context)
+        if hiddenGroupIDs.contains(key) {
+            hiddenGroupIDs.remove(key)
+            persistHiddenGroups()
+            for note in notes { show(note: note) }
+            applyLayout()
+        } else {
+            hiddenGroupIDs.insert(key)
+            persistHiddenGroups()
+            for note in notes { windows[note.objectID]?.setHidden(true) }
+        }
+    }
+
+    /// 取某分组(nil = 未分组)下的活跃笔记(未删未归档),pinned 优先、再按
+    /// updatedAt 倒序。用于分组可见性切换时批量显/隐。
+    private func activeNotes(groupID: UUID?, in context: NSManagedObjectContext) -> [Note] {
+        let request = NSFetchRequest<Note>(entityName: "Note")
+        var predicates = [
+            NSPredicate(format: "isTrashed == %@ AND isArchived == %@",
+                        NSNumber(value: false), NSNumber(value: false))
+        ]
+        if let groupID {
+            predicates.append(NSPredicate(format: "group.id == %@", groupID as CVarArg))
+        } else {
+            predicates.append(NSPredicate(format: "group == nil"))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "isPinned", ascending: false),
+            NSSortDescriptor(key: "updatedAt", ascending: false)
+        ]
+        return (try? context.fetch(request)) ?? []
     }
 
     /// menubar 入口:把所有当前打开的浮窗都移到给定 UUID 的显示器。屏不存在
@@ -330,8 +394,9 @@ final class FloatingNotesRegistry {
     /// 已 spawn 的会被 bringToFront(把 hidden 的也带回来);没 spawn 的 spawn。
     /// menubar "Show All Stickies" 的入口,语义是"把库里所有便签都显示出来"。
     func showAll(in context: NSManagedObjectContext) {
-        // 「显示所有便签」= 取消分组过滤,下次启动恢复全部 pinned。
-        setActiveGroupFilter(nil)
+        // 「显示所有便签」= 清空隐藏集合(全部分组可见),下次启动恢复全部 pinned。
+        hiddenGroupIDs.removeAll()
+        persistHiddenGroups()
         let request = NSFetchRequest<Note>(entityName: "Note")
         // 不显示归档笔记 —— "显示所有便签" 只针对活跃笔记。
         request.predicate = NSPredicate(
@@ -345,22 +410,6 @@ final class FloatingNotesRegistry {
             // 的也变可见);新的走 spawn,会自动设 isPinned = true 进入 displayOrder。
             show(note: note)
         }
-    }
-
-    /// 快速切换到某个分组:先把当前可见的浮窗全部 orderOut(走 hideAll,
-    /// 不释放 wc、不清 isPinned —— 只是藏起来),再把该分组下的活跃笔记
-    /// (未删除、未归档)显示出来。已 spawn 的会被 bringToFront 带回可见,
-    /// 没 spawn 的 spawn。menubar「显示 → 分组」的入口,语义是「只看这个分组」。
-    func showOnly(group: NoteGroup) {
-        // 记住当前分组 —— 下次启动 restore 只恢复这一组(见 AppDelegate)。
-        setActiveGroupFilter(group.id)
-        hideAll()
-        for note in group.notesSortedByPin where !note.isTrashed && !note.isArchived {
-            show(note: note)
-        }
-        // show() 对「已开但刚被藏起来」的窗只 bringToFront,不触发 reflow;只有新
-        // spawn 才会 reflow。统一在这里按当前模式重排一次,让这组从顶部干净排列。
-        applyLayout()
     }
 
     // MARK: 模式回调 ---------------------------------------------------------
@@ -596,8 +645,9 @@ final class FloatingNotesRegistry {
         for wc in windows.values { wc.close() }
         windows.removeAll()
         displayOrder.removeAll()
-        // 分组要被一并删光,残留的过滤器 id 会变野指针 —— 顺手清掉。
-        setActiveGroupFilter(nil)
+        // 分组要被一并删光,残留的隐藏集合 id 会变野指针 —— 顺手清掉。
+        hiddenGroupIDs.removeAll()
+        persistHiddenGroups()
 
         // note 不带任何 predicate —— 三态(活跃 / 归档 / 回收站)全要。
         let notes = (try? context.fetch(NSFetchRequest<Note>(entityName: "Note"))) ?? []
