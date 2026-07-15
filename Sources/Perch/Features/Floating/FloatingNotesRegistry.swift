@@ -281,9 +281,13 @@ final class FloatingNotesRegistry {
         let stepY: CGFloat = 36
         let rightX = visible.maxX - margin
 
-        // 只排当前可见的窗 —— hideAll / 分组切换藏起来的窗不该占 cascade 槽位,
-        // 否则它们占了顶部几格,真正可见的那几张被挤到 cascade 最下方。
-        let cascadeWCs = displayOrder.compactMap { windows[$0] }.filter { $0.isWindowVisible }
+        // 只排「当前 Space + 可见」的窗:
+        // - hideAll / 分组切换藏起来的窗不该占 cascade 槽位。
+        // - 别的虚拟桌面(Space)上的窗 isVisible 仍为 true,但不在当前 Space;
+        //   对它们 orderFront / animateFrame 会把 macOS 拽去那个桌面,进而 becomeKey
+        //   → 再 reflow → 再跳,来回反复跳,所以按 isOnActiveSpace 一并排除。
+        let cascadeWCs = displayOrder.compactMap { windows[$0] }
+            .filter { $0.isWindowVisible && $0.isOnActiveSpace }
         guard !cascadeWCs.isEmpty else { return }
 
         let firstTopY = visible.maxY - margin
@@ -319,8 +323,11 @@ final class FloatingNotesRegistry {
         var rowMaxH: CGFloat = 0
         var anyInRow = false
 
-        // 同 stack:只平铺可见窗,隐藏的不占位(见「切换分组」)。
-        let tileWCs = displayOrder.compactMap { windows[$0] }.filter { $0.isWindowVisible }
+        // 同 stack:只平铺「当前 Space + 可见」的窗。隐藏的不占位(见「切换分组」);
+        // 别的虚拟桌面上的窗也要排除,否则 animateFrame 会把它们从别的桌面搬走、
+        // 甚至把 macOS 拽去那个桌面。
+        let tileWCs = displayOrder.compactMap { windows[$0] }
+            .filter { $0.isWindowVisible && $0.isOnActiveSpace }
         for wc in tileWCs {
             guard let frame = wc.currentFrame else { continue }
             let w = frame.width

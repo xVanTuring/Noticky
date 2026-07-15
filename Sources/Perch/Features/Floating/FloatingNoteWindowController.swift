@@ -449,6 +449,12 @@ final class FloatingNoteWindowController: NSObject, NSWindowDelegate {
     /// 跟 close() 不同 —— 这里 window 还活着,只是不显示。
     var isWindowVisible: Bool { window?.isVisible ?? false }
 
+    /// 窗口是否在**当前活跃的 Space**(虚拟桌面)上。跨 Space 时 `isVisible` 仍为
+    /// true(窗口只是待在别的桌面),但 `isOnActiveSpace` 为 false。布局 reflow 用它
+    /// 排除别的桌面的窗 —— 否则 orderFront / animateFrame 会把 macOS 拽去那个桌面
+    /// (到了那边的窗又 becomeKey → 再 reflow → 再跳回来,来回反复跳)。
+    var isOnActiveSpace: Bool { window?.isOnActiveSpace ?? false }
+
     /// 隐藏 / 重新显示。orderOut 不会触发 windowWillClose,所以 isPinned / saved
     /// frame 都保持原样;调用方下次 setHidden(false) 即可恢复。
     func setHidden(_ hidden: Bool) {
