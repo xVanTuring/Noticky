@@ -356,9 +356,12 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         switch item {
         case .group(let oid):
             let name = groupByID[oid]?.name ?? ""
-            return makeGroupHeaderView(text: name.isEmpty ? L.t(.untitled) : name, outlineView: outlineView)
+            let hiddenFromMenu = groupByID[oid].map { MenuHiddenGroups.isHidden($0.id) } ?? false
+            return makeGroupHeaderView(text: name.isEmpty ? L.t(.untitled) : name,
+                                       hiddenFromMenu: hiddenFromMenu, outlineView: outlineView)
         case .ungroupedHeader:
-            return makeGroupHeaderView(text: L.t(.managerUngrouped), outlineView: outlineView)
+            return makeGroupHeaderView(text: L.t(.managerUngrouped),
+                                       hiddenFromMenu: false, outlineView: outlineView)
         case .note(let oid):
             guard let note = noteByID[oid] else { return nil }
             return makeNoteRowView(note: note, outlineView: outlineView)
@@ -368,28 +371,15 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     private static let groupHeaderID = NSUserInterfaceItemIdentifier("Perch.SidebarGroupHeader")
     private static let noteRowID = NSUserInterfaceItemIdentifier("Perch.SidebarNoteRow")
 
-    private func makeGroupHeaderView(text: String, outlineView: NSOutlineView) -> NSView {
-        let view: NSTableCellView
-        if let recycled = outlineView.makeView(withIdentifier: Self.groupHeaderID, owner: nil) as? NSTableCellView {
+    private func makeGroupHeaderView(text: String, hiddenFromMenu: Bool, outlineView: NSOutlineView) -> NSView {
+        let view: GroupHeaderCellView
+        if let recycled = outlineView.makeView(withIdentifier: Self.groupHeaderID, owner: nil) as? GroupHeaderCellView {
             view = recycled
         } else {
-            view = NSTableCellView()
+            view = GroupHeaderCellView()
             view.identifier = Self.groupHeaderID
-            let label = NSTextField(labelWithString: "")
-            label.translatesAutoresizingMaskIntoConstraints = false
-            label.isEditable = false
-            label.isBordered = false
-            label.drawsBackground = false
-            label.lineBreakMode = .byTruncatingTail
-            view.addSubview(label)
-            view.textField = label
-            NSLayoutConstraint.activate([
-                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
-                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-                label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            ])
         }
-        view.textField?.stringValue = text
+        view.configure(text: text, hiddenFromMenu: hiddenFromMenu)
         return view
     }
 
@@ -503,6 +493,57 @@ final class SidebarOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         case .ungroupedHeader:
             return nil
         }
+    }
+}
+
+// MARK: - Custom group header view
+
+/// 分组头行的 cell。已在托盘菜单里隐藏的分组(见 `MenuHiddenGroups` / #1)会在
+/// 行尾显示一个 eye.slash 图标、并把名字淡化,一眼看出「这个分组的笔记在菜单栏里
+/// 被藏了」。未分组头恒不隐藏。两态尾部约束模式抄自 `NoteRowCellView`。
+final class GroupHeaderCellView: NSTableCellView {
+    private let label = NSTextField(labelWithString: "")
+    private let hiddenIcon = NSImageView()
+
+    private lazy var labelTrailingToIcon =
+        label.trailingAnchor.constraint(lessThanOrEqualTo: hiddenIcon.leadingAnchor, constant: -4)
+    private lazy var labelTrailingToEdge =
+        label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8)
+
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); setup() }
+    required init?(coder: NSCoder) { super.init(coder: coder); setup() }
+
+    private func setup() {
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.isEditable = false
+        label.isBordered = false
+        label.drawsBackground = false
+        label.lineBreakMode = .byTruncatingTail
+        addSubview(label)
+        textField = label
+
+        hiddenIcon.translatesAutoresizingMaskIntoConstraints = false
+        hiddenIcon.image = NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)
+        hiddenIcon.contentTintColor = .tertiaryLabelColor
+        hiddenIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular)
+        hiddenIcon.toolTip = L.t(.managerHideGroupFromMenu)
+        addSubview(hiddenIcon)
+
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 0),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            hiddenIcon.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            hiddenIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        labelTrailingToEdge.isActive = true
+    }
+
+    func configure(text: String, hiddenFromMenu: Bool) {
+        label.stringValue = text
+        label.textColor = hiddenFromMenu ? .secondaryLabelColor : .labelColor
+        hiddenIcon.isHidden = !hiddenFromMenu
+        labelTrailingToEdge.isActive = !hiddenFromMenu
+        labelTrailingToIcon.isActive = hiddenFromMenu
     }
 }
 

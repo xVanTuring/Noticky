@@ -50,6 +50,10 @@ struct ManagerView: View {
     /// 再写库 —— 不再插一条占位 "New Group" 等用户进 sidebar 右键改名。
     @State private var creatingGroup: Bool = false
     @State private var newGroupName: String = ""
+    /// 切换分组「在菜单栏显示/隐藏」(#1)后 +1,逼 body 重算 → SidebarOutlineView
+    /// 的 updateNSViewController 跑一次 reloadData,让分组行的 eye.slash 标记即时刷新。
+    /// (MenuHiddenGroups 存在 UserDefaults,不是 @Published,不会自己触发重绘。)
+    @State private var menuVisibilityToken = 0
     @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
@@ -611,6 +615,7 @@ struct ManagerView: View {
             title: hiddenFromMenu ? L.t(.managerShowGroupInMenu) : L.t(.managerHideGroupFromMenu)
         ) {
             MenuHiddenGroups.toggle(group.id)
+            menuVisibilityToken &+= 1
         })
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: L.t(.managerDeleteGroup)) {
@@ -631,6 +636,7 @@ struct ManagerView: View {
         Button(MenuHiddenGroups.isHidden(group.id)
                ? L.t(.managerShowGroupInMenu) : L.t(.managerHideGroupFromMenu)) {
             MenuHiddenGroups.toggle(group.id)
+            menuVisibilityToken &+= 1
         }
         Divider()
         Button(L.t(.managerDeleteGroup), role: .destructive) {
